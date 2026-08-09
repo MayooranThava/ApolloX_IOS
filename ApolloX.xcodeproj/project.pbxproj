@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		C15432A728BABB04000611A5 /* laserSound.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = C15432A628BABB04000611A5 /* laserSound.mp3 */; };
+		C15432A728BABB04000611A5 /* laserSound.wav in Resources */ = {isa = PBXBuildFile; fileRef = C15432A628BABB04000611A5 /* laserSound.wav */; };
 		C15432AB28C5C2AE000611A5 /* explosionShort.wav in Resources */ = {isa = PBXBuildFile; fileRef = C15432AA28C5C2AE000611A5 /* explosionShort.wav */; };
 		C15432AD28C5C48F000611A5 /* THEBOLDFONT.ttf in Resources */ = {isa = PBXBuildFile; fileRef = C15432AC28C5C48F000611A5 /* THEBOLDFONT.ttf */; };
 		C15432B028C645C5000611A5 /* GameOverScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = C15432AF28C645C5000611A5 /* GameOverScene.swift */; };
@@ -30,10 +30,16 @@
 		C1B1000D208A000100BD3501 /* TextureCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B1000C208A000100BD3501 /* TextureCache.swift */; };
 		C1B1000F208A000100BD3501 /* NodePool.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B1000E208A000100BD3501 /* NodePool.swift */; };
 		C1B10011208A000100BD3501 /* UIComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B10010208A000100BD3501 /* UIComponents.swift */; };
+		C1B10013208A000100BD3501 /* AudioManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B10012208A000100BD3501 /* AudioManager.swift */; };
+		C1B10015208A000100BD3501 /* starCollect.wav in Resources */ = {isa = PBXBuildFile; fileRef = C1B10014208A000100BD3501 /* starCollect.wav */; };
+		C1B10017208A000100BD3501 /* boostActivate.wav in Resources */ = {isa = PBXBuildFile; fileRef = C1B10016208A000100BD3501 /* boostActivate.wav */; };
+		C1B10019208A000100BD3501 /* lifeLost.wav in Resources */ = {isa = PBXBuildFile; fileRef = C1B10018208A000100BD3501 /* lifeLost.wav */; };
+		C1B1001B208A000100BD3501 /* minePulse.wav in Resources */ = {isa = PBXBuildFile; fileRef = C1B1001A208A000100BD3501 /* minePulse.wav */; };
+		C1B1001D208A000100BD3501 /* uiTap.wav in Resources */ = {isa = PBXBuildFile; fileRef = C1B1001C208A000100BD3501 /* uiTap.wav */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		C15432A628BABB04000611A5 /* laserSound.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = laserSound.mp3; sourceTree = "<group>"; };
+		C15432A628BABB04000611A5 /* laserSound.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = laserSound.wav; sourceTree = "<group>"; };
 		C15432AA28C5C2AE000611A5 /* explosionShort.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = explosionShort.wav; sourceTree = "<group>"; };
 		C15432AC28C5C48F000611A5 /* THEBOLDFONT.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = THEBOLDFONT.ttf; sourceTree = "<group>"; };
 		C15432AE28C5C75A000611A5 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -58,6 +64,13 @@
 		C1B1000C208A000100BD3501 /* TextureCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextureCache.swift; sourceTree = "<group>"; };
 		C1B1000E208A000100BD3501 /* NodePool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NodePool.swift; sourceTree = "<group>"; };
 		C1B10010208A000100BD3501 /* UIComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIComponents.swift; sourceTree = "<group>"; };
+
+		C1B10012208A000100BD3501 /* AudioManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioManager.swift; sourceTree = "<group>"; };
+		C1B10014208A000100BD3501 /* starCollect.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = starCollect.wav; sourceTree = "<group>"; };
+		C1B10016208A000100BD3501 /* boostActivate.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = boostActivate.wav; sourceTree = "<group>"; };
+		C1B10018208A000100BD3501 /* lifeLost.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = lifeLost.wav; sourceTree = "<group>"; };
+		C1B1001A208A000100BD3501 /* minePulse.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = minePulse.wav; sourceTree = "<group>"; };
+		C1B1001C208A000100BD3501 /* uiTap.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = uiTap.wav; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -96,12 +109,18 @@
 				C18A0A6D28B4334100B2965A /* GameScene.sks */,
 				C18A0A6F28B4334100B2965A /* Actions.sks */,
 				C15432B328C65A80000611A5 /* gameBGM.wav */,
-				C15432A628BABB04000611A5 /* laserSound.mp3 */,
+				C15432A628BABB04000611A5 /* laserSound.wav */,
 				C15432AA28C5C2AE000611A5 /* explosionShort.wav */,
+				C1B10014208A000100BD3501 /* starCollect.wav */,
+				C1B10016208A000100BD3501 /* boostActivate.wav */,
+				C1B10018208A000100BD3501 /* lifeLost.wav */,
+				C1B1001A208A000100BD3501 /* minePulse.wav */,
+				C1B1001C208A000100BD3501 /* uiTap.wav */,
 				C15432AC28C5C48F000611A5 /* THEBOLDFONT.ttf */,
 				C1B10000208A000100BD3501 /* GameConstants.swift */,
 				C1B10002208A000100BD3501 /* ScoreStore.swift */,
 				C1B10004208A000100BD3501 /* HapticManager.swift */,
+				C1B10012208A000100BD3501 /* AudioManager.swift */,
 				C1B10006208A000100BD3501 /* SceneHelpers.swift */,
 				C1B1000A208A000100BD3501 /* PlayfieldLayout.swift */,
 				C1B1000C208A000100BD3501 /* TextureCache.swift */,
@@ -176,7 +195,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				C15432A728BABB04000611A5 /* laserSound.mp3 in Resources */,
+				C15432A728BABB04000611A5 /* laserSound.wav in Resources */,
 				C15432AB28C5C2AE000611A5 /* explosionShort.wav in Resources */,
 				C18A0A7728B4334100B2965A /* Main.storyboard in Resources */,
 				C18A0A6E28B4334100B2965A /* GameScene.sks in Resources */,
@@ -185,6 +204,12 @@
 				C18A0A7C28B4334300B2965A /* LaunchScreen.storyboard in Resources */,
 				C18A0A7028B4334100B2965A /* Actions.sks in Resources */,
 				C15432B428C65A80000611A5 /* gameBGM.wav in Resources */,
+				C1B10015208A000100BD3501 /* starCollect.wav in Resources */,
+				C1B10017208A000100BD3501 /* boostActivate.wav in Resources */,
+				C1B10019208A000100BD3501 /* lifeLost.wav in Resources */,
+				C1B1001B208A000100BD3501 /* minePulse.wav in Resources */,
+				C1B1001D208A000100BD3501 /* uiTap.wav in Resources */,
+
 				C1B10009208A000100BD3501 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -204,6 +229,7 @@
 				C1B1000D208A000100BD3501 /* TextureCache.swift in Sources */,
 				C1B1000F208A000100BD3501 /* NodePool.swift in Sources */,
 				C1B10011208A000100BD3501 /* UIComponents.swift in Sources */,
+				C1B10013208A000100BD3501 /* AudioManager.swift in Sources */,
 				C1A7408229DA6EFC00A6F9AE /* GameTitle.swift in Sources */,
 				C18A0A7228B4334100B2965A /* GameScene.swift in Sources */,
 				C18A0A7428B4334100B2965A /* GameViewController.swift in Sources */,

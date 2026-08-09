@@ -36,9 +36,9 @@ final class GameTitleScene: SKScene {
 
         let instructions = [
             "Drag to steer your rocket",
-            "Auto-fire destroys threats for points",
-            "Shoot stars to charge a fire-rate boost",
-            "Last as long as you can"
+            "Blast asteroids, drones, and comets",
+            "Mines take two hits — stay clear",
+            "Shoot stars to charge a fire boost"
         ]
         for line in instructions {
             let label = makeGameLabel(text: line, fontSize: 32, color: SKColor(white: 0.78, alpha: 1))
@@ -97,6 +97,7 @@ final class GameTitleScene: SKScene {
         let point = touch.location(in: self)
         if playButton.containsTouch(point) {
             playButton.pulse()
+            AudioManager.play(AudioManager.uiTap, on: self)
             HapticManager.fire()
             presentScene(GameScene(size: size))
         }

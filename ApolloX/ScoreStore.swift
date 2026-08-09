@@ -19,8 +19,8 @@ enum ScoreStore {
     }
 
     @discardableResult
-    static func addPoint() -> Int {
-        currentScore += 1
+    static func addPoint(_ amount: Int = 1) -> Int {
+        currentScore += amount
         return currentScore
     }
 
