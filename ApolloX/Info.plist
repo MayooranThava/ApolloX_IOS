@@ -6,5 +6,7 @@
 	<array>
 		<string>THEBOLDFONT.ttf</string>
 	</array>
+	<key>UIViewControllerBasedStatusBarAppearance</key>
+	<true/>
 </dict>
 </plist>

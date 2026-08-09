@@ -2,53 +2,52 @@
 //  GameViewController.swift
 //  ApolloX
 //
-//  Created by Mayooran Thavajogarasa on 2022-08-22.
-//
 
 import UIKit
 import SpriteKit
-import GameplayKit
 import AVFoundation
 
-class GameViewController: UIViewController {
-    
+final class GameViewController: UIViewController {
+
     override func viewDidLoad() {
         super.viewDidLoad()
-        
-        
-        if let view = self.view as! SKView? {
-            // Load the SKScene from 'GameScene.sks'
-            let scene = GameTitleScene(size: CGSize(width: 1536, height: 2532))
-                // Set the scale mode to scale to fit the window
-                scene.scaleMode = .aspectFill
-                
-                // Present the scene
-                view.presentScene(scene)
-            
-            
-            view.ignoresSiblingOrder = true
-            
-            view.showsFPS = true
-            view.showsNodeCount = true
-            
-        }
-    }
-    
-   
+        configureAudioSession()
 
-    override var shouldAutorotate: Bool {
-        return true
+        guard let skView = view as? SKView else { return }
+
+        let scene = GameTitleScene(size: GameConstants.sceneSize)
+        scene.scaleMode = .aspectFill
+        skView.presentScene(scene)
+
+        skView.ignoresSiblingOrder = true
+        skView.preferredFramesPerSecond = 120
+        skView.isMultipleTouchEnabled = false
+
+        #if DEBUG
+        skView.showsFPS = true
+        skView.showsNodeCount = true
+        #else
+        skView.showsFPS = false
+        skView.showsNodeCount = false
+        #endif
     }
 
-    override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
-        if UIDevice.current.userInterfaceIdiom == .phone {
-            return .allButUpsideDown
-        } else {
-            return .all
+    private func configureAudioSession() {
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.ambient, mode: .default, options: [.mixWithOthers])
+            try AVAudioSession.sharedInstance().setActive(true)
+        } catch {
+            // Audio is optional; keep gameplay running if the session fails.
         }
     }
 
-    override var prefersStatusBarHidden: Bool {
-        return true
-    }
+    override var shouldAutorotate: Bool { false }
+
+    override var supportedInterfaceOrientations: UIInterfaceOrientationMask { .portrait }
+
+    override var prefersStatusBarHidden: Bool { true }
+
+    override var prefersHomeIndicatorAutoHidden: Bool { true }
+
+    override var preferredScreenEdgesDeferringSystemGestures: UIRectEdge { .all }
 }
