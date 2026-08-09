@@ -8,80 +8,95 @@ import UIKit
 
 final class GameTitleScene: SKScene {
 
-    private let playLabel = SKLabelNode()
-    private var playButtonFrame = CGRect.zero
+    private var playButton: MenuButtonNode?
+    private let titleLabel = SKLabelNode()
+    private let subtitleLabel = SKLabelNode()
+    private let bestLabel = SKLabelNode()
+    private var instructionLabels: [SKLabelNode] = []
 
     override func didMove(to view: SKView) {
         HapticManager.prepare()
-        addScrollingBackground()
+        addProductionBackground()
 
-        let insets = safeAreaInsetsInScene
+        titleLabel.fontName = GameFont.resolved(size: 120)
+        titleLabel.text = "ApolloX"
+        titleLabel.fontSize = 120
+        titleLabel.fontColor = .white
+        titleLabel.verticalAlignmentMode = .center
+        titleLabel.zPosition = GameConstants.Z.hud
+        addChild(titleLabel)
 
-        let title = makeGameLabel(text: "ApolloX", fontSize: 160)
-        title.position = CGPoint(x: size.width * 0.5, y: size.height * 0.72)
-        addChild(title)
-
-        let subtitle = makeGameLabel(
-            text: "Dodge • Shoot • Survive",
-            fontSize: 44,
-            color: SKColor(white: 0.9, alpha: 1)
-        )
-        subtitle.position = CGPoint(x: size.width * 0.5, y: size.height * 0.64)
-        addChild(subtitle)
+        subtitleLabel.fontName = GameFont.resolved(size: 36)
+        subtitleLabel.text = "Dodge  •  Shoot  •  Survive"
+        subtitleLabel.fontSize = 36
+        subtitleLabel.fontColor = GameTheme.secondary
+        subtitleLabel.verticalAlignmentMode = .center
+        subtitleLabel.zPosition = GameConstants.Z.hud
+        addChild(subtitleLabel)
 
         let instructions = [
             "Drag to steer your rocket",
-            "Auto-fire destroys asteroids for points",
+            "Auto-fire destroys threats for points",
             "Shoot stars to charge a fire-rate boost",
             "Last as long as you can"
         ]
-
-        var lineY = size.height * 0.52
         for line in instructions {
-            let label = makeGameLabel(text: line, fontSize: 36, color: SKColor(white: 0.85, alpha: 1))
-            label.position = CGPoint(x: size.width * 0.5, y: lineY)
+            let label = makeGameLabel(text: line, fontSize: 32, color: SKColor(white: 0.78, alpha: 1))
+            instructionLabels.append(label)
             addChild(label)
-            lineY -= 56
         }
 
-        let highScore = makeGameLabel(
-            text: "Best: \(ScoreStore.highScore)",
-            fontSize: 48,
-            color: SKColor(red: 1, green: 0.85, blue: 0.35, alpha: 1)
-        )
-        highScore.position = CGPoint(
-            x: size.width * 0.5,
-            y: max(insets.bottom, 40) + size.height * 0.28
-        )
-        addChild(highScore)
+        bestLabel.fontName = GameFont.resolved(size: 40)
+        bestLabel.text = "BEST  \(ScoreStore.highScore)"
+        bestLabel.fontSize = 40
+        bestLabel.fontColor = GameTheme.accent
+        bestLabel.verticalAlignmentMode = .center
+        bestLabel.zPosition = GameConstants.Z.hud
+        addChild(bestLabel)
 
-        playLabel.fontName = UIFont(name: GameConstants.fontName, size: 90) != nil
-            ? GameConstants.fontName
-            : GameConstants.fallbackFontName
-        playLabel.text = "Play"
-        playLabel.fontSize = 90
-        playLabel.fontColor = .white
-        playLabel.verticalAlignmentMode = .center
-        playLabel.zPosition = GameConstants.Z.hud
-        playLabel.position = CGPoint(
-            x: size.width * 0.5,
-            y: max(insets.bottom, 40) + size.height * 0.14
-        )
-        addChild(playLabel)
+        let button = MenuButtonNode(title: "Play", width: 420, height: 110, fontSize: 56, emphasized: true)
+        playButton = button
+        addChild(button)
 
-        playButtonFrame = playLabel.frame.insetBy(dx: -80, dy: -40)
+        titleLabel.alpha = 0
+        subtitleLabel.alpha = 0
+        bestLabel.alpha = 0
+        button.alpha = 0
+        titleLabel.run(.fadeIn(withDuration: 0.45))
+        subtitleLabel.run(.sequence([.wait(forDuration: 0.08), .fadeIn(withDuration: 0.4)]))
+        bestLabel.run(.sequence([.wait(forDuration: 0.16), .fadeIn(withDuration: 0.4)]))
+        button.run(.sequence([.wait(forDuration: 0.22), .fadeIn(withDuration: 0.4)]))
 
-        playLabel.run(.repeatForever(.sequence([
-            .fadeAlpha(to: 0.55, duration: 0.7),
-            .fadeAlpha(to: 1.0, duration: 0.7)
-        ])))
+        whenSafeAreaReady { [weak self] in
+            self?.relayout()
+        }
+    }
+
+    private func relayout() {
+        let safe = playfield.safeRect
+
+        titleLabel.position = CGPoint(x: safe.midX, y: safe.maxY - 130)
+        subtitleLabel.position = CGPoint(x: safe.midX, y: titleLabel.position.y - 90)
+
+        var lineY = safe.midY + 90
+        for label in instructionLabels {
+            label.position = CGPoint(x: safe.midX, y: lineY)
+            lineY -= 52
+        }
+
+        bestLabel.position = CGPoint(x: safe.midX, y: safe.minY + 260)
+        playButton?.position = CGPoint(x: safe.midX, y: safe.minY + 130)
+    }
+
+    override func didChangeSize(_ oldSize: CGSize) {
+        relayout()
     }
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard let touch = touches.first else { return }
+        guard let touch = touches.first, let playButton else { return }
         let point = touch.location(in: self)
-
-        if playButtonFrame.contains(point) || playLabel.contains(point) {
+        if playButton.containsTouch(point) {
+            playButton.pulse()
             HapticManager.fire()
             presentScene(GameScene(size: size))
         }

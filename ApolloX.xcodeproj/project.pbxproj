@@ -26,6 +26,10 @@
 		C1B10005208A000100BD3501 /* HapticManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B10004208A000100BD3501 /* HapticManager.swift */; };
 		C1B10007208A000100BD3501 /* SceneHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B10006208A000100BD3501 /* SceneHelpers.swift */; };
 		C1B10009208A000100BD3501 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = C1B10008208A000100BD3501 /* PrivacyInfo.xcprivacy */; };
+		C1B1000B208A000100BD3501 /* PlayfieldLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B1000A208A000100BD3501 /* PlayfieldLayout.swift */; };
+		C1B1000D208A000100BD3501 /* TextureCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B1000C208A000100BD3501 /* TextureCache.swift */; };
+		C1B1000F208A000100BD3501 /* NodePool.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B1000E208A000100BD3501 /* NodePool.swift */; };
+		C1B10011208A000100BD3501 /* UIComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B10010208A000100BD3501 /* UIComponents.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -50,6 +54,10 @@
 		C1B10004208A000100BD3501 /* HapticManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticManager.swift; sourceTree = "<group>"; };
 		C1B10006208A000100BD3501 /* SceneHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneHelpers.swift; sourceTree = "<group>"; };
 		C1B10008208A000100BD3501 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		C1B1000A208A000100BD3501 /* PlayfieldLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayfieldLayout.swift; sourceTree = "<group>"; };
+		C1B1000C208A000100BD3501 /* TextureCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextureCache.swift; sourceTree = "<group>"; };
+		C1B1000E208A000100BD3501 /* NodePool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NodePool.swift; sourceTree = "<group>"; };
+		C1B10010208A000100BD3501 /* UIComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIComponents.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -95,6 +103,10 @@
 				C1B10002208A000100BD3501 /* ScoreStore.swift */,
 				C1B10004208A000100BD3501 /* HapticManager.swift */,
 				C1B10006208A000100BD3501 /* SceneHelpers.swift */,
+				C1B1000A208A000100BD3501 /* PlayfieldLayout.swift */,
+				C1B1000C208A000100BD3501 /* TextureCache.swift */,
+				C1B1000E208A000100BD3501 /* NodePool.swift */,
+				C1B10010208A000100BD3501 /* UIComponents.swift */,
 				C18A0A7128B4334100B2965A /* GameScene.swift */,
 				C1A7408129DA6EFC00A6F9AE /* GameTitle.swift */,
 				C15432AF28C645C5000611A5 /* GameOverScene.swift */,
@@ -188,6 +200,10 @@
 				C1B10003208A000100BD3501 /* ScoreStore.swift in Sources */,
 				C1B10005208A000100BD3501 /* HapticManager.swift in Sources */,
 				C1B10007208A000100BD3501 /* SceneHelpers.swift in Sources */,
+				C1B1000B208A000100BD3501 /* PlayfieldLayout.swift in Sources */,
+				C1B1000D208A000100BD3501 /* TextureCache.swift in Sources */,
+				C1B1000F208A000100BD3501 /* NodePool.swift in Sources */,
+				C1B10011208A000100BD3501 /* UIComponents.swift in Sources */,
 				C1A7408229DA6EFC00A6F9AE /* GameTitle.swift in Sources */,
 				C18A0A7228B4334100B2965A /* GameScene.swift in Sources */,
 				C18A0A7428B4334100B2965A /* GameViewController.swift in Sources */,
