@@ -13,10 +13,9 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         case gameOver
     }
 
-    private let scoreLabel = SKLabelNode()
-    private let livesLabel = SKLabelNode()
-    private let powerLabel = SKLabelNode()
-    private let player = SKSpriteNode(imageNamed: "playerShip")
+    private let hud = HUDBarNode()
+    private let player = SKSpriteNode(texture: TextureCache.texture("playerShip"))
+    private var engineEmitter: SKEmitterNode?
 
     private var lives = GameConstants.startingLives
     private var level = 0
@@ -25,15 +24,24 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private var fireDelay = GameConstants.baseFireDelay
     private var bulletImageName = GameConstants.bulletImage
     private var currentState: State = .playing
-    private var gameArea = CGRect.zero
+    private var playArea = CGRect.zero
     private var isPausedBySystem = false
 
     private let laserSound = SKAction.playSoundFileNamed("laserSound.mp3", waitForCompletion: false)
     private let explosionSound = SKAction.playSoundFileNamed("explosionShort.wav", waitForCompletion: false)
 
+    private lazy var bulletPool = NodePool(prewarm: 16) {
+        SKSpriteNode(texture: TextureCache.texture(GameConstants.bulletImage))
+    }
+    private lazy var enemyPool = NodePool(prewarm: 8) {
+        SKSpriteNode(texture: TextureCache.texture("enemyShip"))
+    }
+    private lazy var explosionPool = NodePool(prewarm: 8) {
+        SKSpriteNode(texture: TextureCache.texture("explosion"))
+    }
+
     override init(size: CGSize) {
         super.init(size: size)
-        recalculateGameArea()
     }
 
     required init?(coder aDecoder: NSCoder) {
@@ -49,67 +57,45 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         HapticManager.prepare()
         physicsWorld.contactDelegate = self
         physicsWorld.gravity = .zero
+        // Contact-only gameplay; skip expensive continuous collision resolution.
+        physicsWorld.speed = 1
 
-        addScrollingBackground()
-        configureHUD()
+        addProductionBackground()
+        addChild(hud)
         configurePlayer()
+        relayoutForSafeArea()
+        whenSafeAreaReady { [weak self] in
+            self?.relayoutForSafeArea()
+        }
+
         beginLevel()
         startSpawning()
         registerLifecycleObservers()
+        updateHUD()
     }
 
     override func didChangeSize(_ oldSize: CGSize) {
-        recalculateGameArea()
+        relayoutForSafeArea()
     }
 
-    // MARK: - Setup
+    // MARK: - Layout
 
-    private func recalculateGameArea() {
-        // Side margins keep the ship fully visible under aspectFill on modern Pro displays.
-        let margin = size.width * 0.05
-        gameArea = CGRect(x: margin, y: 0, width: size.width - margin * 2, height: size.height)
-    }
+    private func relayoutForSafeArea() {
+        let layout = playfield
+        playArea = layout.safeRect
+        hud.layout(in: layout.safeRect)
 
-    private func configureHUD() {
-        let insets = safeAreaInsetsInScene
-        let topY = size.height - max(insets.top, 40) - 70
-
-        configure(label: scoreLabel, text: "Score: 0", size: 64, alignment: .left)
-        scoreLabel.position = CGPoint(x: gameArea.minX + 36, y: topY)
-
-        configure(label: livesLabel, text: "Lives: \(lives)", size: 64, alignment: .right)
-        livesLabel.position = CGPoint(x: gameArea.maxX - 36, y: topY)
-
-        configure(label: powerLabel, text: "Fire: Normal", size: 42, alignment: .center)
-        powerLabel.fontColor = SKColor(red: 1, green: 0.85, blue: 0.35, alpha: 1)
-        powerLabel.position = CGPoint(x: size.width / 2, y: topY - 70)
-
-        addChild(scoreLabel)
-        addChild(livesLabel)
-        addChild(powerLabel)
-    }
-
-    private func configure(label: SKLabelNode, text: String, size fontSize: CGFloat, alignment: SKLabelHorizontalAlignmentMode) {
-        label.fontName = UIFont(name: GameConstants.fontName, size: fontSize) != nil
-            ? GameConstants.fontName
-            : GameConstants.fallbackFontName
-        label.text = text
-        label.fontSize = fontSize
-        label.fontColor = .white
-        label.horizontalAlignmentMode = alignment
-        label.verticalAlignmentMode = .center
-        label.zPosition = GameConstants.Z.hud
+        if player.parent != nil {
+            player.position.x = min(max(player.position.x, playArea.minX + player.size.width * 0.4),
+                                    playArea.maxX - player.size.width * 0.4)
+            player.position.y = playArea.minY + player.size.height * 0.75 + 20
+        }
     }
 
     private func configurePlayer() {
-        let insets = safeAreaInsetsInScene
-        player.setScale(1)
-        player.position = CGPoint(
-            x: size.width / 2,
-            y: max(insets.bottom, 24) + player.size.height * 0.9 + size.height * 0.08
-        )
+        player.setScale(0.92)
         player.zPosition = GameConstants.Z.player
-        player.physicsBody = SKPhysicsBody(circleOfRadius: min(player.size.width, player.size.height) * 0.35)
+        player.physicsBody = SKPhysicsBody(circleOfRadius: min(player.size.width, player.size.height) * 0.32)
         player.physicsBody?.isDynamic = true
         player.physicsBody?.affectedByGravity = false
         player.physicsBody?.allowsRotation = false
@@ -117,6 +103,23 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         player.physicsBody?.collisionBitMask = GameConstants.PhysicsCategory.none
         player.physicsBody?.contactTestBitMask = GameConstants.PhysicsCategory.enemy
         addChild(player)
+
+        let engine = makeEngineEmitter()
+        engine.position = CGPoint(x: 0, y: -player.size.height * 0.42)
+        player.addChild(engine)
+        engineEmitter = engine
+    }
+
+    private func updateHUD() {
+        hud.setScore(ScoreStore.currentScore)
+        hud.setLives(lives)
+        if poweredShotsRemaining > 0 {
+            hud.setStatus("Fire: Boost")
+        } else if starCharge > 0 {
+            hud.setStatus("Stars: \(starCharge)/\(GameConstants.starsNeededForUpgrade)")
+        } else {
+            hud.setStatus("Fire: Normal")
+        }
     }
 
     private func registerLifecycleObservers() {
@@ -165,43 +168,36 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         let spawnEnemyAction = SKAction.run { [weak self] in self?.spawnEnemy() }
         let spawnPowerAction = SKAction.run { [weak self] in self?.spawnPowerUp() }
 
-        let enemySequence = SKAction.sequence([
+        run(.repeatForever(.sequence([
             .wait(forDuration: currentSpawnInterval()),
             spawnEnemyAction
-        ])
-        let powerSequence = SKAction.sequence([
+        ])), withKey: "spawningEnemies")
+
+        run(.repeatForever(.sequence([
             .wait(forDuration: GameConstants.powerUpSpawnInterval),
             spawnPowerAction
-        ])
-
-        run(.repeatForever(enemySequence), withKey: "spawningEnemies")
-        run(.repeatForever(powerSequence), withKey: "spawningPowerUp")
+        ])), withKey: "spawningPowerUp")
     }
 
     private func restartFiring() {
         removeAction(forKey: "fireBullets")
-        let fireAction = SKAction.run { [weak self] in self?.fireBullet() }
-        let fireSequence = SKAction.sequence([
+        run(.repeatForever(.sequence([
             .wait(forDuration: fireDelay),
-            fireAction
-        ])
-        run(.repeatForever(fireSequence), withKey: "fireBullets")
+            .run { [weak self] in self?.fireBullet() }
+        ])), withKey: "fireBullets")
     }
 
     private func refreshFireRate() {
         restartFiring()
-        let speedText = poweredShotsRemaining > 0 ? "Fire: BOOST" : "Fire: Normal"
-        powerLabel.text = speedText
-        powerLabel.run(.sequence([
-            .scale(to: 1.25, duration: 0.12),
-            .scale(to: 1.0, duration: 0.12)
-        ]))
+        updateHUD()
+        hud.pulseStatus()
     }
 
     private func addScore() {
-        let score = ScoreStore.addPoint()
-        scoreLabel.text = "Score: \(score)"
+        _ = ScoreStore.addPoint()
+        hud.setScore(ScoreStore.currentScore)
 
+        let score = ScoreStore.currentScore
         if score == 10 || score == 25 || score == 50 || score == 80 {
             beginLevel()
             startSpawning()
@@ -212,11 +208,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         guard currentState == .playing else { return }
 
         lives -= 1
-        livesLabel.text = "Lives: \(lives)"
-        livesLabel.run(.sequence([
-            .scale(to: 1.35, duration: 0.12),
-            .scale(to: 1.0, duration: 0.12)
-        ]))
+        hud.setLives(lives)
+        hud.pulseLives()
         HapticManager.lifeLost()
 
         if lives <= 0 {
@@ -228,6 +221,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         guard currentState == .playing else { return }
         currentState = .gameOver
         HapticManager.gameOver()
+        engineEmitter?.particleBirthRate = 0
 
         removeAllActions()
         enumerateChildNodes(withName: GameConstants.NodeName.bullet) { node, _ in
@@ -243,7 +237,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         ScoreStore.commitHighScoreIfNeeded()
 
         run(.sequence([
-            .wait(forDuration: 0.9),
+            .wait(forDuration: 0.85),
             .run { [weak self] in
                 guard let self else { return }
                 self.presentScene(GameOverScene(size: self.size))
@@ -265,11 +259,14 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             }
         }
 
-        let bullet = SKSpriteNode(imageNamed: bulletImageName)
+        let bullet = bulletPool.checkout()
+        bullet.texture = TextureCache.texture(bulletImageName)
+        bullet.size = bullet.texture?.size() ?? CGSize(width: 20, height: 40)
         bullet.name = GameConstants.NodeName.bullet
-        bullet.position = CGPoint(x: player.position.x, y: player.position.y + player.size.height * 0.35)
+        bullet.position = CGPoint(x: player.position.x, y: player.position.y + player.size.height * 0.34)
         bullet.zPosition = GameConstants.Z.bullet
-        bullet.physicsBody = SKPhysicsBody(rectangleOf: bullet.size)
+        bullet.physicsBody = SKPhysicsBody(circleOfRadius: max(6, bullet.size.width * 0.35))
+        bullet.physicsBody?.isDynamic = true
         bullet.physicsBody?.affectedByGravity = false
         bullet.physicsBody?.categoryBitMask = GameConstants.PhysicsCategory.bullet
         bullet.physicsBody?.collisionBitMask = GameConstants.PhysicsCategory.none
@@ -277,33 +274,43 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             GameConstants.PhysicsCategory.enemy | GameConstants.PhysicsCategory.powerUp
         addChild(bullet)
 
+        // Sound only — per-shot haptics are expensive and muddy on ProMotion devices.
         run(laserSound)
-        HapticManager.fire()
 
-        let move = SKAction.moveTo(y: size.height + bullet.size.height, duration: 0.85)
-        bullet.run(.sequence([move, .removeFromParent()]))
+        let distance = size.height - bullet.position.y + 80
+        let duration = TimeInterval(distance / 1600)
+        bullet.run(.sequence([
+            .moveTo(y: size.height + 80, duration: duration),
+            .run { [weak self, weak bullet] in
+                guard let self, let bullet else { return }
+                self.bulletPool.recycle(bullet)
+            }
+        ]))
     }
 
     private func spawnPowerUp() {
-        guard currentState == .playing else { return }
+        guard currentState == .playing, playArea.width > 80 else { return }
 
-        let startX = CGFloat.random(in: gameArea.minX + 40...gameArea.maxX - 40)
-        let endX = CGFloat.random(in: gameArea.minX + 40...gameArea.maxX - 40)
-        let start = CGPoint(x: startX, y: size.height * 1.15)
-        let end = CGPoint(x: endX, y: -size.height * 0.1)
+        let inset: CGFloat = 50
+        let startX = CGFloat.random(in: playArea.minX + inset...playArea.maxX - inset)
+        let endX = CGFloat.random(in: playArea.minX + inset...playArea.maxX - inset)
+        let start = CGPoint(x: startX, y: playArea.maxY + 80)
+        let end = CGPoint(x: endX, y: playArea.minY - 80)
 
-        let powerUp = SKSpriteNode(imageNamed: GameConstants.starImage)
+        let powerUp = SKSpriteNode(texture: TextureCache.texture(GameConstants.starImage))
         powerUp.name = GameConstants.NodeName.powerUp
-        powerUp.setScale(0.14)
+        powerUp.setScale(0.13)
         powerUp.position = start
         powerUp.zPosition = GameConstants.Z.powerUp
-        powerUp.physicsBody = SKPhysicsBody(circleOfRadius: powerUp.size.width * 0.35)
+        powerUp.physicsBody = SKPhysicsBody(circleOfRadius: powerUp.size.width * 0.34)
+        powerUp.physicsBody?.isDynamic = true
         powerUp.physicsBody?.affectedByGravity = false
         powerUp.physicsBody?.categoryBitMask = GameConstants.PhysicsCategory.powerUp
         powerUp.physicsBody?.collisionBitMask = GameConstants.PhysicsCategory.none
         powerUp.physicsBody?.contactTestBitMask = GameConstants.PhysicsCategory.bullet
         addChild(powerUp)
 
+        powerUp.run(.repeatForever(.rotate(byAngle: .pi, duration: 2.4)))
         powerUp.run(.sequence([
             .move(to: end, duration: GameConstants.powerUpTravelDuration),
             .removeFromParent()
@@ -311,19 +318,22 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     private func spawnEnemy() {
-        guard currentState == .playing else { return }
+        guard currentState == .playing, playArea.width > 80 else { return }
 
-        let inset: CGFloat = 60
-        let startX = CGFloat.random(in: gameArea.minX + inset...gameArea.maxX - inset)
-        let endX = CGFloat.random(in: gameArea.minX + inset...gameArea.maxX - inset)
-        let start = CGPoint(x: startX, y: size.height * 1.15)
-        let end = CGPoint(x: endX, y: -size.height * 0.15)
+        let inset: CGFloat = 56
+        let startX = CGFloat.random(in: playArea.minX + inset...playArea.maxX - inset)
+        let endX = CGFloat.random(in: playArea.minX + inset...playArea.maxX - inset)
+        let start = CGPoint(x: startX, y: playArea.maxY + 90)
+        let end = CGPoint(x: endX, y: playArea.minY - 100)
 
-        let enemy = SKSpriteNode(imageNamed: "enemyShip")
+        let enemy = enemyPool.checkout()
+        enemy.texture = TextureCache.texture("enemyShip")
+        enemy.size = enemy.texture?.size() ?? CGSize(width: 100, height: 100)
         enemy.name = GameConstants.NodeName.enemy
         enemy.position = start
         enemy.zPosition = GameConstants.Z.enemy
-        enemy.physicsBody = SKPhysicsBody(circleOfRadius: min(enemy.size.width, enemy.size.height) * 0.38)
+        enemy.physicsBody = SKPhysicsBody(circleOfRadius: min(enemy.size.width, enemy.size.height) * 0.34)
+        enemy.physicsBody?.isDynamic = true
         enemy.physicsBody?.affectedByGravity = false
         enemy.physicsBody?.categoryBitMask = GameConstants.PhysicsCategory.enemy
         enemy.physicsBody?.collisionBitMask = GameConstants.PhysicsCategory.none
@@ -335,33 +345,45 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         let dy = end.y - start.y
         enemy.zRotation = atan2(dy, dx)
 
-        let move = SKAction.move(to: end, duration: GameConstants.enemyTravelDuration)
-        let escape = SKAction.run { [weak self] in self?.lostALife() }
-        enemy.run(.sequence([move, escape, .removeFromParent()]))
+        enemy.run(.sequence([
+            .move(to: end, duration: GameConstants.enemyTravelDuration),
+            .run { [weak self] in self?.lostALife() },
+            .run { [weak self, weak enemy] in
+                guard let self, let enemy else { return }
+                self.enemyPool.recycle(enemy)
+            }
+        ]))
     }
 
     private func spawnExplosion(at position: CGPoint, image: String, scale: CGFloat = 1) {
-        let explosion = SKSpriteNode(imageNamed: image)
+        let explosion = explosionPool.checkout()
+        explosion.texture = TextureCache.texture(image)
+        explosion.size = explosion.texture?.size() ?? CGSize(width: 120, height: 120)
         explosion.position = position
         explosion.zPosition = GameConstants.Z.effect
         explosion.setScale(0)
+        explosion.alpha = 1
         addChild(explosion)
         run(explosionSound)
 
         explosion.run(.sequence([
             .group([
-                .scale(to: scale, duration: 0.18),
-                .fadeOut(withDuration: 0.28)
+                .scale(to: scale, duration: 0.16),
+                .fadeOut(withDuration: 0.26)
             ]),
-            .removeFromParent()
+            .run { [weak self, weak explosion] in
+                guard let self, let explosion else { return }
+                self.explosionPool.recycle(explosion)
+            }
         ]))
     }
 
     private func collectStar(at position: CGPoint) {
         starCharge += 1
         HapticManager.starHit()
-        spawnExplosion(at: position, image: "mini_explosion", scale: 0.8)
-        powerLabel.text = "Stars: \(starCharge)/\(GameConstants.starsNeededForUpgrade)"
+        spawnExplosion(at: position, image: "mini_explosion", scale: 0.75)
+        updateHUD()
+        hud.pulseStatus()
 
         if starCharge >= GameConstants.starsNeededForUpgrade {
             starCharge = 0
@@ -388,10 +410,14 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             let playerNode = maskA == GameConstants.PhysicsCategory.player ? bodyA.node : bodyB.node
             let enemyNode = maskA == GameConstants.PhysicsCategory.enemy ? bodyA.node : bodyB.node
             if let position = playerNode?.position {
-                spawnExplosion(at: position, image: "explosion", scale: 1.2)
+                spawnExplosion(at: position, image: "explosion", scale: 1.15)
             }
             playerNode?.removeFromParent()
-            enemyNode?.removeFromParent()
+            if let enemy = enemyNode as? SKSpriteNode {
+                enemyPool.recycle(enemy)
+            } else {
+                enemyNode?.removeFromParent()
+            }
             runGameOver()
             return
         }
@@ -399,11 +425,19 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         if combined == (GameConstants.PhysicsCategory.bullet | GameConstants.PhysicsCategory.enemy) {
             let bulletNode = maskA == GameConstants.PhysicsCategory.bullet ? bodyA.node : bodyB.node
             let enemyNode = maskA == GameConstants.PhysicsCategory.enemy ? bodyA.node : bodyB.node
-            guard let enemyNode, enemyNode.position.y < size.height else { return }
+            guard let enemyNode, enemyNode.position.y < playArea.maxY + 40 else { return }
 
             let blastPoint = enemyNode.position
-            bulletNode?.removeFromParent()
-            enemyNode.removeFromParent()
+            if let bullet = bulletNode as? SKSpriteNode {
+                bulletPool.recycle(bullet)
+            } else {
+                bulletNode?.removeFromParent()
+            }
+            if let enemy = enemyNode as? SKSpriteNode {
+                enemyPool.recycle(enemy)
+            } else {
+                enemyNode.removeFromParent()
+            }
             spawnExplosion(at: blastPoint, image: "explosion")
             HapticManager.enemyDestroyed()
             addScore()
@@ -413,10 +447,14 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         if combined == (GameConstants.PhysicsCategory.bullet | GameConstants.PhysicsCategory.powerUp) {
             let bulletNode = maskA == GameConstants.PhysicsCategory.bullet ? bodyA.node : bodyB.node
             let starNode = maskA == GameConstants.PhysicsCategory.powerUp ? bodyA.node : bodyB.node
-            guard let starNode, starNode.position.y < size.height else { return }
+            guard let starNode, starNode.position.y < playArea.maxY + 40 else { return }
 
             let point = starNode.position
-            bulletNode?.removeFromParent()
+            if let bullet = bulletNode as? SKSpriteNode {
+                bulletPool.recycle(bullet)
+            } else {
+                bulletNode?.removeFromParent()
+            }
             starNode.removeFromParent()
             collectStar(at: point)
         }
@@ -426,7 +464,6 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard currentState == .playing, !isPausedBySystem else { return }
-
         for touch in touches {
             let point = touch.location(in: self)
             let previous = touch.previousLocation(in: self)
@@ -443,9 +480,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     private func clampPlayer() {
-        let halfWidth = player.size.width * 0.5
-        let minX = gameArea.minX + halfWidth
-        let maxX = gameArea.maxX - halfWidth
-        player.position.x = min(max(player.position.x, minX), maxX)
+        let halfWidth = player.size.width * 0.42
+        player.position.x = min(max(player.position.x, playArea.minX + halfWidth), playArea.maxX - halfWidth)
     }
 }

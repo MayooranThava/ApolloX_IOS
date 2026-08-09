@@ -8,74 +8,81 @@ import UIKit
 
 final class GameOverScene: SKScene {
 
-    private let restartLabel = SKLabelNode()
-    private let menuLabel = SKLabelNode()
-    private var restartFrame = CGRect.zero
-    private var menuFrame = CGRect.zero
+    private let titleLabel = SKLabelNode()
+    private let scoreLabel = SKLabelNode()
+    private let bestLabel = SKLabelNode()
+    private var restartButton: MenuButtonNode?
+    private var menuButton: MenuButtonNode?
 
     override func didMove(to view: SKView) {
-        addScrollingBackground()
+        addProductionBackground()
 
-        let insets = safeAreaInsetsInScene
         let finalScore = ScoreStore.currentScore
         let best = ScoreStore.commitHighScoreIfNeeded()
 
-        let gameOverLabel = makeGameLabel(text: "Game Over", fontSize: 120)
-        gameOverLabel.position = CGPoint(x: size.width * 0.5, y: size.height * 0.68)
-        addChild(gameOverLabel)
+        titleLabel.fontName = GameFont.resolved(size: 96)
+        titleLabel.text = "Game Over"
+        titleLabel.fontSize = 96
+        titleLabel.fontColor = .white
+        titleLabel.verticalAlignmentMode = .center
+        titleLabel.zPosition = GameConstants.Z.hud
+        addChild(titleLabel)
 
-        let scoreLabel = makeGameLabel(text: "Score: \(finalScore)", fontSize: 72)
-        scoreLabel.position = CGPoint(x: size.width * 0.5, y: size.height * 0.54)
+        scoreLabel.fontName = GameFont.resolved(size: 58)
+        scoreLabel.text = "SCORE  \(finalScore)"
+        scoreLabel.fontSize = 58
+        scoreLabel.fontColor = .white
+        scoreLabel.verticalAlignmentMode = .center
+        scoreLabel.zPosition = GameConstants.Z.hud
         addChild(scoreLabel)
 
-        let highScoreLabel = makeGameLabel(
-            text: "Best: \(best)",
-            fontSize: 64,
-            color: SKColor(red: 1, green: 0.85, blue: 0.35, alpha: 1)
-        )
-        highScoreLabel.position = CGPoint(x: size.width * 0.5, y: size.height * 0.45)
-        addChild(highScoreLabel)
+        bestLabel.fontName = GameFont.resolved(size: 48)
+        bestLabel.text = "BEST  \(best)"
+        bestLabel.fontSize = 48
+        bestLabel.fontColor = GameTheme.accent
+        bestLabel.verticalAlignmentMode = .center
+        bestLabel.zPosition = GameConstants.Z.hud
+        addChild(bestLabel)
 
-        configureButton(restartLabel, text: "Restart", fontSize: 80)
-        restartLabel.position = CGPoint(
-            x: size.width * 0.5,
-            y: max(insets.bottom, 40) + size.height * 0.26
-        )
-        addChild(restartLabel)
-        restartFrame = restartLabel.frame.insetBy(dx: -70, dy: -36)
+        let restart = MenuButtonNode(title: "Restart", width: 460, height: 110, fontSize: 52, emphasized: true)
+        let menu = MenuButtonNode(title: "Menu", width: 340, height: 88, fontSize: 40, emphasized: false)
+        restartButton = restart
+        menuButton = menu
+        addChild(restart)
+        addChild(menu)
 
-        configureButton(menuLabel, text: "Menu", fontSize: 56)
-        menuLabel.fontColor = SKColor(white: 0.85, alpha: 1)
-        menuLabel.position = CGPoint(
-            x: size.width * 0.5,
-            y: max(insets.bottom, 40) + size.height * 0.16
-        )
-        addChild(menuLabel)
-        menuFrame = menuLabel.frame.insetBy(dx: -70, dy: -30)
+        whenSafeAreaReady { [weak self] in
+            self?.relayout()
+        }
     }
 
-    private func configureButton(_ label: SKLabelNode, text: String, fontSize: CGFloat) {
-        label.fontName = UIFont(name: GameConstants.fontName, size: fontSize) != nil
-            ? GameConstants.fontName
-            : GameConstants.fallbackFontName
-        label.text = text
-        label.fontSize = fontSize
-        label.fontColor = .white
-        label.verticalAlignmentMode = .center
-        label.zPosition = GameConstants.Z.hud
+    private func relayout() {
+        let safe = playfield.safeRect
+
+        titleLabel.position = CGPoint(x: safe.midX, y: safe.maxY - 180)
+        scoreLabel.position = CGPoint(x: safe.midX, y: safe.midY + 80)
+        bestLabel.position = CGPoint(x: safe.midX, y: scoreLabel.position.y - 90)
+        restartButton?.position = CGPoint(x: safe.midX, y: safe.minY + 250)
+        menuButton?.position = CGPoint(x: safe.midX, y: safe.minY + 120)
+    }
+
+    override func didChangeSize(_ oldSize: CGSize) {
+        relayout()
     }
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard let touch = touches.first else { return }
         let point = touch.location(in: self)
 
-        if restartFrame.contains(point) || restartLabel.contains(point) {
+        if let restartButton, restartButton.containsTouch(point) {
+            restartButton.pulse()
             HapticManager.fire()
             presentScene(GameScene(size: size))
             return
         }
 
-        if menuFrame.contains(point) || menuLabel.contains(point) {
+        if let menuButton, menuButton.containsTouch(point) {
+            menuButton.pulse()
             HapticManager.fire()
             presentScene(GameTitleScene(size: size))
         }

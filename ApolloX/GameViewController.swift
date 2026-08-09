@@ -12,24 +12,26 @@ final class GameViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         configureAudioSession()
+        TextureCache.preload()
 
         guard let skView = view as? SKView else { return }
-
-        let scene = GameTitleScene(size: GameConstants.sceneSize)
-        scene.scaleMode = .aspectFill
-        skView.presentScene(scene)
 
         skView.ignoresSiblingOrder = true
         skView.preferredFramesPerSecond = 120
         skView.isMultipleTouchEnabled = false
+        skView.shouldCullNonVisibleNodes = true
 
-        #if DEBUG
-        skView.showsFPS = true
-        skView.showsNodeCount = true
-        #else
-        skView.showsFPS = false
-        skView.showsNodeCount = false
-        #endif
+        // Production default: hide SpriteKit debug overlays.
+        // Pass -ApolloXShowStats as a launch argument when you need FPS/node counts.
+        let showStats = ProcessInfo.processInfo.arguments.contains("-ApolloXShowStats")
+        skView.showsFPS = showStats
+        skView.showsNodeCount = showStats
+        skView.showsPhysics = false
+        skView.showsDrawCount = false
+
+        let scene = GameTitleScene(size: GameConstants.sceneSize)
+        scene.scaleMode = .aspectFill
+        skView.presentScene(scene)
     }
 
     private func configureAudioSession() {
