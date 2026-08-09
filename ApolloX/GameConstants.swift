@@ -20,6 +20,7 @@ enum GameConstants {
     static let baseFireDelay: TimeInterval = 0.42
     static let poweredFireDelay: TimeInterval = 0.16
     static let powerUpSpawnInterval: TimeInterval = 5.2
+    static let powerUpTravelDuration: TimeInterval = 7.5
 
     static let bulletImage = "bullet"
     static let poweredBulletImage = "powerbullet"
