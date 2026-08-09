@@ -27,16 +27,13 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private var playArea = CGRect.zero
     private var isPausedBySystem = false
 
-    private let laserSound = SKAction.playSoundFileNamed("laserSound.mp3", waitForCompletion: false)
-    private let explosionSound = SKAction.playSoundFileNamed("explosionShort.wav", waitForCompletion: false)
-
-    private lazy var bulletPool = NodePool(prewarm: 16) {
+    private lazy var bulletPool = NodePool(prewarm: 18) {
         SKSpriteNode(texture: TextureCache.texture(GameConstants.bulletImage))
     }
-    private lazy var enemyPool = NodePool(prewarm: 8) {
-        SKSpriteNode(texture: TextureCache.texture("enemyShip"))
+    private lazy var obstaclePool = NodePool(prewarm: 10) {
+        SKSpriteNode(texture: TextureCache.texture("asteroid"))
     }
-    private lazy var explosionPool = NodePool(prewarm: 8) {
+    private lazy var explosionPool = NodePool(prewarm: 10) {
         SKSpriteNode(texture: TextureCache.texture("explosion"))
     }
 
@@ -57,8 +54,6 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         HapticManager.prepare()
         physicsWorld.contactDelegate = self
         physicsWorld.gravity = .zero
-        // Contact-only gameplay; skip expensive continuous collision resolution.
-        physicsWorld.speed = 1
 
         addProductionBackground()
         addChild(hud)
@@ -86,16 +81,19 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         hud.layout(in: layout.safeRect)
 
         if player.parent != nil {
-            player.position.x = min(max(player.position.x, playArea.minX + player.size.width * 0.4),
-                                    playArea.maxX - player.size.width * 0.4)
-            player.position.y = playArea.minY + player.size.height * 0.75 + 20
+            player.position.x = min(
+                max(player.position.x, playArea.minX + player.size.width * 0.35),
+                playArea.maxX - player.size.width * 0.35
+            )
+            player.position.y = playArea.minY + player.size.height * 0.42 + 16
         }
     }
 
     private func configurePlayer() {
-        player.setScale(0.92)
+        player.setScale(0.42)
         player.zPosition = GameConstants.Z.player
-        player.physicsBody = SKPhysicsBody(circleOfRadius: min(player.size.width, player.size.height) * 0.32)
+        let radius = min(player.size.width, player.size.height) * player.xScale * 0.30
+        player.physicsBody = SKPhysicsBody(circleOfRadius: radius)
         player.physicsBody?.isDynamic = true
         player.physicsBody?.affectedByGravity = false
         player.physicsBody?.allowsRotation = false
@@ -105,7 +103,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         addChild(player)
 
         let engine = makeEngineEmitter()
-        engine.position = CGPoint(x: 0, y: -player.size.height * 0.42)
+        engine.position = CGPoint(x: 0, y: -player.size.height * 0.40)
         player.addChild(engine)
         engineEmitter = engine
     }
@@ -150,14 +148,10 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         view?.isPaused = false
     }
 
-    // MARK: - Game flow
+    // MARK: - Flow
 
     private func beginLevel() {
         level += 1
-    }
-
-    private func currentSpawnInterval() -> TimeInterval {
-        GameConstants.levelSpawnInterval(for: level)
     }
 
     private func startSpawning() {
@@ -165,17 +159,14 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         removeAction(forKey: "spawningPowerUp")
         restartFiring()
 
-        let spawnEnemyAction = SKAction.run { [weak self] in self?.spawnEnemy() }
-        let spawnPowerAction = SKAction.run { [weak self] in self?.spawnPowerUp() }
-
         run(.repeatForever(.sequence([
-            .wait(forDuration: currentSpawnInterval()),
-            spawnEnemyAction
+            .wait(forDuration: GameConstants.levelSpawnInterval(for: level)),
+            .run { [weak self] in self?.spawnObstacle() }
         ])), withKey: "spawningEnemies")
 
         run(.repeatForever(.sequence([
             .wait(forDuration: GameConstants.powerUpSpawnInterval),
-            spawnPowerAction
+            .run { [weak self] in self?.spawnPowerUp() }
         ])), withKey: "spawningPowerUp")
     }
 
@@ -193,12 +184,13 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         hud.pulseStatus()
     }
 
-    private func addScore() {
-        _ = ScoreStore.addPoint()
-        hud.setScore(ScoreStore.currentScore)
+    private func addScore(_ amount: Int = 1) {
+        let previous = ScoreStore.currentScore
+        let score = ScoreStore.addPoint(amount)
+        hud.setScore(score)
 
-        let score = ScoreStore.currentScore
-        if score == 10 || score == 25 || score == 50 || score == 80 {
+        let thresholds = [10, 25, 50, 80]
+        if thresholds.contains(where: { previous < $0 && score >= $0 }) {
             beginLevel()
             startSpawning()
         }
@@ -206,12 +198,11 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     private func lostALife() {
         guard currentState == .playing else { return }
-
         lives -= 1
         hud.setLives(lives)
         hud.pulseLives()
         HapticManager.lifeLost()
-
+        AudioManager.play(AudioManager.lifeLost, on: self)
         if lives <= 0 {
             runGameOver()
         }
@@ -224,18 +215,13 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         engineEmitter?.particleBirthRate = 0
 
         removeAllActions()
-        enumerateChildNodes(withName: GameConstants.NodeName.bullet) { node, _ in
-            node.removeAllActions()
-        }
-        enumerateChildNodes(withName: GameConstants.NodeName.enemy) { node, _ in
-            node.removeAllActions()
-        }
-        enumerateChildNodes(withName: GameConstants.NodeName.powerUp) { node, _ in
-            node.removeAllActions()
+        for name in [GameConstants.NodeName.bullet, GameConstants.NodeName.enemy, GameConstants.NodeName.powerUp] {
+            enumerateChildNodes(withName: name) { node, _ in
+                node.removeAllActions()
+            }
         }
 
         ScoreStore.commitHighScoreIfNeeded()
-
         run(.sequence([
             .wait(forDuration: 0.85),
             .run { [weak self] in
@@ -261,11 +247,11 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
         let bullet = bulletPool.checkout()
         bullet.texture = TextureCache.texture(bulletImageName)
-        bullet.size = bullet.texture?.size() ?? CGSize(width: 20, height: 40)
+        bullet.size = CGSize(width: 28, height: 56)
         bullet.name = GameConstants.NodeName.bullet
-        bullet.position = CGPoint(x: player.position.x, y: player.position.y + player.size.height * 0.34)
+        bullet.position = CGPoint(x: player.position.x, y: player.position.y + player.size.height * 0.28)
         bullet.zPosition = GameConstants.Z.bullet
-        bullet.physicsBody = SKPhysicsBody(circleOfRadius: max(6, bullet.size.width * 0.35))
+        bullet.physicsBody = SKPhysicsBody(circleOfRadius: 8)
         bullet.physicsBody?.isDynamic = true
         bullet.physicsBody?.affectedByGravity = false
         bullet.physicsBody?.categoryBitMask = GameConstants.PhysicsCategory.bullet
@@ -274,11 +260,9 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             GameConstants.PhysicsCategory.enemy | GameConstants.PhysicsCategory.powerUp
         addChild(bullet)
 
-        // Sound only — per-shot haptics are expensive and muddy on ProMotion devices.
-        run(laserSound)
+        AudioManager.play(AudioManager.laser, on: self)
 
-        let distance = size.height - bullet.position.y + 80
-        let duration = TimeInterval(distance / 1600)
+        let duration = TimeInterval((size.height - bullet.position.y + 80) / 1700)
         bullet.run(.sequence([
             .moveTo(y: size.height + 80, duration: duration),
             .run { [weak self, weak bullet] in
@@ -294,15 +278,13 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         let inset: CGFloat = 50
         let startX = CGFloat.random(in: playArea.minX + inset...playArea.maxX - inset)
         let endX = CGFloat.random(in: playArea.minX + inset...playArea.maxX - inset)
-        let start = CGPoint(x: startX, y: playArea.maxY + 80)
-        let end = CGPoint(x: endX, y: playArea.minY - 80)
 
         let powerUp = SKSpriteNode(texture: TextureCache.texture(GameConstants.starImage))
         powerUp.name = GameConstants.NodeName.powerUp
-        powerUp.setScale(0.13)
-        powerUp.position = start
+        powerUp.setScale(0.42)
+        powerUp.position = CGPoint(x: startX, y: playArea.maxY + 80)
         powerUp.zPosition = GameConstants.Z.powerUp
-        powerUp.physicsBody = SKPhysicsBody(circleOfRadius: powerUp.size.width * 0.34)
+        powerUp.physicsBody = SKPhysicsBody(circleOfRadius: powerUp.size.width * 0.32)
         powerUp.physicsBody?.isDynamic = true
         powerUp.physicsBody?.affectedByGravity = false
         powerUp.physicsBody?.categoryBitMask = GameConstants.PhysicsCategory.powerUp
@@ -310,47 +292,82 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         powerUp.physicsBody?.contactTestBitMask = GameConstants.PhysicsCategory.bullet
         addChild(powerUp)
 
-        powerUp.run(.repeatForever(.rotate(byAngle: .pi, duration: 2.4)))
+        powerUp.run(.repeatForever(.sequence([
+            .scale(to: 0.48, duration: 0.55),
+            .scale(to: 0.42, duration: 0.55)
+        ])))
+        powerUp.run(.repeatForever(.rotate(byAngle: .pi, duration: 3.2)))
         powerUp.run(.sequence([
-            .move(to: end, duration: GameConstants.powerUpTravelDuration),
+            .move(to: CGPoint(x: endX, y: playArea.minY - 80), duration: GameConstants.powerUpTravelDuration),
             .removeFromParent()
         ]))
     }
 
-    private func spawnEnemy() {
+    private func spawnObstacle() {
         guard currentState == .playing, playArea.width > 80 else { return }
 
-        let inset: CGFloat = 56
+        let kind = GameConstants.randomObstacle(for: level)
+        let inset: CGFloat = kind == .comet ? 40 : 58
         let startX = CGFloat.random(in: playArea.minX + inset...playArea.maxX - inset)
-        let endX = CGFloat.random(in: playArea.minX + inset...playArea.maxX - inset)
-        let start = CGPoint(x: startX, y: playArea.maxY + 90)
-        let end = CGPoint(x: endX, y: playArea.minY - 100)
+        let endX: CGFloat
+        if kind == .comet {
+            // Comets slash across the lane.
+            let bias: CGFloat = Bool.random() ? 1 : -1
+            endX = min(max(startX + bias * CGFloat.random(in: 180...320), playArea.minX + inset), playArea.maxX - inset)
+        } else {
+            endX = CGFloat.random(in: playArea.minX + inset...playArea.maxX - inset)
+        }
 
-        let enemy = enemyPool.checkout()
-        enemy.texture = TextureCache.texture("enemyShip")
-        enemy.size = enemy.texture?.size() ?? CGSize(width: 100, height: 100)
-        enemy.name = GameConstants.NodeName.enemy
-        enemy.position = start
-        enemy.zPosition = GameConstants.Z.enemy
-        enemy.physicsBody = SKPhysicsBody(circleOfRadius: min(enemy.size.width, enemy.size.height) * 0.34)
-        enemy.physicsBody?.isDynamic = true
-        enemy.physicsBody?.affectedByGravity = false
-        enemy.physicsBody?.categoryBitMask = GameConstants.PhysicsCategory.enemy
-        enemy.physicsBody?.collisionBitMask = GameConstants.PhysicsCategory.none
-        enemy.physicsBody?.contactTestBitMask =
+        let start = CGPoint(x: startX, y: playArea.maxY + 100)
+        let end = CGPoint(x: endX, y: playArea.minY - 120)
+
+        let node = obstaclePool.checkout()
+        node.texture = TextureCache.texture(kind.rawValue)
+        let texSize = node.texture?.size() ?? CGSize(width: 160, height: 160)
+        node.size = texSize
+        node.setScale(kind.scale)
+        node.name = GameConstants.NodeName.enemy
+        node.position = start
+        node.zPosition = GameConstants.Z.enemy
+        node.alpha = 1
+        node.userData = NSMutableDictionary(dictionary: [
+            GameConstants.NodeName.obstacleKind: kind.rawValue,
+            GameConstants.NodeName.obstacleHP: kind.hitsToDestroy
+        ])
+
+        let radius = min(node.size.width, node.size.height) * node.xScale * 0.34
+        node.physicsBody = SKPhysicsBody(circleOfRadius: radius)
+        node.physicsBody?.isDynamic = true
+        node.physicsBody?.affectedByGravity = false
+        node.physicsBody?.categoryBitMask = GameConstants.PhysicsCategory.enemy
+        node.physicsBody?.collisionBitMask = GameConstants.PhysicsCategory.none
+        node.physicsBody?.contactTestBitMask =
             GameConstants.PhysicsCategory.player | GameConstants.PhysicsCategory.bullet
-        addChild(enemy)
+        addChild(node)
 
-        let dx = end.x - start.x
-        let dy = end.y - start.y
-        enemy.zRotation = atan2(dy, dx)
+        if kind == .comet {
+            let dx = end.x - start.x
+            let dy = end.y - start.y
+            node.zRotation = atan2(dy, dx)
+        } else if kind == .drone {
+            node.zRotation = 0
+        } else if kind == .mine {
+            AudioManager.play(AudioManager.mine, on: self)
+            node.run(.repeatForever(.sequence([
+                .scale(to: kind.scale * 1.08, duration: 0.45),
+                .scale(to: kind.scale, duration: 0.45)
+            ])))
+        } else {
+            let spin = CGFloat.random(in: 0.6...1.4) * (Bool.random() ? 1 : -1)
+            node.run(.repeatForever(.rotate(byAngle: spin, duration: 1.0)))
+        }
 
-        enemy.run(.sequence([
-            .move(to: end, duration: GameConstants.enemyTravelDuration),
+        node.run(.sequence([
+            .move(to: end, duration: kind.travelDuration),
             .run { [weak self] in self?.lostALife() },
-            .run { [weak self, weak enemy] in
-                guard let self, let enemy else { return }
-                self.enemyPool.recycle(enemy)
+            .run { [weak self, weak node] in
+                guard let self, let node else { return }
+                self.obstaclePool.recycle(node)
             }
         ]))
     }
@@ -358,18 +375,18 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private func spawnExplosion(at position: CGPoint, image: String, scale: CGFloat = 1) {
         let explosion = explosionPool.checkout()
         explosion.texture = TextureCache.texture(image)
-        explosion.size = explosion.texture?.size() ?? CGSize(width: 120, height: 120)
+        explosion.size = explosion.texture?.size() ?? CGSize(width: 160, height: 160)
         explosion.position = position
         explosion.zPosition = GameConstants.Z.effect
         explosion.setScale(0)
         explosion.alpha = 1
         addChild(explosion)
-        run(explosionSound)
+        AudioManager.play(AudioManager.explosion, on: self)
 
         explosion.run(.sequence([
             .group([
                 .scale(to: scale, duration: 0.16),
-                .fadeOut(withDuration: 0.26)
+                .fadeOut(withDuration: 0.28)
             ]),
             .run { [weak self, weak explosion] in
                 guard let self, let explosion else { return }
@@ -381,7 +398,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private func collectStar(at position: CGPoint) {
         starCharge += 1
         HapticManager.starHit()
-        spawnExplosion(at: position, image: "mini_explosion", scale: 0.75)
+        AudioManager.play(AudioManager.star, on: self)
+        spawnExplosion(at: position, image: "mini_explosion", scale: 0.7)
         updateHUD()
         hud.pulseStatus()
 
@@ -391,8 +409,44 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             fireDelay = GameConstants.poweredFireDelay
             poweredShotsRemaining = GameConstants.poweredShotCount
             HapticManager.upgrade()
+            AudioManager.play(AudioManager.boost, on: self)
             refreshFireRate()
         }
+    }
+
+    private func damageObstacle(_ node: SKNode, blastPoint: CGPoint) {
+        guard let data = node.userData else {
+            destroyObstacle(node, blastPoint: blastPoint, points: 1)
+            return
+        }
+        let kindRaw = data[GameConstants.NodeName.obstacleKind] as? String
+        let kind = kindRaw.flatMap(GameConstants.ObstacleKind.init(rawValue:)) ?? .asteroid
+        let hp = max(0, (data[GameConstants.NodeName.obstacleHP] as? Int ?? 1) - 1)
+        data[GameConstants.NodeName.obstacleHP] = hp
+
+        if hp > 0 {
+            // Mine damaged but still alive.
+            node.run(.sequence([
+                .scale(to: kind.scale * 1.15, duration: 0.06),
+                .scale(to: kind.scale, duration: 0.08)
+            ]))
+            spawnExplosion(at: blastPoint, image: "mini_explosion", scale: 0.55)
+            HapticManager.enemyDestroyed()
+            return
+        }
+
+        destroyObstacle(node, blastPoint: blastPoint, points: kind.points)
+    }
+
+    private func destroyObstacle(_ node: SKNode, blastPoint: CGPoint, points: Int) {
+        if let sprite = node as? SKSpriteNode {
+            obstaclePool.recycle(sprite)
+        } else {
+            node.removeFromParent()
+        }
+        spawnExplosion(at: blastPoint, image: "explosion", scale: points >= 3 ? 1.15 : 0.95)
+        HapticManager.enemyDestroyed()
+        addScore(points)
     }
 
     // MARK: - Contacts
@@ -400,21 +454,19 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     func didBegin(_ contact: SKPhysicsContact) {
         guard currentState == .playing else { return }
 
-        let bodyA = contact.bodyA
-        let bodyB = contact.bodyB
-        let maskA = bodyA.categoryBitMask
-        let maskB = bodyB.categoryBitMask
+        let maskA = contact.bodyA.categoryBitMask
+        let maskB = contact.bodyB.categoryBitMask
         let combined = maskA | maskB
 
         if combined == (GameConstants.PhysicsCategory.player | GameConstants.PhysicsCategory.enemy) {
-            let playerNode = maskA == GameConstants.PhysicsCategory.player ? bodyA.node : bodyB.node
-            let enemyNode = maskA == GameConstants.PhysicsCategory.enemy ? bodyA.node : bodyB.node
+            let playerNode = maskA == GameConstants.PhysicsCategory.player ? contact.bodyA.node : contact.bodyB.node
+            let enemyNode = maskA == GameConstants.PhysicsCategory.enemy ? contact.bodyA.node : contact.bodyB.node
             if let position = playerNode?.position {
-                spawnExplosion(at: position, image: "explosion", scale: 1.15)
+                spawnExplosion(at: position, image: "explosion", scale: 1.2)
             }
             playerNode?.removeFromParent()
             if let enemy = enemyNode as? SKSpriteNode {
-                enemyPool.recycle(enemy)
+                obstaclePool.recycle(enemy)
             } else {
                 enemyNode?.removeFromParent()
             }
@@ -423,31 +475,24 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         }
 
         if combined == (GameConstants.PhysicsCategory.bullet | GameConstants.PhysicsCategory.enemy) {
-            let bulletNode = maskA == GameConstants.PhysicsCategory.bullet ? bodyA.node : bodyB.node
-            let enemyNode = maskA == GameConstants.PhysicsCategory.enemy ? bodyA.node : bodyB.node
-            guard let enemyNode, enemyNode.position.y < playArea.maxY + 40 else { return }
+            let bulletNode = maskA == GameConstants.PhysicsCategory.bullet ? contact.bodyA.node : contact.bodyB.node
+            let enemyNode = maskA == GameConstants.PhysicsCategory.enemy ? contact.bodyA.node : contact.bodyB.node
+            guard let enemyNode, enemyNode.position.y < playArea.maxY + 50 else { return }
 
-            let blastPoint = enemyNode.position
+            let blast = enemyNode.position
             if let bullet = bulletNode as? SKSpriteNode {
                 bulletPool.recycle(bullet)
             } else {
                 bulletNode?.removeFromParent()
             }
-            if let enemy = enemyNode as? SKSpriteNode {
-                enemyPool.recycle(enemy)
-            } else {
-                enemyNode.removeFromParent()
-            }
-            spawnExplosion(at: blastPoint, image: "explosion")
-            HapticManager.enemyDestroyed()
-            addScore()
+            damageObstacle(enemyNode, blastPoint: blast)
             return
         }
 
         if combined == (GameConstants.PhysicsCategory.bullet | GameConstants.PhysicsCategory.powerUp) {
-            let bulletNode = maskA == GameConstants.PhysicsCategory.bullet ? bodyA.node : bodyB.node
-            let starNode = maskA == GameConstants.PhysicsCategory.powerUp ? bodyA.node : bodyB.node
-            guard let starNode, starNode.position.y < playArea.maxY + 40 else { return }
+            let bulletNode = maskA == GameConstants.PhysicsCategory.bullet ? contact.bodyA.node : contact.bodyB.node
+            let starNode = maskA == GameConstants.PhysicsCategory.powerUp ? contact.bodyA.node : contact.bodyB.node
+            guard let starNode, starNode.position.y < playArea.maxY + 50 else { return }
 
             let point = starNode.position
             if let bullet = bulletNode as? SKSpriteNode {
@@ -465,9 +510,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard currentState == .playing, !isPausedBySystem else { return }
         for touch in touches {
-            let point = touch.location(in: self)
-            let previous = touch.previousLocation(in: self)
-            player.position.x += point.x - previous.x
+            player.position.x += touch.location(in: self).x - touch.previousLocation(in: self).x
             clampPlayer()
         }
     }
@@ -480,7 +523,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     private func clampPlayer() {
-        let halfWidth = player.size.width * 0.42
+        let halfWidth = player.size.width * player.xScale * 0.45
         player.position.x = min(max(player.position.x, playArea.minX + halfWidth), playArea.maxX - halfWidth)
     }
 }

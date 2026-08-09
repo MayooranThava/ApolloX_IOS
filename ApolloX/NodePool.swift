@@ -27,6 +27,7 @@ final class NodePool {
         node.zRotation = 0
         node.setScale(1)
         node.isHidden = false
+        node.userData = nil
         return node
     }
 
@@ -34,6 +35,7 @@ final class NodePool {
         node.removeAllActions()
         node.removeFromParent()
         node.physicsBody = nil
+        node.userData = nil
         nodes.append(node)
     }
 }
