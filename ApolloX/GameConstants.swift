@@ -13,9 +13,10 @@ enum GameConstants {
     static let fontName = "The Bold Font"
     static let fallbackFontName = "AvenirNext-Bold"
 
-    static let startingLives = 3
-    static let starsNeededForUpgrade = 3
-    static let poweredShotCount = 28
+    static let startingLives = GameRules.startingLives
+    /// Stars required to trigger a fire boost. One star = instant boost for snappier play.
+    static let starsNeededForUpgrade = GameRules.starsNeededForUpgrade
+    static let poweredShotCount = GameRules.poweredShotCount
 
     static let baseFireDelay: TimeInterval = 0.42
     static let poweredFireDelay: TimeInterval = 0.16
@@ -26,7 +27,7 @@ enum GameConstants {
     static let poweredBulletImage = "powerbullet"
     static let starImage = "star_power"
 
-    enum ObstacleKind: String {
+    enum ObstacleKind: String, CaseIterable {
         case asteroid
         case asteroidAlt = "asteroid2"
         case drone = "enemyShip"
@@ -59,12 +60,7 @@ enum GameConstants {
         }
 
         var scale: CGFloat {
-            switch self {
-            case .asteroid, .asteroidAlt: return 0.72
-            case .drone: return 0.78
-            case .comet: return 0.85
-            case .mine: return 0.62
-            }
+            GameRules.obstacleScale(for: self)
         }
     }
 
@@ -76,6 +72,7 @@ enum GameConstants {
         static let powerUp: CGFloat = 3
         static let effect: CGFloat = 4
         static let hud: CGFloat = 100
+        static let overlay: CGFloat = 120
     }
 
     enum NodeName {
@@ -85,6 +82,8 @@ enum GameConstants {
         static let background = "Background"
         static let obstacleHP = "hp"
         static let obstacleKind = "kind"
+        static let pauseButton = "PauseButton"
+        static let resumeButton = "Resume"
     }
 
     enum PhysicsCategory {
@@ -106,8 +105,12 @@ enum GameConstants {
     }
 
     static func randomObstacle(for level: Int) -> ObstacleKind {
-        // Early game: mostly asteroids. Later: mix in mines, comets, drones.
-        let roll = Int.random(in: 0...99)
+        randomObstacle(for: level, roll: Int.random(in: 0...99))
+    }
+
+    /// Deterministic variant for tests.
+    static func randomObstacle(for level: Int, roll: Int) -> ObstacleKind {
+        let roll = max(0, min(99, roll))
         switch level {
         case 1:
             return roll < 80 ? .asteroid : .asteroidAlt

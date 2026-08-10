@@ -29,6 +29,11 @@ final class HUDBarNode: SKNode {
     private let scoreLabel = SKLabelNode()
     private let livesLabel = SKLabelNode()
     private let statusLabel = SKLabelNode()
+    private let pauseButton = SKShapeNode()
+    private let pauseGlyph = SKLabelNode()
+
+    /// Scene-space hit rect for the pause control (updated in `layout`).
+    private(set) var pauseHitRect = CGRect.zero
 
     override init() {
         super.init()
@@ -45,6 +50,21 @@ final class HUDBarNode: SKNode {
         addChild(scoreLabel)
         addChild(livesLabel)
         addChild(statusLabel)
+
+        pauseButton.fillColor = GameTheme.buttonMuted
+        pauseButton.strokeColor = GameTheme.buttonStroke
+        pauseButton.lineWidth = 2
+        pauseButton.name = GameConstants.NodeName.pauseButton
+        addChild(pauseButton)
+
+        pauseGlyph.fontName = GameFont.resolved(size: 28)
+        pauseGlyph.text = "II"
+        pauseGlyph.fontSize = 26
+        pauseGlyph.fontColor = .white
+        pauseGlyph.verticalAlignmentMode = .center
+        pauseGlyph.horizontalAlignmentMode = .center
+        pauseGlyph.name = GameConstants.NodeName.pauseButton
+        pauseButton.addChild(pauseGlyph)
     }
 
     required init?(coder aDecoder: NSCoder) {
@@ -60,13 +80,33 @@ final class HUDBarNode: SKNode {
         position = CGPoint(x: safeRect.midX, y: safeRect.maxY - height * 0.5 - 8)
 
         let sidePad: CGFloat = 40
-        scoreLabel.fontSize = 38
-        livesLabel.fontSize = 38
-        statusLabel.fontSize = 28
+        scoreLabel.fontSize = 36
+        livesLabel.fontSize = 36
+        statusLabel.fontSize = 26
 
         scoreLabel.position = CGPoint(x: -width * 0.5 + sidePad, y: 14)
-        livesLabel.position = CGPoint(x: width * 0.5 - sidePad, y: 14)
+        livesLabel.position = CGPoint(x: width * 0.5 - sidePad - 70, y: 14)
         statusLabel.position = CGPoint(x: 0, y: -28)
+
+        let pauseSize: CGFloat = 56
+        let pausePath = CGPath(
+            roundedRect: CGRect(x: -pauseSize * 0.5, y: -pauseSize * 0.5, width: pauseSize, height: pauseSize),
+            cornerWidth: 16,
+            cornerHeight: 16,
+            transform: nil
+        )
+        pauseButton.path = pausePath
+        pauseButton.position = CGPoint(x: width * 0.5 - sidePad - 8, y: 4)
+
+        // Convert local pause button center to scene space for hit testing.
+        let pauseCenterInScene = convert(pauseButton.position, to: parent ?? self)
+        let hitPad: CGFloat = 28
+        pauseHitRect = CGRect(
+            x: pauseCenterInScene.x - pauseSize * 0.5 - hitPad,
+            y: pauseCenterInScene.y - pauseSize * 0.5 - hitPad,
+            width: pauseSize + hitPad * 2,
+            height: pauseSize + hitPad * 2
+        )
     }
 
     func setScore(_ value: Int) {
@@ -81,11 +121,17 @@ final class HUDBarNode: SKNode {
         statusLabel.text = text.uppercased()
     }
 
+    func containsPauseTouch(_ pointInScene: CGPoint) -> Bool {
+        pauseHitRect.contains(pointInScene)
+    }
+
     func pulseStatus() {
+        statusLabel.removeAction(forKey: "pulseStatus")
+        statusLabel.setScale(1)
         statusLabel.run(.sequence([
-            .scale(to: 1.1, duration: 0.1),
-            .scale(to: 1.0, duration: 0.12)
-        ]))
+            .scale(to: 1.18, duration: 0.12),
+            .scale(to: 1.0, duration: 0.16)
+        ]), withKey: "pulseStatus")
     }
 
     func pulseLives() {
