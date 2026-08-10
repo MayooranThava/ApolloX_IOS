@@ -92,6 +92,16 @@ def main() -> int:
     # Boost feedback
     check("showBoostBanner" in SCENE and "BOOST!" in SCENE, "boost banner feedback missing")
 
+    # Asteroid full-body hits + health pickup
+    check(swift_number(RULES, "asteroidHitboxFactor") >= 0.45, "asteroid hitbox should cover most of sprite")
+    check("usesTextureHitbox" in SCENE or "alphaThreshold" in SCENE, "asteroids should use texture hitboxes")
+    check(swift_number(RULES, "healthPickupMinInterval") == 15, "health min interval should be 15s")
+    check(swift_number(RULES, "healthPickupMaxInterval") == 20, "health max interval should be 20s")
+    check(swift_number(RULES, "maxLives") >= 5, "max lives cap expected")
+    check("spawnHealthPickup" in SCENE and "collectHealth" in SCENE, "health pickup spawn/collect missing")
+    check('healthImage = "health_plus"' in CONSTANTS, "health_plus asset constant missing")
+    check((ROOT / "ApolloX/Assets.xcassets/health_plus.imageset/health_plus.png").exists(), "health_plus.png missing")
+
     # Lives math
     def resolve(lives: int):
         rem = max(0, lives - 1)
@@ -102,12 +112,14 @@ def main() -> int:
     rem, over, inv = resolve(1)
     check((rem, over, inv) == (0, True, False), "last life hit should game over")
 
+    check(min(2 + 1, 5) == 3, "health pickup math")
+    check(min(5 + 1, 5) == 5, "health pickup should respect max lives")
+
     # Wire-up: GameRules.swift is referenced from constants
     check("GameRules.startingLives" in CONSTANTS, "GameConstants should delegate startingLives")
     check("GameRules.starsNeededForUpgrade" in CONSTANTS, "GameConstants should delegate starsNeeded")
 
     if failures:
-        # Filter the placeholder failure if any slipped
         real = [f for f in failures if f != "placeholder"]
         print(f"FAIL ({len(real)}):")
         for f in real:

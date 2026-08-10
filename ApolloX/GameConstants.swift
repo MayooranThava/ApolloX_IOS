@@ -26,6 +26,12 @@ enum GameConstants {
     static let bulletImage = "bullet"
     static let poweredBulletImage = "powerbullet"
     static let starImage = "star_power"
+    static let healthImage = "health_plus"
+
+    enum PowerUpKind: String {
+        case star
+        case health
+    }
 
     enum ObstacleKind: String, CaseIterable {
         case asteroid
@@ -79,9 +85,11 @@ enum GameConstants {
         static let bullet = "Bullet"
         static let enemy = "Enemy"
         static let powerUp = "PowerUp"
+        static let healthPickup = "HealthPickup"
         static let background = "Background"
         static let obstacleHP = "hp"
         static let obstacleKind = "kind"
+        static let powerUpKind = "powerUpKind"
         static let pauseButton = "PauseButton"
         static let resumeButton = "Resume"
     }

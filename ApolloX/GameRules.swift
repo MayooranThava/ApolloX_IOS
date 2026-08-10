@@ -22,12 +22,22 @@ enum GameRules {
 
     static let bulletSize = CGSize(width: 40, height: 80)
     static let poweredBulletSize = CGSize(width: 46, height: 92)
-    static let bulletHitRadius: CGFloat = 11
+    static let bulletHitRadius: CGFloat = 14
 
     /// Fraction of visible sprite used for collision (smaller = more forgiving).
     static let playerHitboxFactor: CGFloat = 0.26
+    /// Default circular enemy hitbox (non-asteroids).
     static let enemyHitboxFactor: CGFloat = 0.28
+    /// Asteroids use near-full coverage so grazing shots still blast.
+    static let asteroidHitboxFactor: CGFloat = 0.50
     static let starHitboxFactor: CGFloat = 0.34
+    static let healthHitboxFactor: CGFloat = 0.36
+
+    static let healthPickupScale: CGFloat = 0.52
+    static let healthPickupPulseScale: CGFloat = 0.60
+    static let maxLives = 5
+    static let healthPickupMinInterval: TimeInterval = 15.0
+    static let healthPickupMaxInterval: TimeInterval = 20.0
 
     static let invulnerabilityDuration: TimeInterval = 1.6
     static let openingGraceDuration: TimeInterval = 12.0
@@ -35,6 +45,27 @@ enum GameRules {
     static let openingPowerUpDelay: TimeInterval = 4.0
 
     static let levelScoreThresholds = [10, 25, 50, 80]
+
+    static func enemyHitboxFactor(for kind: GameConstants.ObstacleKind) -> CGFloat {
+        switch kind {
+        case .asteroid, .asteroidAlt:
+            return asteroidHitboxFactor
+        default:
+            return enemyHitboxFactor
+        }
+    }
+
+    static func usesTextureHitbox(_ kind: GameConstants.ObstacleKind) -> Bool {
+        kind == .asteroid || kind == .asteroidAlt
+    }
+
+    static func nextHealthPickupDelay() -> TimeInterval {
+        Double.random(in: healthPickupMinInterval...healthPickupMaxInterval)
+    }
+
+    static func livesAfterHealthPickup(current: Int) -> Int {
+        min(current + 1, maxLives)
+    }
 
     static func obstacleScale(for kind: GameConstants.ObstacleKind) -> CGFloat {
         // ~1.65× prior scales for readability.
