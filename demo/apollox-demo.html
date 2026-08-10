@@ -107,7 +107,7 @@
     bulletW: 16,
     bulletH: 32,
     startingLives: 3,
-    starsNeeded: 3,
+    starsNeeded: 1,
     poweredShotCount: 28,
     baseFireDelay: 0.42,
     poweredFireDelay: 0.16,
@@ -176,7 +176,9 @@
 
   function statusText() {
     if (state.poweredShots > 0) return "FIRE: BOOST";
-    if (state.starCharge > 0) return `STARS: ${state.starCharge}/${CFG.starsNeeded}`;
+    if (CFG.starsNeeded > 1 && state.starCharge > 0) {
+      return `STARS: ${state.starCharge}/${CFG.starsNeeded}`;
+    }
     return "FIRE: NORMAL";
   }
 
@@ -602,7 +604,7 @@
       "Drag to steer your rocket",
       "Blast asteroids, drones, and comets",
       "Mines take two hits — stay clear",
-      "Shoot stars to charge a fire boost",
+      "Shoot a star for a fire boost",
     ];
     ctx.fillStyle = "rgba(200,205,220,0.82)";
     ctx.font = '15px "The Bold Font", "Avenir Next", sans-serif';
