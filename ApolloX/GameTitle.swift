@@ -38,7 +38,7 @@ final class GameTitleScene: SKScene {
             "Drag to steer your rocket",
             "Blast asteroids, drones, and comets",
             "Mines take two hits — stay clear",
-            "Shoot stars to charge a fire boost"
+            "Shoot a star for a fire boost"
         ]
         for line in instructions {
             let label = makeGameLabel(text: line, fontSize: 32, color: SKColor(white: 0.78, alpha: 1))
