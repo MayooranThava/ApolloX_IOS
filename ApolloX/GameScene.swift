@@ -10,6 +10,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     private enum State {
         case playing
+        case paused
         case gameOver
     }
 
@@ -17,7 +18,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private let player = SKSpriteNode(texture: TextureCache.texture("playerShip"))
     private var engineEmitter: SKEmitterNode?
 
-    private var lives = GameConstants.startingLives
+    private var lives = GameRules.startingLives
     private var level = 0
     private var starCharge = 0
     private var poweredShotsRemaining = 0
@@ -26,6 +27,12 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private var currentState: State = .playing
     private var playArea = CGRect.zero
     private var isPausedBySystem = false
+    private var isInvulnerable = false
+    private var runElapsed: TimeInterval = 0
+    private var lastUpdateTime: TimeInterval = 0
+
+    private var pauseOverlay: SKNode?
+    private var resumeButton: MenuButtonNode?
 
     private lazy var bulletPool = NodePool(prewarm: 18) {
         SKSpriteNode(texture: TextureCache.texture(GameConstants.bulletImage))
@@ -73,6 +80,17 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         relayoutForSafeArea()
     }
 
+    override func update(_ currentTime: TimeInterval) {
+        guard currentState == .playing, !isPausedBySystem else {
+            lastUpdateTime = currentTime
+            return
+        }
+        if lastUpdateTime > 0 {
+            runElapsed += currentTime - lastUpdateTime
+        }
+        lastUpdateTime = currentTime
+    }
+
     // MARK: - Layout
 
     private func relayoutForSafeArea() {
@@ -81,18 +99,25 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         hud.layout(in: layout.safeRect)
 
         if player.parent != nil {
-            player.position.x = min(
-                max(player.position.x, playArea.minX + player.size.width * 0.35),
-                playArea.maxX - player.size.width * 0.35
+            player.position.x = GameRules.clampPlayerX(
+                x: player.position.x,
+                playMinX: playArea.minX,
+                playMaxX: playArea.maxX,
+                halfWidth: player.size.width * player.xScale * 0.45
             )
-            player.position.y = playArea.minY + player.size.height * 0.42 + 16
+            player.position.y = playArea.minY + player.size.height * player.yScale * 0.42 + 16
+        }
+
+        if let overlay = pauseOverlay {
+            overlay.position = CGPoint(x: size.width * 0.5, y: size.height * 0.5)
+            resumeButton?.position = CGPoint(x: 0, y: -40)
         }
     }
 
     private func configurePlayer() {
-        player.setScale(0.42)
+        player.setScale(GameRules.playerScale)
         player.zPosition = GameConstants.Z.player
-        let radius = min(player.size.width, player.size.height) * player.xScale * 0.30
+        let radius = min(player.size.width, player.size.height) * player.xScale * GameRules.playerHitboxFactor
         player.physicsBody = SKPhysicsBody(circleOfRadius: radius)
         player.physicsBody?.isDynamic = true
         player.physicsBody?.affectedByGravity = false
@@ -113,8 +138,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         hud.setLives(lives)
         if poweredShotsRemaining > 0 {
             hud.setStatus("Fire: Boost")
-        } else if GameConstants.starsNeededForUpgrade > 1, starCharge > 0 {
-            hud.setStatus("Stars: \(starCharge)/\(GameConstants.starsNeededForUpgrade)")
+        } else if GameRules.starsNeededForUpgrade > 1, starCharge > 0 {
+            hud.setStatus("Stars: \(starCharge)/\(GameRules.starsNeededForUpgrade)")
         } else {
             hud.setStatus("Fire: Normal")
         }
@@ -137,15 +162,20 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     @objc private func appWillResignActive() {
         isPausedBySystem = true
-        isPaused = true
-        view?.isPaused = true
+        if currentState == .playing {
+            enterPause(showOverlay: true, fromSystem: true)
+        } else {
+            isPaused = true
+            view?.isPaused = true
+        }
     }
 
     @objc private func appDidBecomeActive() {
-        guard currentState == .playing else { return }
         isPausedBySystem = false
-        isPaused = false
-        view?.isPaused = false
+        // Stay paused until the player taps Resume.
+        guard currentState == .paused else { return }
+        isPaused = true
+        view?.isPaused = true
     }
 
     // MARK: - Flow
@@ -158,16 +188,33 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         removeAction(forKey: "spawningEnemies")
         removeAction(forKey: "spawningPowerUp")
         restartFiring()
+        scheduleNextObstacle()
+        schedulePowerUps()
+    }
 
-        run(.repeatForever(.sequence([
-            .wait(forDuration: GameConstants.levelSpawnInterval(for: level)),
-            .run { [weak self] in self?.spawnObstacle() }
-        ])), withKey: "spawningEnemies")
+    private func scheduleNextObstacle() {
+        removeAction(forKey: "spawningEnemies")
+        let delay = GameRules.spawnInterval(level: level, elapsed: runElapsed)
+        run(.sequence([
+            .wait(forDuration: delay),
+            .run { [weak self] in
+                guard let self, self.currentState == .playing else { return }
+                self.spawnObstacle()
+                self.scheduleNextObstacle()
+            }
+        ]), withKey: "spawningEnemies")
+    }
 
-        run(.repeatForever(.sequence([
-            .wait(forDuration: GameConstants.powerUpSpawnInterval),
-            .run { [weak self] in self?.spawnPowerUp() }
-        ])), withKey: "spawningPowerUp")
+    private func schedulePowerUps() {
+        removeAction(forKey: "spawningPowerUp")
+        let initialDelay = max(0, GameRules.openingPowerUpDelay - runElapsed)
+        run(.sequence([
+            .wait(forDuration: initialDelay),
+            .repeatForever(.sequence([
+                .run { [weak self] in self?.spawnPowerUp() },
+                .wait(forDuration: GameConstants.powerUpSpawnInterval)
+            ]))
+        ]), withKey: "spawningPowerUp")
     }
 
     private func restartFiring() {
@@ -189,28 +236,67 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         let score = ScoreStore.addPoint(amount)
         hud.setScore(score)
 
-        let thresholds = [10, 25, 50, 80]
-        if thresholds.contains(where: { previous < $0 && score >= $0 }) {
+        if GameRules.shouldAdvanceLevel(previousScore: previous, newScore: score) {
             beginLevel()
-            startSpawning()
+            // Reschedule so the new level interval applies after grace.
+            scheduleNextObstacle()
         }
     }
 
-    private func lostALife() {
+    private func lostALife(fromContact: Bool) {
         guard currentState == .playing else { return }
-        lives -= 1
+        let outcome = GameRules.resolvePlayerHit(lives: lives)
+        lives = outcome.livesRemaining
         hud.setLives(lives)
         hud.pulseLives()
         HapticManager.lifeLost()
         AudioManager.play(AudioManager.lifeLost, on: self)
-        if lives <= 0 {
+
+        if outcome.isGameOver {
             runGameOver()
+            return
+        }
+
+        if outcome.grantInvulnerability {
+            beginInvulnerability()
+        }
+
+        if fromContact {
+            // Brief camera shake feel via player nudge.
+            player.run(.sequence([
+                .moveBy(x: 0, y: 18, duration: 0.05),
+                .moveBy(x: 0, y: -18, duration: 0.08)
+            ]))
         }
     }
 
+    private func beginInvulnerability() {
+        isInvulnerable = true
+        player.physicsBody?.categoryBitMask = GameConstants.PhysicsCategory.none
+        player.removeAction(forKey: "invulnBlink")
+        player.alpha = 1
+        player.run(.repeatForever(.sequence([
+            .fadeAlpha(to: 0.35, duration: 0.12),
+            .fadeAlpha(to: 1.0, duration: 0.12)
+        ])), withKey: "invulnBlink")
+
+        run(.sequence([
+            .wait(forDuration: GameRules.invulnerabilityDuration),
+            .run { [weak self] in self?.endInvulnerability() }
+        ]), withKey: "invulnTimer")
+    }
+
+    private func endInvulnerability() {
+        isInvulnerable = false
+        player.removeAction(forKey: "invulnBlink")
+        player.alpha = 1
+        player.physicsBody?.categoryBitMask = GameConstants.PhysicsCategory.player
+    }
+
     private func runGameOver() {
-        guard currentState == .playing else { return }
+        guard currentState == .playing || currentState == .paused else { return }
         currentState = .gameOver
+        dismissPauseOverlay()
         HapticManager.gameOver()
         engineEmitter?.particleBirthRate = 0
 
@@ -222,6 +308,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         }
 
         ScoreStore.commitHighScoreIfNeeded()
+        isPaused = false
+        view?.isPaused = false
         run(.sequence([
             .wait(forDuration: 0.85),
             .run { [weak self] in
@@ -231,12 +319,76 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         ]))
     }
 
+    // MARK: - Pause
+
+    private func enterPause(showOverlay: Bool, fromSystem: Bool = false) {
+        guard currentState == .playing || currentState == .paused else { return }
+        currentState = .paused
+        isPaused = true
+        view?.isPaused = true
+        if showOverlay {
+            presentPauseOverlay()
+        }
+        if !fromSystem {
+            AudioManager.play(AudioManager.uiTap, on: self)
+            HapticManager.fire()
+        }
+    }
+
+    private func resumeFromPause() {
+        guard currentState == .paused else { return }
+        dismissPauseOverlay()
+        currentState = .playing
+        isPaused = false
+        view?.isPaused = false
+        lastUpdateTime = 0
+        AudioManager.play(AudioManager.uiTap, on: self)
+        HapticManager.fire()
+    }
+
+    private func presentPauseOverlay() {
+        dismissPauseOverlay()
+
+        let root = SKNode()
+        root.zPosition = GameConstants.Z.overlay
+        root.position = CGPoint(x: size.width * 0.5, y: size.height * 0.5)
+
+        let dim = SKSpriteNode(color: SKColor(white: 0, alpha: 0.55), size: CGSize(width: size.width * 1.2, height: size.height * 1.2))
+        dim.zPosition = 0
+        root.addChild(dim)
+
+        let title = SKLabelNode(fontNamed: GameFont.resolved(size: 64))
+        title.text = "Paused"
+        title.fontSize = 64
+        title.fontColor = .white
+        title.verticalAlignmentMode = .center
+        title.position = CGPoint(x: 0, y: 80)
+        title.zPosition = 1
+        root.addChild(title)
+
+        let resume = MenuButtonNode(title: "Resume", width: 420, height: 110, fontSize: 48, emphasized: true)
+        resume.position = CGPoint(x: 0, y: -40)
+        resume.zPosition = 1
+        root.addChild(resume)
+
+        addChild(root)
+        pauseOverlay = root
+        resumeButton = resume
+    }
+
+    private func dismissPauseOverlay() {
+        pauseOverlay?.removeFromParent()
+        pauseOverlay = nil
+        resumeButton = nil
+    }
+
     // MARK: - Spawning
 
     private func fireBullet() {
         guard currentState == .playing, player.parent != nil else { return }
 
-        if poweredShotsRemaining > 0 {
+        let powered = poweredShotsRemaining > 0
+        if powered {
             poweredShotsRemaining -= 1
             if poweredShotsRemaining == 0 {
                 bulletImageName = GameConstants.bulletImage
@@ -247,11 +399,11 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
         let bullet = bulletPool.checkout()
         bullet.texture = TextureCache.texture(bulletImageName)
-        bullet.size = CGSize(width: 28, height: 56)
+        bullet.size = powered ? GameRules.poweredBulletSize : GameRules.bulletSize
         bullet.name = GameConstants.NodeName.bullet
-        bullet.position = CGPoint(x: player.position.x, y: player.position.y + player.size.height * 0.28)
+        bullet.position = CGPoint(x: player.position.x, y: player.position.y + player.size.height * player.yScale * 0.28)
         bullet.zPosition = GameConstants.Z.bullet
-        bullet.physicsBody = SKPhysicsBody(circleOfRadius: 8)
+        bullet.physicsBody = SKPhysicsBody(circleOfRadius: GameRules.bulletHitRadius)
         bullet.physicsBody?.isDynamic = true
         bullet.physicsBody?.affectedByGravity = false
         bullet.physicsBody?.categoryBitMask = GameConstants.PhysicsCategory.bullet
@@ -281,10 +433,10 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
         let powerUp = SKSpriteNode(texture: TextureCache.texture(GameConstants.starImage))
         powerUp.name = GameConstants.NodeName.powerUp
-        powerUp.setScale(0.42)
+        powerUp.setScale(GameRules.starScale)
         powerUp.position = CGPoint(x: startX, y: playArea.maxY + 80)
         powerUp.zPosition = GameConstants.Z.powerUp
-        powerUp.physicsBody = SKPhysicsBody(circleOfRadius: powerUp.size.width * 0.32)
+        powerUp.physicsBody = SKPhysicsBody(circleOfRadius: powerUp.size.width * GameRules.starHitboxFactor)
         powerUp.physicsBody?.isDynamic = true
         powerUp.physicsBody?.affectedByGravity = false
         powerUp.physicsBody?.categoryBitMask = GameConstants.PhysicsCategory.powerUp
@@ -293,8 +445,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         addChild(powerUp)
 
         powerUp.run(.repeatForever(.sequence([
-            .scale(to: 0.48, duration: 0.55),
-            .scale(to: 0.42, duration: 0.55)
+            .scale(to: GameRules.starPulseScale, duration: 0.55),
+            .scale(to: GameRules.starScale, duration: 0.55)
         ])))
         powerUp.run(.repeatForever(.rotate(byAngle: .pi, duration: 3.2)))
         powerUp.run(.sequence([
@@ -306,16 +458,24 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private func spawnObstacle() {
         guard currentState == .playing, playArea.width > 80 else { return }
 
-        let kind = GameConstants.randomObstacle(for: level)
+        let kind = GameRules.obstacleKind(
+            level: level,
+            elapsed: runElapsed,
+            roll: Int.random(in: 0...99)
+        )
         let inset: CGFloat = kind == .comet ? 40 : 58
-        let startX = CGFloat.random(in: playArea.minX + inset...playArea.maxX - inset)
+        // During opening grace, keep paths more centered / less extreme.
+        let laneInset = GameRules.isInOpeningGrace(elapsed: runElapsed) ? inset + 36 : inset
+        let startX = CGFloat.random(in: playArea.minX + laneInset...playArea.maxX - laneInset)
         let endX: CGFloat
         if kind == .comet {
-            // Comets slash across the lane.
             let bias: CGFloat = Bool.random() ? 1 : -1
-            endX = min(max(startX + bias * CGFloat.random(in: 180...320), playArea.minX + inset), playArea.maxX - inset)
+            endX = min(max(startX + bias * CGFloat.random(in: 180...320), playArea.minX + laneInset), playArea.maxX - laneInset)
+        } else if GameRules.isInOpeningGrace(elapsed: runElapsed) {
+            // Milder drift early on.
+            endX = min(max(startX + CGFloat.random(in: -80...80), playArea.minX + laneInset), playArea.maxX - laneInset)
         } else {
-            endX = CGFloat.random(in: playArea.minX + inset...playArea.maxX - inset)
+            endX = CGFloat.random(in: playArea.minX + laneInset...playArea.maxX - laneInset)
         }
 
         let start = CGPoint(x: startX, y: playArea.maxY + 100)
@@ -330,12 +490,13 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         node.position = start
         node.zPosition = GameConstants.Z.enemy
         node.alpha = 1
+        node.zRotation = 0
         node.userData = NSMutableDictionary(dictionary: [
             GameConstants.NodeName.obstacleKind: kind.rawValue,
             GameConstants.NodeName.obstacleHP: kind.hitsToDestroy
         ])
 
-        let radius = min(node.size.width, node.size.height) * node.xScale * 0.34
+        let radius = min(node.size.width, node.size.height) * node.xScale * GameRules.enemyHitboxFactor
         node.physicsBody = SKPhysicsBody(circleOfRadius: radius)
         node.physicsBody?.isDynamic = true
         node.physicsBody?.affectedByGravity = false
@@ -362,9 +523,11 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             node.run(.repeatForever(.rotate(byAngle: spin, duration: 1.0)))
         }
 
+        // Opening grace: slightly slower travel.
+        let duration = kind.travelDuration * (GameRules.isInOpeningGrace(elapsed: runElapsed) ? 1.25 : 1.0)
         node.run(.sequence([
-            .move(to: end, duration: kind.travelDuration),
-            .run { [weak self] in self?.lostALife() },
+            .move(to: end, duration: duration),
+            .run { [weak self] in self?.lostALife(fromContact: false) },
             .run { [weak self, weak node] in
                 guard let self, let node else { return }
                 self.obstaclePool.recycle(node)
@@ -396,23 +559,63 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     private func collectStar(at position: CGPoint) {
-        starCharge += 1
+        let outcome = GameRules.collectStar(currentCharge: starCharge)
+        starCharge = outcome.starCharge
         HapticManager.starHit()
         AudioManager.play(AudioManager.star, on: self)
-        spawnExplosion(at: position, image: "mini_explosion", scale: 0.7)
+        spawnExplosion(at: position, image: "mini_explosion", scale: 0.85)
 
-        if starCharge >= GameConstants.starsNeededForUpgrade {
-            starCharge = 0
+        if outcome.activated {
             bulletImageName = GameConstants.poweredBulletImage
             fireDelay = GameConstants.poweredFireDelay
-            poweredShotsRemaining = GameConstants.poweredShotCount
+            poweredShotsRemaining = outcome.poweredShots
             HapticManager.upgrade()
             AudioManager.play(AudioManager.boost, on: self)
             refreshFireRate()
+            showBoostBanner()
         } else {
             updateHUD()
             hud.pulseStatus()
         }
+    }
+
+    private func showBoostBanner() {
+        let banner = SKLabelNode(fontNamed: GameFont.resolved(size: 72))
+        banner.text = "BOOST!"
+        banner.fontSize = 72
+        banner.fontColor = GameTheme.accent
+        banner.verticalAlignmentMode = .center
+        banner.horizontalAlignmentMode = .center
+        banner.position = CGPoint(x: playArea.midX, y: playArea.midY + 40)
+        banner.zPosition = GameConstants.Z.overlay
+        banner.setScale(0.4)
+        banner.alpha = 0
+        addChild(banner)
+
+        let flash = SKSpriteNode(color: SKColor(red: 1, green: 0.85, blue: 0.35, alpha: 0.22), size: size)
+        flash.position = CGPoint(x: size.width * 0.5, y: size.height * 0.5)
+        flash.zPosition = GameConstants.Z.effect + 1
+        flash.alpha = 0
+        addChild(flash)
+
+        flash.run(.sequence([
+            .fadeAlpha(to: 1, duration: 0.08),
+            .fadeOut(withDuration: 0.35),
+            .removeFromParent()
+        ]))
+        banner.run(.sequence([
+            .group([
+                .fadeIn(withDuration: 0.1),
+                .scale(to: 1.15, duration: 0.18)
+            ]),
+            .scale(to: 1.0, duration: 0.12),
+            .wait(forDuration: 0.35),
+            .group([
+                .fadeOut(withDuration: 0.25),
+                .moveBy(x: 0, y: 40, duration: 0.25)
+            ]),
+            .removeFromParent()
+        ]))
     }
 
     private func damageObstacle(_ node: SKNode, blastPoint: CGPoint) {
@@ -426,7 +629,6 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         data[GameConstants.NodeName.obstacleHP] = hp
 
         if hp > 0 {
-            // Mine damaged but still alive.
             node.run(.sequence([
                 .scale(to: kind.scale * 1.15, duration: 0.06),
                 .scale(to: kind.scale, duration: 0.08)
@@ -445,7 +647,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         } else {
             node.removeFromParent()
         }
-        spawnExplosion(at: blastPoint, image: "explosion", scale: points >= 3 ? 1.15 : 0.95)
+        spawnExplosion(at: blastPoint, image: "explosion", scale: points >= 3 ? 1.25 : 1.05)
         HapticManager.enemyDestroyed()
         addScore(points)
     }
@@ -460,18 +662,17 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         let combined = maskA | maskB
 
         if combined == (GameConstants.PhysicsCategory.player | GameConstants.PhysicsCategory.enemy) {
-            let playerNode = maskA == GameConstants.PhysicsCategory.player ? contact.bodyA.node : contact.bodyB.node
+            guard !isInvulnerable else { return }
             let enemyNode = maskA == GameConstants.PhysicsCategory.enemy ? contact.bodyA.node : contact.bodyB.node
-            if let position = playerNode?.position {
-                spawnExplosion(at: position, image: "explosion", scale: 1.2)
+            if let position = enemyNode?.position {
+                spawnExplosion(at: position, image: "explosion", scale: 1.15)
             }
-            playerNode?.removeFromParent()
             if let enemy = enemyNode as? SKSpriteNode {
                 obstaclePool.recycle(enemy)
             } else {
                 enemyNode?.removeFromParent()
             }
-            runGameOver()
+            lostALife(fromContact: true)
             return
         }
 
@@ -517,14 +718,38 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard currentState == .playing, !isPausedBySystem else { return }
         guard let touch = touches.first else { return }
-        player.position.x = touch.location(in: self).x
+        let point = touch.location(in: self)
+
+        if currentState == .paused {
+            if let resumeButton, resumeButton.containsTouch(CGPoint(
+                x: point.x - (pauseOverlay?.position.x ?? 0),
+                y: point.y - (pauseOverlay?.position.y ?? 0)
+            )) {
+                resumeButton.pulse()
+                resumeFromPause()
+            }
+            return
+        }
+
+        guard currentState == .playing, !isPausedBySystem else { return }
+
+        if hud.containsPauseTouch(point) {
+            enterPause(showOverlay: true)
+            return
+        }
+
+        player.position.x = point.x
         clampPlayer()
     }
 
     private func clampPlayer() {
         let halfWidth = player.size.width * player.xScale * 0.45
-        player.position.x = min(max(player.position.x, playArea.minX + halfWidth), playArea.maxX - halfWidth)
+        player.position.x = GameRules.clampPlayerX(
+            x: player.position.x,
+            playMinX: playArea.minX,
+            playMaxX: playArea.maxX,
+            halfWidth: halfWidth
+        )
     }
 }
