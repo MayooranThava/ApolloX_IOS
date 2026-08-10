@@ -38,10 +38,11 @@ final class GameTitleScene: SKScene {
             "Drag to steer your rocket",
             "Blast asteroids, drones, and comets",
             "Mines take two hits — stay clear",
-            "Shoot a star for a fire boost"
+            "Shoot a star for a fire boost",
+            "Shoot the green + for an extra life"
         ]
         for line in instructions {
-            let label = makeGameLabel(text: line, fontSize: 32, color: SKColor(white: 0.78, alpha: 1))
+            let label = makeGameLabel(text: line, fontSize: 28, color: SKColor(white: 0.78, alpha: 1))
             instructionLabels.append(label)
             addChild(label)
         }
@@ -78,10 +79,10 @@ final class GameTitleScene: SKScene {
         titleLabel.position = CGPoint(x: safe.midX, y: safe.maxY - 130)
         subtitleLabel.position = CGPoint(x: safe.midX, y: titleLabel.position.y - 90)
 
-        var lineY = safe.midY + 90
+        var lineY = safe.midY + 110
         for label in instructionLabels {
             label.position = CGPoint(x: safe.midX, y: lineY)
-            lineY -= 52
+            lineY -= 46
         }
 
         bestLabel.position = CGPoint(x: safe.midX, y: safe.minY + 260)

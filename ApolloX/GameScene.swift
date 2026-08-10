@@ -190,6 +190,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         restartFiring()
         scheduleNextObstacle()
         schedulePowerUps()
+        scheduleHealthPickups()
     }
 
     private func scheduleNextObstacle() {
@@ -215,6 +216,23 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
                 .wait(forDuration: GameConstants.powerUpSpawnInterval)
             ]))
         ]), withKey: "spawningPowerUp")
+    }
+
+    private func scheduleHealthPickups() {
+        removeAction(forKey: "spawningHealth")
+        scheduleNextHealthPickup(after: GameRules.nextHealthPickupDelay())
+    }
+
+    private func scheduleNextHealthPickup(after delay: TimeInterval) {
+        removeAction(forKey: "spawningHealth")
+        run(.sequence([
+            .wait(forDuration: delay),
+            .run { [weak self] in
+                guard let self, self.currentState == .playing else { return }
+                self.spawnHealthPickup()
+                self.scheduleNextHealthPickup(after: GameRules.nextHealthPickupDelay())
+            }
+        ]), withKey: "spawningHealth")
     }
 
     private func restartFiring() {
@@ -301,7 +319,12 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         engineEmitter?.particleBirthRate = 0
 
         removeAllActions()
-        for name in [GameConstants.NodeName.bullet, GameConstants.NodeName.enemy, GameConstants.NodeName.powerUp] {
+        for name in [
+            GameConstants.NodeName.bullet,
+            GameConstants.NodeName.enemy,
+            GameConstants.NodeName.powerUp,
+            GameConstants.NodeName.healthPickup
+        ] {
             enumerateChildNodes(withName: name) { node, _ in
                 node.removeAllActions()
             }
@@ -436,6 +459,9 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         powerUp.setScale(GameRules.starScale)
         powerUp.position = CGPoint(x: startX, y: playArea.maxY + 80)
         powerUp.zPosition = GameConstants.Z.powerUp
+        powerUp.userData = NSMutableDictionary(dictionary: [
+            GameConstants.NodeName.powerUpKind: GameConstants.PowerUpKind.star.rawValue
+        ])
         powerUp.physicsBody = SKPhysicsBody(circleOfRadius: powerUp.size.width * GameRules.starHitboxFactor)
         powerUp.physicsBody?.isDynamic = true
         powerUp.physicsBody?.affectedByGravity = false
@@ -450,6 +476,41 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         ])))
         powerUp.run(.repeatForever(.rotate(byAngle: .pi, duration: 3.2)))
         powerUp.run(.sequence([
+            .move(to: CGPoint(x: endX, y: playArea.minY - 80), duration: GameConstants.powerUpTravelDuration),
+            .removeFromParent()
+        ]))
+    }
+
+    private func spawnHealthPickup() {
+        guard currentState == .playing, playArea.width > 80 else { return }
+        // Don't clutter the board if already at max lives.
+        guard lives < GameRules.maxLives else { return }
+
+        let inset: CGFloat = 50
+        let startX = CGFloat.random(in: playArea.minX + inset...playArea.maxX - inset)
+        let endX = CGFloat.random(in: playArea.minX + inset...playArea.maxX - inset)
+
+        let pickup = SKSpriteNode(texture: TextureCache.texture(GameConstants.healthImage))
+        pickup.name = GameConstants.NodeName.healthPickup
+        pickup.setScale(GameRules.healthPickupScale)
+        pickup.position = CGPoint(x: startX, y: playArea.maxY + 80)
+        pickup.zPosition = GameConstants.Z.powerUp
+        pickup.userData = NSMutableDictionary(dictionary: [
+            GameConstants.NodeName.powerUpKind: GameConstants.PowerUpKind.health.rawValue
+        ])
+        pickup.physicsBody = SKPhysicsBody(circleOfRadius: pickup.size.width * GameRules.healthHitboxFactor)
+        pickup.physicsBody?.isDynamic = true
+        pickup.physicsBody?.affectedByGravity = false
+        pickup.physicsBody?.categoryBitMask = GameConstants.PhysicsCategory.powerUp
+        pickup.physicsBody?.collisionBitMask = GameConstants.PhysicsCategory.none
+        pickup.physicsBody?.contactTestBitMask = GameConstants.PhysicsCategory.bullet
+        addChild(pickup)
+
+        pickup.run(.repeatForever(.sequence([
+            .scale(to: GameRules.healthPickupPulseScale, duration: 0.5),
+            .scale(to: GameRules.healthPickupScale, duration: 0.5)
+        ])))
+        pickup.run(.sequence([
             .move(to: CGPoint(x: endX, y: playArea.minY - 80), duration: GameConstants.powerUpTravelDuration),
             .removeFromParent()
         ]))
@@ -496,8 +557,17 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             GameConstants.NodeName.obstacleHP: kind.hitsToDestroy
         ])
 
-        let radius = min(node.size.width, node.size.height) * node.xScale * GameRules.enemyHitboxFactor
-        node.physicsBody = SKPhysicsBody(circleOfRadius: radius)
+        let radius = min(node.size.width, node.size.height) * node.xScale * GameRules.enemyHitboxFactor(for: kind)
+        if GameRules.usesTextureHitbox(kind), let texture = node.texture {
+            // Match opaque pixels so grazing hits on any part of the rock still blast.
+            let bodySize = CGSize(
+                width: texture.size().width * node.xScale,
+                height: texture.size().height * node.yScale
+            )
+            node.physicsBody = SKPhysicsBody(texture: texture, alphaThreshold: 0.15, size: bodySize)
+        } else {
+            node.physicsBody = SKPhysicsBody(circleOfRadius: radius)
+        }
         node.physicsBody?.isDynamic = true
         node.physicsBody?.affectedByGravity = false
         node.physicsBody?.categoryBitMask = GameConstants.PhysicsCategory.enemy
@@ -577,6 +647,48 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             updateHUD()
             hud.pulseStatus()
         }
+    }
+
+    private func collectHealth(at position: CGPoint) {
+        let previous = lives
+        lives = GameRules.livesAfterHealthPickup(current: lives)
+        HapticManager.upgrade()
+        AudioManager.play(AudioManager.star, on: self)
+        spawnExplosion(at: position, image: "mini_explosion", scale: 0.75)
+        hud.setLives(lives)
+        hud.pulseLives()
+        if lives > previous {
+            showStatusBanner(text: "+1 LIFE", color: SKColor(red: 0.35, green: 0.95, blue: 0.55, alpha: 1))
+        } else {
+            showStatusBanner(text: "MAX LIVES", color: GameTheme.accent)
+        }
+    }
+
+    private func showStatusBanner(text: String, color: SKColor) {
+        let banner = SKLabelNode(fontNamed: GameFont.resolved(size: 64))
+        banner.text = text
+        banner.fontSize = 64
+        banner.fontColor = color
+        banner.verticalAlignmentMode = .center
+        banner.horizontalAlignmentMode = .center
+        banner.position = CGPoint(x: playArea.midX, y: playArea.midY + 40)
+        banner.zPosition = GameConstants.Z.overlay
+        banner.setScale(0.4)
+        banner.alpha = 0
+        addChild(banner)
+        banner.run(.sequence([
+            .group([
+                .fadeIn(withDuration: 0.1),
+                .scale(to: 1.12, duration: 0.16)
+            ]),
+            .scale(to: 1.0, duration: 0.1),
+            .wait(forDuration: 0.35),
+            .group([
+                .fadeOut(withDuration: 0.22),
+                .moveBy(x: 0, y: 36, duration: 0.22)
+            ]),
+            .removeFromParent()
+        ]))
     }
 
     private func showBoostBanner() {
@@ -693,17 +805,27 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
         if combined == (GameConstants.PhysicsCategory.bullet | GameConstants.PhysicsCategory.powerUp) {
             let bulletNode = maskA == GameConstants.PhysicsCategory.bullet ? contact.bodyA.node : contact.bodyB.node
-            let starNode = maskA == GameConstants.PhysicsCategory.powerUp ? contact.bodyA.node : contact.bodyB.node
-            guard let starNode, starNode.position.y < playArea.maxY + 50 else { return }
+            let pickupNode = maskA == GameConstants.PhysicsCategory.powerUp ? contact.bodyA.node : contact.bodyB.node
+            guard let pickupNode, pickupNode.position.y < playArea.maxY + 50 else { return }
 
-            let point = starNode.position
+            let point = pickupNode.position
             if let bullet = bulletNode as? SKSpriteNode {
                 bulletPool.recycle(bullet)
             } else {
                 bulletNode?.removeFromParent()
             }
-            starNode.removeFromParent()
-            collectStar(at: point)
+
+            let kindRaw = pickupNode.userData?[GameConstants.NodeName.powerUpKind] as? String
+            let kind = kindRaw.flatMap(GameConstants.PowerUpKind.init(rawValue:))
+                ?? (pickupNode.name == GameConstants.NodeName.healthPickup ? .health : .star)
+            pickupNode.removeFromParent()
+
+            switch kind {
+            case .star:
+                collectStar(at: point)
+            case .health:
+                collectHealth(at: point)
+            }
         }
     }
 

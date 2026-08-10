@@ -38,6 +38,7 @@ enum TextureCache {
             "bullet",
             "powerbullet",
             "star_power",
+            "health_plus",
             "explosion",
             "mini_explosion"
         ]

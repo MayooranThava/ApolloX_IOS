@@ -81,4 +81,26 @@ final class GameRulesTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(GameRules.invulnerabilityDuration, 1.0)
         XCTAssertLessThanOrEqual(GameRules.invulnerabilityDuration, 2.5)
     }
+
+    func testAsteroidHitboxCoversMostOfSprite() {
+        XCTAssertGreaterThanOrEqual(GameRules.enemyHitboxFactor(for: .asteroid), 0.45)
+        XCTAssertTrue(GameRules.usesTextureHitbox(.asteroid))
+        XCTAssertTrue(GameRules.usesTextureHitbox(.asteroidAlt))
+        XCTAssertFalse(GameRules.usesTextureHitbox(.drone))
+        XCTAssertGreaterThan(GameRules.bulletHitRadius, 11)
+    }
+
+    func testHealthPickupGrantsLifeUpToCap() {
+        XCTAssertEqual(GameRules.livesAfterHealthPickup(current: 2), 3)
+        XCTAssertEqual(GameRules.livesAfterHealthPickup(current: GameRules.maxLives), GameRules.maxLives)
+        XCTAssertGreaterThanOrEqual(GameRules.healthPickupMinInterval, 15)
+        XCTAssertLessThanOrEqual(GameRules.healthPickupMaxInterval, 20)
+        XCTAssertLessThanOrEqual(GameRules.healthPickupMinInterval, GameRules.healthPickupMaxInterval)
+
+        for _ in 0..<40 {
+            let delay = GameRules.nextHealthPickupDelay()
+            XCTAssertGreaterThanOrEqual(delay, GameRules.healthPickupMinInterval)
+            XCTAssertLessThanOrEqual(delay, GameRules.healthPickupMaxInterval)
+        }
+    }
 }
