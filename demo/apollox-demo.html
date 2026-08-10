@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>ApolloX — Current Build Demo</title>
+<style>
+  @font-face {
+    font-family: "The Bold Font";
+    src: url("assets/THEBOLDFONT.ttf") format("truetype");
+    font-weight: 700;
+    font-style: normal;
+  }
+  :root {
+    --bg0: #050814;
+    --bg1: #0b1630;
+    --accent: #ffd661;
+    --panel: rgba(10, 18, 36, 0.62);
+    --btn: rgba(36, 72, 133, 0.95);
+    --btn-stroke: rgba(255, 255, 255, 0.22);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background:
+      radial-gradient(ellipse 90% 70% at 50% 20%, #1a2a55 0%, transparent 55%),
+      radial-gradient(ellipse 70% 50% at 80% 90%, #0d2840 0%, transparent 50%),
+      linear-gradient(180deg, var(--bg1), var(--bg0));
+    font-family: "The Bold Font", "Avenir Next", "Segoe UI", sans-serif;
+    color: #fff;
+  }
+  body {
+    display: grid;
+    place-items: center;
+  }
+  .stage {
+    position: relative;
+    width: min(96vw, min(520px, 56vh * 390 / 844));
+    aspect-ratio: 390 / 844;
+    border-radius: 42px;
+    padding: 10px;
+    background: linear-gradient(160deg, #2a3348, #0c101c 55%, #151b2c);
+    box-shadow:
+      0 30px 80px rgba(0, 0, 0, 0.55),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  }
+  .screen {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 34px;
+    overflow: hidden;
+    background: #000;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+    cursor: grab;
+  }
+  .badge {
+    position: absolute;
+    left: 50%;
+    bottom: -46px;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.55);
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="screen">
+      <canvas id="game" width="390" height="844"></canvas>
+    </div>
+    <div class="badge">ApolloX · current art assets</div>
+  </div>
+<script>
+(() => {
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width;
+  const H = canvas.height;
+  const autodemo = new URLSearchParams(location.search).has("autodemo");
+
+  const ASSET_NAMES = [
+    "background", "playerShip", "enemyShip", "asteroid", "asteroid2",
+    "comet", "spaceMine", "star_power", "bullet", "powerbullet",
+    "explosion", "mini_explosion"
+  ];
+  const images = {};
+
+  // Scene constants mirrored from GameConstants / GameScene (scaled to phone canvas).
+  const CFG = {
+    playerScale: 0.55,          // slightly larger than native 0.42 so face reads on demo
+    asteroidScale: 0.78,
+    droneScale: 0.82,
+    cometScale: 0.9,
+    mineScale: 0.68,
+    starScale: 0.48,
+    bulletW: 16,
+    bulletH: 32,
+    startingLives: 3,
+    starsNeeded: 1,
+    poweredShotCount: 28,
+    baseFireDelay: 0.42,
+    poweredFireDelay: 0.16,
+    powerUpInterval: 5.2,
+    powerUpTravel: 7.5,
+    levelSpawn: [0, 1.7, 1.15, 0.85, 0.62, 0.48],
+    accent: "#ffd661",
+  };
+
+  const state = {
+    mode: "title", // title | play | over
+    t: 0,
+    score: 0,
+    best: Number(localStorage.getItem("apollox_demo_best") || 0),
+    lives: CFG.startingLives,
+    level: 1,
+    starCharge: 0,
+    poweredShots: 0,
+    fireDelay: CFG.baseFireDelay,
+    fireAcc: 0,
+    spawnAcc: 0,
+    powerAcc: 0,
+    player: { x: W * 0.5, y: H * 0.82, vx: 0 },
+    bullets: [],
+    enemies: [],
+    stars: [],
+    fx: [],
+    dust: [],
+    shake: 0,
+    flash: 0,
+    pointer: null,
+    autoSteer: 0,
+    titlePulse: 0,
+  };
+
+  function loadImages() {
+    return Promise.all(ASSET_NAMES.map((name) => new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => { images[name] = img; resolve(); };
+      img.onerror = reject;
+      img.src = `assets/${name}.png`;
+    })));
+  }
+
+  function resetPlay() {
+    state.mode = "play";
+    state.score = 0;
+    state.lives = CFG.startingLives;
+    state.level = autodemo ? 3 : 1;
+    state.starCharge = 0;
+    state.poweredShots = 0;
+    state.fireDelay = CFG.baseFireDelay;
+    state.fireAcc = 0.2;
+    state.spawnAcc = 0.15;
+    state.powerAcc = 1.2;
+    state.player.x = W * 0.5;
+    state.player.y = H * 0.82;
+    state.bullets = [];
+    state.enemies = [];
+    state.stars = [];
+    state.fx = [];
+    state.shake = 0;
+    state.flash = 0;
+    showcaseIndex = 0;
+  }
+
+  function statusText() {
+    if (state.poweredShots > 0) return "FIRE: BOOST";
+    if (CFG.starsNeeded > 1 && state.starCharge > 0) {
+      return `STARS: ${state.starCharge}/${CFG.starsNeeded}`;
+    }
+    return "FIRE: NORMAL";
+  }
+
+  function spawnInterval() {
+    return CFG.levelSpawn[Math.min(state.level, CFG.levelSpawn.length - 1)];
+  }
+
+  // Autodemo showcase queue so the reel shows every current art asset.
+  const showcaseQueue = [
+    "asteroid", "asteroid2", "enemyShip", "comet", "spaceMine",
+    "asteroid", "enemyShip", "comet", "spaceMine", "asteroid2"
+  ];
+  let showcaseIndex = 0;
+
+  function randomObstacle() {
+    if (autodemo && showcaseIndex < showcaseQueue.length) {
+      return showcaseQueue[showcaseIndex++];
+    }
+    const roll = Math.floor(Math.random() * 100);
+    const level = state.level;
+    if (level <= 1) return roll < 80 ? "asteroid" : "asteroid2";
+    if (level === 2) {
+      if (roll < 55) return "asteroid";
+      if (roll < 75) return "asteroid2";
+      if (roll < 90) return "enemyShip";
+      return "comet";
+    }
+    if (level === 3) {
+      if (roll < 40) return "asteroid";
+      if (roll < 55) return "asteroid2";
+      if (roll < 72) return "enemyShip";
+      if (roll < 88) return "comet";
+      return "spaceMine";
+    }
+    if (roll < 30) return "asteroid";
+    if (roll < 45) return "asteroid2";
+    if (roll < 62) return "enemyShip";
+    if (roll < 82) return "comet";
+    return "spaceMine";
+  }
+
+  function obstacleMeta(kind) {
+    switch (kind) {
+      case "asteroid":
+      case "asteroid2":
+        return { points: 1, hp: 1, duration: 2.6, scale: CFG.asteroidScale, spin: true };
+      case "enemyShip":
+        return { points: 2, hp: 1, duration: 2.2, scale: CFG.droneScale, spin: false };
+      case "comet":
+        return { points: 3, hp: 1, duration: 1.45, scale: CFG.cometScale, spin: false };
+      case "spaceMine":
+        return { points: 4, hp: 2, duration: 3.4, scale: CFG.mineScale, pulse: true };
+      default:
+        return { points: 1, hp: 1, duration: 2.5, scale: 0.7 };
+    }
+  }
+
+  function fireBullet() {
+    const powered = state.poweredShots > 0;
+    if (powered) {
+      state.poweredShots -= 1;
+      if (state.poweredShots === 0) {
+        state.fireDelay = CFG.baseFireDelay;
+      }
+    }
+    const img = images[powered ? "powerbullet" : "bullet"];
+    state.bullets.push({
+      x: state.player.x,
+      y: state.player.y - drawH(images.playerShip, CFG.playerScale) * 0.28,
+      vy: -1700 * (H / 2732),
+      powered,
+      img,
+      r: 8,
+    });
+  }
+
+  function spawnEnemy() {
+    const kind = randomObstacle();
+    const meta = obstacleMeta(kind);
+    const inset = kind === "comet" ? 36 : 48;
+    const startX = inset + Math.random() * (W - inset * 2);
+    let endX = inset + Math.random() * (W - inset * 2);
+    if (kind === "comet") {
+      const bias = Math.random() < 0.5 ? -1 : 1;
+      endX = Math.min(W - inset, Math.max(inset, startX + bias * (70 + Math.random() * 80)));
+    }
+    const img = images[kind];
+    const startY = -drawH(img, meta.scale) * 0.6;
+    const endY = H + 80;
+    const dx = endX - startX;
+    const dy = endY - startY;
+    const dist = Math.hypot(dx, dy) || 1;
+    const speed = dist / meta.duration;
+    let rot = 0;
+    if (kind === "comet") rot = Math.atan2(dy, dx);
+    state.enemies.push({
+      kind, img, meta,
+      x: startX, y: startY,
+      vx: (dx / dist) * speed,
+      vy: (dy / dist) * speed,
+      rot,
+      spin: meta.spin ? (Math.random() < 0.5 ? -1 : 1) * (0.8 + Math.random() * 1.2) : 0,
+      pulseT: 0,
+      hp: meta.hp,
+      r: Math.min(drawW(img, meta.scale), drawH(img, meta.scale)) * 0.34,
+    });
+  }
+
+  function spawnStar() {
+    const inset = 50;
+    const startX = inset + Math.random() * (W - inset * 2);
+    const endX = inset + Math.random() * (W - inset * 2);
+    const img = images.star_power;
+    const startY = -40;
+    const endY = H + 60;
+    const duration = CFG.powerUpTravel;
+    state.stars.push({
+      img,
+      x: startX, y: startY,
+      vx: (endX - startX) / duration,
+      vy: (endY - startY) / duration,
+      rot: 0,
+      scale: CFG.starScale,
+      pulse: 0,
+      r: drawW(img, CFG.starScale) * 0.32,
+      life: duration,
+    });
+  }
+
+  function addScore(amount) {
+    const prev = state.score;
+    state.score += amount;
+    const thresholds = [10, 25, 50, 80];
+    for (const t of thresholds) {
+      if (prev < t && state.score >= t) {
+        state.level += 1;
+      }
+    }
+  }
+
+  function loseLife() {
+    state.lives -= 1;
+    state.shake = 10;
+    state.flash = 0.35;
+    if (state.lives <= 0) {
+      state.mode = "over";
+      state.best = Math.max(state.best, state.score);
+      localStorage.setItem("apollox_demo_best", String(state.best));
+    }
+  }
+
+  function explode(x, y, big = true) {
+    state.fx.push({
+      img: images[big ? "explosion" : "mini_explosion"],
+      x, y,
+      scale: 0,
+      target: big ? 0.85 : 0.55,
+      alpha: 1,
+      life: 0.28,
+    });
+    state.shake = Math.max(state.shake, big ? 7 : 4);
+  }
+
+  function drawW(img, scale) { return img.naturalWidth * scale * (W / 1536) * 2.35; }
+  function drawH(img, scale) { return img.naturalHeight * scale * (W / 1536) * 2.35; }
+  // 2.35 compensates for aspectFill crop so sprites read like on-device size.
+
+  function hit(a, b) {
+    const dx = a.x - b.x;
+    const dy = a.y - b.y;
+    return dx * dx + dy * dy < (a.r + b.r) * (a.r + b.r);
+  }
+
+  function update(dt) {
+    state.t += dt;
+    state.titlePulse += dt;
+    if (state.shake > 0) state.shake = Math.max(0, state.shake - dt * 28);
+    if (state.flash > 0) state.flash = Math.max(0, state.flash - dt);
+
+    // drifting dust
+    if (state.dust.length < 40 && Math.random() < dt * 14) {
+      state.dust.push({
+        x: Math.random() * W,
+        y: -4,
+        vy: 18 + Math.random() * 28,
+        r: 0.6 + Math.random() * 1.4,
+        a: 0.15 + Math.random() * 0.25,
+      });
+    }
+    for (const d of state.dust) d.y += d.vy * dt;
+    state.dust = state.dust.filter((d) => d.y < H + 10);
+
+    if (state.mode !== "play") return;
+
+    // steering
+    if (autodemo) {
+      // dodge nearest threat / chase stars
+      let target = W * 0.5;
+      let threat = null;
+      let bestDist = Infinity;
+      for (const e of state.enemies) {
+        if (e.y > H * 0.25 && e.y < state.player.y) {
+          const d = Math.abs(e.x - state.player.x) + (state.player.y - e.y) * 0.35;
+          if (d < bestDist) { bestDist = d; threat = e; }
+        }
+      }
+      const star = state.stars[0];
+      if (threat && Math.abs(threat.x - state.player.x) < 70 && threat.y > H * 0.45) {
+        target = threat.x < state.player.x ? threat.x + 95 : threat.x - 95;
+      } else if (star) {
+        target = star.x;
+      } else {
+        target = W * 0.5 + Math.sin(state.t * 0.9) * 90;
+      }
+      target = Math.max(40, Math.min(W - 40, target));
+      state.player.x += (target - state.player.x) * Math.min(1, dt * 5.5);
+    } else if (state.pointer) {
+      state.player.x += (state.pointer.x - state.player.x) * Math.min(1, dt * 12);
+    }
+    state.player.x = Math.max(36, Math.min(W - 36, state.player.x));
+
+    // fire
+    state.fireAcc += dt;
+    while (state.fireAcc >= state.fireDelay) {
+      state.fireAcc -= state.fireDelay;
+      fireBullet();
+    }
+
+    // spawn
+    state.spawnAcc += dt;
+    if (state.spawnAcc >= spawnInterval()) {
+      state.spawnAcc = 0;
+      spawnEnemy();
+    }
+    state.powerAcc += dt;
+    if (state.powerAcc >= CFG.powerUpInterval) {
+      state.powerAcc = 0;
+      spawnStar();
+    }
+
+    // bullets
+    for (const b of state.bullets) b.y += b.vy * dt;
+    state.bullets = state.bullets.filter((b) => b.y > -40);
+
+    // enemies
+    for (const e of state.enemies) {
+      e.x += e.vx * dt;
+      e.y += e.vy * dt;
+      e.rot += e.spin * dt;
+      if (e.meta.pulse) {
+        e.pulseT += dt;
+        e.scaleMul = 1 + Math.sin(e.pulseT * Math.PI / 0.45) * 0.04;
+      } else {
+        e.scaleMul = 1;
+      }
+    }
+
+    // stars
+    for (const s of state.stars) {
+      s.x += s.vx * dt;
+      s.y += s.vy * dt;
+      s.rot += dt * Math.PI / 3.2;
+      s.pulse += dt;
+      s.scale = CFG.starScale * (1 + Math.sin(s.pulse * Math.PI / 0.55) * 0.07);
+      s.life -= dt;
+    }
+    state.stars = state.stars.filter((s) => s.life > 0);
+
+    // fx
+    for (const f of state.fx) {
+      f.life -= dt;
+      f.scale += (f.target - f.scale) * Math.min(1, dt * 14);
+      f.alpha = Math.max(0, f.life / 0.28);
+    }
+    state.fx = state.fx.filter((f) => f.life > 0);
+
+    // collisions: bullet vs enemy / star
+    for (let i = state.bullets.length - 1; i >= 0; i--) {
+      const b = state.bullets[i];
+      let hitSomething = false;
+      for (let j = state.stars.length - 1; j >= 0; j--) {
+        const s = state.stars[j];
+        if (hit({ x: b.x, y: b.y, r: b.r }, s)) {
+          state.stars.splice(j, 1);
+          state.bullets.splice(i, 1);
+          explode(s.x, s.y, false);
+          state.starCharge += 1;
+          if (state.starCharge >= CFG.starsNeeded) {
+            state.starCharge = 0;
+            state.poweredShots = CFG.poweredShotCount;
+            state.fireDelay = CFG.poweredFireDelay;
+            state.flash = 0.2;
+          }
+          hitSomething = true;
+          break;
+        }
+      }
+      if (hitSomething) continue;
+
+      for (let j = state.enemies.length - 1; j >= 0; j--) {
+        const e = state.enemies[j];
+        if (hit({ x: b.x, y: b.y, r: b.r }, e)) {
+          state.bullets.splice(i, 1);
+          e.hp -= 1;
+          if (e.hp <= 0) {
+            state.enemies.splice(j, 1);
+            explode(e.x, e.y, true);
+            addScore(e.meta.points);
+          } else {
+            explode(e.x, e.y, false);
+            e.flash = 0.15;
+          }
+          hitSomething = true;
+          break;
+        }
+      }
+    }
+
+    // enemy reach bottom / hit player
+    const pw = drawW(images.playerShip, CFG.playerScale);
+    const ph = drawH(images.playerShip, CFG.playerScale);
+    const playerHit = { x: state.player.x, y: state.player.y, r: Math.min(pw, ph) * 0.30 };
+    for (let i = state.enemies.length - 1; i >= 0; i--) {
+      const e = state.enemies[i];
+      if (hit(playerHit, e)) {
+        state.enemies.splice(i, 1);
+        explode(e.x, e.y, true);
+        loseLife();
+        continue;
+      }
+      if (e.y > H + 60) {
+        state.enemies.splice(i, 1);
+        loseLife();
+      }
+    }
+  }
+
+  function roundRect(x, y, w, h, r) {
+    const rr = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + rr, y);
+    ctx.arcTo(x + w, y, x + w, y + h, rr);
+    ctx.arcTo(x + w, y + h, x, y + h, rr);
+    ctx.arcTo(x, y + h, x, y, rr);
+    ctx.arcTo(x, y, x + w, y, rr);
+    ctx.closePath();
+  }
+
+  function drawBackground() {
+    const img = images.background;
+    // Single plate, slightly oversized (matches addProductionBackground — no tiling seam)
+    const scale = Math.max(W / img.naturalWidth, H / img.naturalHeight) * 1.1;
+    const bw = img.naturalWidth * scale;
+    const bh = img.naturalHeight * scale;
+    const drift = Math.sin(state.t * 0.08) * 8;
+    ctx.drawImage(img, (W - bw) / 2, (H - bh) / 2 + drift, bw, bh);
+    for (const d of state.dust) {
+      ctx.fillStyle = `rgba(235,240,255,${d.a})`;
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function drawSprite(img, x, y, scale, rot = 0, alpha = 1, scaleMul = 1) {
+    const w = drawW(img, scale) * scaleMul;
+    const h = drawH(img, scale) * scaleMul;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rot);
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(img, -w / 2, -h / 2, w, h);
+    ctx.restore();
+  }
+
+  function drawHUD() {
+    const padX = 18;
+    const top = 54;
+    const panelH = 64;
+    const panelW = W - padX * 2;
+    ctx.save();
+    ctx.fillStyle = "rgba(10, 18, 36, 0.62)";
+    ctx.strokeStyle = "rgba(255,255,255,0.12)";
+    ctx.lineWidth = 1.5;
+    roundRect(padX, top, panelW, panelH, 18);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = "#fff";
+    ctx.font = '20px "The Bold Font", "Avenir Next", sans-serif';
+    ctx.textBaseline = "middle";
+    ctx.textAlign = "left";
+    ctx.fillText(`SCORE  ${state.score}`, padX + 18, top + 24);
+    ctx.textAlign = "right";
+    ctx.fillText(`LIVES  ${state.lives}`, padX + panelW - 18, top + 24);
+    ctx.textAlign = "center";
+    ctx.fillStyle = CFG.accent;
+    ctx.font = '15px "The Bold Font", "Avenir Next", sans-serif';
+    ctx.fillText(statusText(), W / 2, top + 46);
+    ctx.restore();
+  }
+
+  function drawTitle() {
+    drawBackground();
+    // subtle ambient rockets / debris preview
+    if (images.asteroid) {
+      drawSprite(images.asteroid, W * 0.18, H * 0.42, 0.42, state.t * 0.4, 0.55);
+      drawSprite(images.asteroid2, W * 0.82, H * 0.36, 0.38, -state.t * 0.35, 0.5);
+      drawSprite(images.star_power, W * 0.72, H * 0.52, 0.32, state.t * 0.8, 0.75);
+    }
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#fff";
+    ctx.font = '58px "The Bold Font", "Avenir Next", sans-serif';
+    ctx.fillText("ApolloX", W / 2, 120);
+
+    ctx.fillStyle = "rgba(210,215,230,0.9)";
+    ctx.font = '18px "The Bold Font", "Avenir Next", sans-serif';
+    ctx.fillText("Dodge  •  Shoot  •  Survive", W / 2, 168);
+
+    const lines = [
+      "Drag to steer your rocket",
+      "Blast asteroids, drones, and comets",
+      "Mines take two hits — stay clear",
+      "Shoot a star for a fire boost",
+    ];
+    ctx.fillStyle = "rgba(200,205,220,0.82)";
+    ctx.font = '15px "The Bold Font", "Avenir Next", sans-serif';
+    lines.forEach((line, i) => {
+      ctx.fillText(line, W / 2, H * 0.42 + i * 28);
+    });
+
+    // showcase player ship with face
+    drawSprite(images.playerShip, W / 2, H * 0.72, 0.72, 0, 1);
+
+    ctx.fillStyle = CFG.accent;
+    ctx.font = '20px "The Bold Font", "Avenir Next", sans-serif';
+    ctx.fillText(`BEST  ${state.best}`, W / 2, H - 150);
+
+    const pulse = 1 + Math.sin(state.titlePulse * 3) * 0.03;
+    const bw = 168 * pulse;
+    const bh = 48 * pulse;
+    ctx.fillStyle = "rgba(36, 72, 133, 0.95)";
+    ctx.strokeStyle = "rgba(255,255,255,0.22)";
+    ctx.lineWidth = 1.5;
+    roundRect(W / 2 - bw / 2, H - 118 - bh / 2, bw, bh, bh / 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "#fff";
+    ctx.font = '26px "The Bold Font", "Avenir Next", sans-serif';
+    ctx.fillText("Play", W / 2, H - 118);
+  }
+
+  function drawPlay() {
+    ctx.save();
+    if (state.shake > 0) {
+      ctx.translate((Math.random() - 0.5) * state.shake, (Math.random() - 0.5) * state.shake);
+    }
+    drawBackground();
+
+    for (const s of state.stars) {
+      drawSprite(s.img, s.x, s.y, s.scale, s.rot, 1);
+    }
+    for (const e of state.enemies) {
+      const sc = e.meta.scale * (e.scaleMul || 1);
+      drawSprite(e.img, e.x, e.y, sc, e.rot, e.flash ? 0.7 : 1);
+      if (e.flash) e.flash = Math.max(0, e.flash - 0.016);
+    }
+    for (const b of state.bullets) {
+      const w = CFG.bulletW * (b.powered ? 1.15 : 1);
+      const h = CFG.bulletH * (b.powered ? 1.15 : 1);
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      ctx.drawImage(b.img, b.x - w / 2, b.y - h / 2, w, h);
+      ctx.restore();
+    }
+    drawSprite(images.playerShip, state.player.x, state.player.y, CFG.playerScale, 0, 1);
+    for (const f of state.fx) {
+      ctx.save();
+      ctx.globalAlpha = f.alpha;
+      ctx.globalCompositeOperation = "lighter";
+      const w = drawW(f.img, f.scale);
+      const h = drawH(f.img, f.scale);
+      ctx.drawImage(f.img, f.x - w / 2, f.y - h / 2, w, h);
+      ctx.restore();
+    }
+    if (state.flash > 0) {
+      ctx.fillStyle = `rgba(255,220,160,${state.flash * 0.35})`;
+      ctx.fillRect(0, 0, W, H);
+    }
+    ctx.restore();
+    drawHUD();
+  }
+
+  function drawOver() {
+    drawBackground();
+    ctx.fillStyle = "rgba(0,0,0,0.45)";
+    ctx.fillRect(0, 0, W, H);
+
+    const cw = Math.min(W - 36, 320);
+    const ch = 340;
+    const cx = W / 2;
+    const cy = H / 2;
+    ctx.fillStyle = "rgba(10, 18, 36, 0.72)";
+    ctx.strokeStyle = "rgba(255,255,255,0.14)";
+    ctx.lineWidth = 1.5;
+    roundRect(cx - cw / 2, cy - ch / 2, cw, ch, 24);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#fff";
+    ctx.font = '40px "The Bold Font", "Avenir Next", sans-serif';
+    ctx.fillText("Game Over", cx, cy - 110);
+    ctx.font = '26px "The Bold Font", "Avenir Next", sans-serif';
+    ctx.fillText(`SCORE  ${state.score}`, cx, cy - 40);
+    ctx.fillStyle = CFG.accent;
+    ctx.font = '22px "The Bold Font", "Avenir Next", sans-serif';
+    ctx.fillText(`BEST  ${state.best}`, cx, cy + 8);
+
+    ctx.fillStyle = "rgba(36, 72, 133, 0.95)";
+    roundRect(cx - 110, cy + 55, 220, 48, 24);
+    ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,0.10)";
+    roundRect(cx - 90, cy + 118, 180, 40, 20);
+    ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.font = '24px "The Bold Font", "Avenir Next", sans-serif';
+    ctx.fillText("Restart", cx, cy + 79);
+    ctx.font = '18px "The Bold Font", "Avenir Next", sans-serif';
+    ctx.fillText("Menu", cx, cy + 138);
+  }
+
+  function render() {
+    ctx.clearRect(0, 0, W, H);
+    if (state.mode === "title") drawTitle();
+    else if (state.mode === "play") drawPlay();
+    else drawOver();
+  }
+
+  function pointerPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const src = e.touches ? e.touches[0] : e;
+    return {
+      x: ((src.clientX - rect.left) / rect.width) * W,
+      y: ((src.clientY - rect.top) / rect.height) * H,
+    };
+  }
+
+  function onDown(e) {
+    e.preventDefault();
+    const p = pointerPos(e);
+    if (state.mode === "title") {
+      resetPlay();
+      return;
+    }
+    if (state.mode === "over") {
+      if (p.y > H * 0.55 && p.y < H * 0.62) resetPlay();
+      else if (p.y >= H * 0.62) state.mode = "title";
+      else resetPlay();
+      return;
+    }
+    state.pointer = p;
+  }
+  function onMove(e) {
+    if (!state.pointer || state.mode !== "play") return;
+    e.preventDefault();
+    state.pointer = pointerPos(e);
+  }
+  function onUp() { state.pointer = null; }
+
+  canvas.addEventListener("mousedown", onDown);
+  canvas.addEventListener("mousemove", onMove);
+  window.addEventListener("mouseup", onUp);
+  canvas.addEventListener("touchstart", onDown, { passive: false });
+  canvas.addEventListener("touchmove", onMove, { passive: false });
+  canvas.addEventListener("touchend", onUp);
+
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.033, (now - last) / 1000);
+    last = now;
+    update(dt);
+    render();
+    requestAnimationFrame(frame);
+  }
+
+  loadImages().then(() => {
+    if (autodemo) {
+      // Hold title so the reel shows ApolloX branding + face rocket, then play.
+      setTimeout(() => resetPlay(), 3200);
+      setInterval(() => {
+        if (state.mode === "over") {
+          setTimeout(() => {
+            state.mode = "title";
+            setTimeout(() => resetPlay(), 2200);
+          }, 1400);
+        }
+      }, 400);
+    }
+    requestAnimationFrame(frame);
+  }).catch((err) => {
+    ctx.fillStyle = "#fff";
+    ctx.font = "16px sans-serif";
+    ctx.fillText("Failed to load assets", 20, 40);
+    console.error(err);
+  });
+})();
+</script>
+</body>
+</html>
