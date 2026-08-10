@@ -14,7 +14,8 @@ enum GameConstants {
     static let fallbackFontName = "AvenirNext-Bold"
 
     static let startingLives = 3
-    static let starsNeededForUpgrade = 3
+    /// Stars required to trigger a fire boost. One star = instant boost for snappier play.
+    static let starsNeededForUpgrade = 1
     static let poweredShotCount = 28
 
     static let baseFireDelay: TimeInterval = 0.42

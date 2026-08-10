@@ -113,7 +113,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         hud.setLives(lives)
         if poweredShotsRemaining > 0 {
             hud.setStatus("Fire: Boost")
-        } else if starCharge > 0 {
+        } else if GameConstants.starsNeededForUpgrade > 1, starCharge > 0 {
             hud.setStatus("Stars: \(starCharge)/\(GameConstants.starsNeededForUpgrade)")
         } else {
             hud.setStatus("Fire: Normal")
@@ -400,8 +400,6 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         HapticManager.starHit()
         AudioManager.play(AudioManager.star, on: self)
         spawnExplosion(at: position, image: "mini_explosion", scale: 0.7)
-        updateHUD()
-        hud.pulseStatus()
 
         if starCharge >= GameConstants.starsNeededForUpgrade {
             starCharge = 0
@@ -411,6 +409,9 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             HapticManager.upgrade()
             AudioManager.play(AudioManager.boost, on: self)
             refreshFireRate()
+        } else {
+            updateHUD()
+            hud.pulseStatus()
         }
     }
 
