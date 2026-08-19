@@ -124,9 +124,21 @@ final class GameRulesTests: XCTestCase {
         XCTAssertLessThan(mineRadius, asteroidRadius)
     }
 
-    func testBossHasTenHP() {
-        XCTAssertEqual(GameConstants.ObstacleKind.boss.hitsToDestroy, 10)
-        XCTAssertEqual(GameRules.bossMaxHP, 10)
+    func testBossHasFifteenHP() {
+        XCTAssertEqual(GameConstants.ObstacleKind.boss.hitsToDestroy, 15)
+        XCTAssertEqual(GameRules.bossMaxHP, 15)
+    }
+
+    func testBossVulnerabilityRequiresVisibilityAndDelay() {
+        XCTAssertFalse(GameRules.isBossVulnerable(elapsedSinceSpawn: 4.9, fullyVisible: true))
+        XCTAssertFalse(GameRules.isBossVulnerable(elapsedSinceSpawn: 6.0, fullyVisible: false))
+        XCTAssertTrue(GameRules.isBossVulnerable(elapsedSinceSpawn: 5.0, fullyVisible: true))
+    }
+
+    func testBossFullyVisibleWhenInsidePlayArea() {
+        XCTAssertTrue(GameRules.isBossFullyVisible(centerY: 500, halfHeight: 100, playMinY: 200, playMaxY: 800))
+        XCTAssertFalse(GameRules.isBossFullyVisible(centerY: 850, halfHeight: 100, playMinY: 200, playMaxY: 800))
+        XCTAssertFalse(GameRules.isBossFullyVisible(centerY: 250, halfHeight: 100, playMinY: 200, playMaxY: 800))
     }
 
     func testSweptProjectileCatchesGrazingPath() {
