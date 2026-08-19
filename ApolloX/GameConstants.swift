@@ -90,6 +90,7 @@ enum GameConstants {
         static let powerUp = "PowerUp"
         static let healthPickup = "HealthPickup"
         static let background = "Background"
+        static let scrollingBackground = "ScrollingBackground"
         static let obstacleHP = "hp"
         static let obstacleKind = "kind"
         static let hitRadius = "hitRadius"

@@ -23,28 +23,70 @@ extension SKScene {
         return label
     }
 
-    /// Seamless space backdrop: one static plate (no tiling seam) + lightweight drifting dust.
-    func addProductionBackground() {
+    /// Rolling space backdrop with drifting dust and tier-aware color grading in gameplay.
+    @discardableResult
+    func addProductionBackground(scrolling: Bool = true) -> ScrollingBackgroundNode? {
         let layout = playfield
         let texture = TextureCache.texture("background")
 
-        let backdrop = SKSpriteNode(texture: texture)
-        backdrop.name = GameConstants.NodeName.background
-        backdrop.size = layout.visibleRect.size
-        backdrop.position = CGPoint(x: size.width * 0.5, y: size.height * 0.5)
-        backdrop.zPosition = GameConstants.Z.background
-        addChild(backdrop)
+        childNode(withName: GameConstants.NodeName.scrollingBackground)?.removeFromParent()
+        childNode(withName: GameConstants.NodeName.background)?.removeFromParent()
+        childNode(withName: GameConstants.NodeName.starDust)?.removeFromParent()
 
-        let dust = makeStarDustEmitter()
+        guard scrolling else {
+            let backdrop = SKSpriteNode(texture: texture)
+            backdrop.name = GameConstants.NodeName.background
+            backdrop.size = layout.visibleRect.size
+            backdrop.position = CGPoint(x: size.width * 0.5, y: size.height * 0.5)
+            backdrop.zPosition = GameConstants.Z.background
+            addChild(backdrop)
+            addStarDust(tier: 0)
+            applyPerformanceQuality()
+            return nil
+        }
+
+        let scrollingBackground = ScrollingBackgroundNode()
+        scrollingBackground.name = GameConstants.NodeName.scrollingBackground
+        scrollingBackground.configure(in: layout.visibleRect, texture: texture)
+        addChild(scrollingBackground)
+
+        addStarDust(tier: 0)
+        applyPerformanceQuality()
+        return scrollingBackground
+    }
+
+    func scrollingBackgroundNode() -> ScrollingBackgroundNode? {
+        childNode(withName: GameConstants.NodeName.scrollingBackground) as? ScrollingBackgroundNode
+    }
+
+    func relayoutProductionBackground() {
+        let layout = playfield
+        let texture = TextureCache.texture("background")
+        if let scrolling = scrollingBackgroundNode() {
+            scrolling.relayout(in: layout.visibleRect, texture: texture)
+        } else if let backdrop = childNode(withName: GameConstants.NodeName.background) as? SKSpriteNode {
+            backdrop.size = layout.visibleRect.size
+            backdrop.position = CGPoint(x: size.width * 0.5, y: size.height * 0.5)
+        }
+        if let dust = childNode(withName: GameConstants.NodeName.starDust) as? SKEmitterNode {
+            dust.position = CGPoint(x: size.width * 0.5, y: size.height * 0.5)
+            dust.particlePositionRange = CGVector(dx: layout.visibleRect.width, dy: layout.visibleRect.height)
+        }
+    }
+
+    func addStarDust(tier: Int) {
+        childNode(withName: GameConstants.NodeName.starDust)?.removeFromParent()
+        let dust = makeStarDustEmitter(tier: tier)
         dust.name = GameConstants.NodeName.starDust
         dust.position = CGPoint(x: size.width * 0.5, y: size.height * 0.5)
         dust.zPosition = GameConstants.Z.background + 1
         dust.targetNode = self
         addChild(dust)
-        applyPerformanceQuality()
     }
 
-    func makeStarDustEmitter() -> SKEmitterNode {
+    func makeStarDustEmitter(tier: Int = 0) -> SKEmitterNode {
+        let palette = resolvedDustPalette(for: tier)
+
         let emitter = SKEmitterNode()
         emitter.particleTexture = softDotTexture()
         emitter.particleBirthRate = FramePacing.currentQuality.starDustBirthRate
@@ -52,8 +94,8 @@ extension SKScene {
         emitter.particleLifetime = 5
         emitter.particleLifetimeRange = 1.5
         emitter.particlePositionRange = CGVector(dx: size.width, dy: size.height)
-        emitter.particleSpeed = 18
-        emitter.particleSpeedRange = 14
+        emitter.particleSpeed = palette.speed
+        emitter.particleSpeedRange = palette.speed * 0.75
         emitter.emissionAngle = -.pi / 2
         emitter.emissionAngleRange = 0.12
         emitter.particleAlpha = 0.28
@@ -61,10 +103,27 @@ extension SKScene {
         emitter.particleAlphaSpeed = -0.03
         emitter.particleScale = 0.04
         emitter.particleScaleRange = 0.025
-        emitter.particleColor = SKColor(white: 0.92, alpha: 1)
+        emitter.particleColor = palette.color
         emitter.particleColorBlendFactor = 1
         emitter.particleBlendMode = .add
         return emitter
+    }
+
+    func updateBackgroundTier(_ tier: Int, animated: Bool) {
+        scrollingBackgroundNode()?.setTier(tier, animated: animated)
+        if let dust = childNode(withName: GameConstants.NodeName.starDust) as? SKEmitterNode {
+            let palette = resolvedDustPalette(for: tier)
+            dust.particleColor = palette.color
+            dust.particleSpeed = palette.speed
+            dust.particleSpeedRange = palette.speed * 0.75
+        }
+    }
+
+    private func resolvedDustPalette(for tier: Int) -> (color: SKColor, speed: CGFloat) {
+        if let palette = scrollingBackgroundNode()?.dustPalette(for: tier) {
+            return palette
+        }
+        return (color: SKColor(white: 0.92, alpha: 1), speed: 18.0)
     }
 
     func makeEngineEmitter() -> SKEmitterNode {
