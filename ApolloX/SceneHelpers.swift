@@ -85,8 +85,7 @@ extension SKScene {
     }
 
     func makeStarDustEmitter(tier: Int = 0) -> SKEmitterNode {
-        let palette = scrollingBackgroundNode()?.dustPalette(for: tier)
-            ?? (color: SKColor(white: 0.92, alpha: 1), speed: 18.0)
+        let palette = resolvedDustPalette(for: tier)
 
         let emitter = SKEmitterNode()
         emitter.particleTexture = softDotTexture()
@@ -113,12 +112,18 @@ extension SKScene {
     func updateBackgroundTier(_ tier: Int, animated: Bool) {
         scrollingBackgroundNode()?.setTier(tier, animated: animated)
         if let dust = childNode(withName: GameConstants.NodeName.starDust) as? SKEmitterNode {
-            let palette = scrollingBackgroundNode()?.dustPalette(for: tier)
-                ?? (SKColor(white: 0.92, alpha: 1), 18.0)
+            let palette = resolvedDustPalette(for: tier)
             dust.particleColor = palette.color
             dust.particleSpeed = palette.speed
             dust.particleSpeedRange = palette.speed * 0.75
         }
+    }
+
+    private func resolvedDustPalette(for tier: Int) -> (color: SKColor, speed: CGFloat) {
+        if let palette = scrollingBackgroundNode()?.dustPalette(for: tier) {
+            return palette
+        }
+        return (color: SKColor(white: 0.92, alpha: 1), speed: 18.0)
     }
 
     func makeEngineEmitter() -> SKEmitterNode {
