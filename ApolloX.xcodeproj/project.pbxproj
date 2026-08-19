@@ -11,7 +11,6 @@
 		C15432AB28C5C2AE000611A5 /* explosionShort.wav in Resources */ = {isa = PBXBuildFile; fileRef = C15432AA28C5C2AE000611A5 /* explosionShort.wav */; };
 		C15432AD28C5C48F000611A5 /* THEBOLDFONT.ttf in Resources */ = {isa = PBXBuildFile; fileRef = C15432AC28C5C48F000611A5 /* THEBOLDFONT.ttf */; };
 		C15432B028C645C5000611A5 /* GameOverScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = C15432AF28C645C5000611A5 /* GameOverScene.swift */; };
-		C15432B428C65A80000611A5 /* gameBGM.wav in Resources */ = {isa = PBXBuildFile; fileRef = C15432B328C65A80000611A5 /* gameBGM.wav */; };
 		C18A0A6C28B4334100B2965A /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = C18A0A6B28B4334100B2965A /* AppDelegate.swift */; };
 		C18A0A6E28B4334100B2965A /* GameScene.sks in Resources */ = {isa = PBXBuildFile; fileRef = C18A0A6D28B4334100B2965A /* GameScene.sks */; };
 		C18A0A7028B4334100B2965A /* Actions.sks in Resources */ = {isa = PBXBuildFile; fileRef = C18A0A6F28B4334100B2965A /* Actions.sks */; };
@@ -51,7 +50,6 @@
 		C15432AC28C5C48F000611A5 /* THEBOLDFONT.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = THEBOLDFONT.ttf; sourceTree = "<group>"; };
 		C15432AE28C5C75A000611A5 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		C15432AF28C645C5000611A5 /* GameOverScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameOverScene.swift; sourceTree = "<group>"; };
-		C15432B328C65A80000611A5 /* gameBGM.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = gameBGM.wav; sourceTree = "<group>"; };
 		C18A0A6828B4334100B2965A /* ApolloX.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ApolloX.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C18A0A6B28B4334100B2965A /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		C18A0A6D28B4334100B2965A /* GameScene.sks */ = {isa = PBXFileReference; lastKnownFileType = file.sks; path = GameScene.sks; sourceTree = "<group>"; };
@@ -177,7 +175,6 @@
 				C18A0A6B28B4334100B2965A /* AppDelegate.swift */,
 				C18A0A6D28B4334100B2965A /* GameScene.sks */,
 				C18A0A6F28B4334100B2965A /* Actions.sks */,
-				C15432B328C65A80000611A5 /* gameBGM.wav */,
 				C15432A628BABB04000611A5 /* laserSound.wav */,
 				C15432AA28C5C2AE000611A5 /* explosionShort.wav */,
 				C1B10014208A000100BD3501 /* starCollect.wav */,
@@ -321,7 +318,6 @@
 				C18A0A7928B4334300B2965A /* Assets.xcassets in Resources */,
 				C18A0A7C28B4334300B2965A /* LaunchScreen.storyboard in Resources */,
 				C18A0A7028B4334100B2965A /* Actions.sks in Resources */,
-				C15432B428C65A80000611A5 /* gameBGM.wav in Resources */,
 				C1B10015208A000100BD3501 /* starCollect.wav in Resources */,
 				C1B10017208A000100BD3501 /* boostActivate.wav in Resources */,
 				C1B10019208A000100BD3501 /* lifeLost.wav in Resources */,
@@ -550,6 +546,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ApolloX/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = ApolloX;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_CADisableMinimumFrameDurationOnPhone = YES;
@@ -587,6 +584,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ApolloX/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = ApolloX;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_CADisableMinimumFrameDurationOnPhone = YES;
