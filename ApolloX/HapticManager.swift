@@ -32,7 +32,7 @@ enum HapticManager {
     }
 
     static func enemyDestroyed() {
-        let now = ProcessInfo.processInfo.systemUptime
+        let now = CFAbsoluteTimeGetCurrent()
         guard now - lastCombatHaptic >= combatInterval else { return }
         lastCombatHaptic = now
         medium.impactOccurred()
