@@ -15,6 +15,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     private let hud = HUDBarNode()
+    private let bossHealthBar = BossHealthBarNode()
     private let player = SKSpriteNode(texture: TextureCache.texture("playerShip"))
     private var engineEmitter: SKEmitterNode?
 
@@ -30,6 +31,9 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private var isInvulnerable = false
     private var runElapsed: TimeInterval = 0
     private var lastUpdateTime: TimeInterval = 0
+    private var bossSpawned = false
+    private var bossActive = false
+    private var bossNode: PooledSprite?
     /// Cached so swept tests do not rebuild `PlayfieldLayout` every pair.
     private var visibleMaxY: CGFloat = 0
 
@@ -39,6 +43,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private var liveBullets: [PooledSprite] = []
     private var liveEnemies: [PooledSprite] = []
     private var livePickups: [PooledSprite] = []
+    private var liveFireballs: [PooledSprite] = []
 
     private lazy var bulletPool = NodePool(prewarm: 18, maxIdle: 24) {
         PooledSprite(texture: TextureCache.texture(GameConstants.bulletImage))
@@ -51,6 +56,9 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     private lazy var pickupPool = NodePool(prewarm: 2, maxIdle: 6) {
         PooledSprite(texture: TextureCache.texture(GameConstants.starImage))
+    }
+    private lazy var fireballPool = NodePool(prewarm: 6, maxIdle: 10) {
+        PooledSprite(texture: TextureCache.texture(GameConstants.fireballImage))
     }
 
     override init(size: CGSize) {
@@ -73,6 +81,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
         addProductionBackground()
         addChild(hud)
+        addChild(bossHealthBar)
         configurePlayer()
         relayoutForSafeArea()
         whenSafeAreaReady { [weak self] in
@@ -99,6 +108,11 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             runElapsed += currentTime - lastUpdateTime
         }
         lastUpdateTime = currentTime
+
+        if GameRules.shouldSpawnBoss(elapsed: runElapsed, bossSpawned: bossSpawned, bossActive: bossActive) {
+            bossSpawned = true
+            spawnBoss()
+        }
     }
 
     override func didFinishUpdate() {
@@ -113,6 +127,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         playArea = layout.safeRect
         visibleMaxY = layout.visibleRect.maxY
         hud.layout(in: layout.safeRect)
+        bossHealthBar.layout(in: layout.safeRect, below: 108)
 
         if player.parent != nil {
             player.position.x = GameRules.clampPlayerX(
@@ -141,6 +156,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         player.physicsBody?.categoryBitMask = GameConstants.PhysicsCategory.player
         player.physicsBody?.collisionBitMask = GameConstants.PhysicsCategory.none
         player.physicsBody?.contactTestBitMask = GameConstants.PhysicsCategory.enemy
+            | GameConstants.PhysicsCategory.enemyProjectile
         addChild(player)
 
         let engine = makeEngineEmitter()
@@ -223,11 +239,12 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     private func scheduleNextObstacle() {
         removeAction(forKey: "spawningEnemies")
-        let delay = GameRules.spawnInterval(level: level, elapsed: runElapsed)
+        guard !bossActive else { return }
+        let delay = GameRules.spawnInterval(elapsed: runElapsed)
         run(.sequence([
             .wait(forDuration: delay),
             .run { [weak self] in
-                guard let self, self.currentState == .playing else { return }
+                guard let self, self.currentState == .playing, !self.bossActive else { return }
                 self.spawnObstacle()
                 self.scheduleNextObstacle()
             }
@@ -284,8 +301,6 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
         if GameRules.shouldAdvanceLevel(previousScore: previous, newScore: score) {
             beginLevel()
-            // Reschedule so the new level interval applies after grace.
-            scheduleNextObstacle()
         }
     }
 
@@ -347,9 +362,11 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         engineEmitter?.particleBirthRate = 0
 
         removeAllActions()
-        for sprite in liveBullets + liveEnemies + livePickups {
+        for sprite in liveBullets + liveEnemies + livePickups + liveFireballs {
             sprite.removeAllActions()
         }
+        bossNode?.removeAllActions()
+        bossHealthBar.hideBar()
 
         ScoreStore.commitHighScoreIfNeeded()
         isPaused = false
@@ -545,23 +562,17 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     private func spawnObstacle() {
-        guard currentState == .playing, playArea.width > 80 else { return }
+        guard currentState == .playing, playArea.width > 80, !bossActive else { return }
 
         let kind = GameRules.obstacleKind(
-            level: level,
             elapsed: runElapsed,
             roll: Int.random(in: 0...99)
         )
-        let inset: CGFloat = kind == .comet ? 40 : 58
-        // During opening grace, keep paths more centered / less extreme.
+        let inset: CGFloat = 58
         let laneInset = GameRules.isInOpeningGrace(elapsed: runElapsed) ? inset + 36 : inset
         let startX = CGFloat.random(in: playArea.minX + laneInset...playArea.maxX - laneInset)
         let endX: CGFloat
-        if kind == .comet {
-            let bias: CGFloat = Bool.random() ? 1 : -1
-            endX = min(max(startX + bias * CGFloat.random(in: 180...320), playArea.minX + laneInset), playArea.maxX - laneInset)
-        } else if GameRules.isInOpeningGrace(elapsed: runElapsed) {
-            // Milder drift early on.
+        if GameRules.isInOpeningGrace(elapsed: runElapsed) {
             endX = min(max(startX + CGFloat.random(in: -80...80), playArea.minX + laneInset), playArea.maxX - laneInset)
         } else {
             endX = CGFloat.random(in: playArea.minX + laneInset...playArea.maxX - laneInset)
@@ -580,6 +591,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         node.zPosition = GameConstants.Z.enemy
         node.alpha = 1
         node.zRotation = 0
+        node.colorBlendFactor = 0
         let radius = GameRules.obstacleHitRadius(for: kind, spriteSize: node.size, scale: node.xScale)
         node.obstacleKind = kind
         node.obstacleHP = kind.hitsToDestroy
@@ -592,13 +604,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         addChild(node)
         liveEnemies.append(node)
 
-        if kind == .comet {
-            let dx = end.x - start.x
-            let dy = end.y - start.y
-            node.zRotation = atan2(dy, dx)
-        } else if kind == .drone {
-            node.zRotation = 0
-        } else if kind == .mine {
+        if kind == .mine {
             AudioManager.play(.mine)
             node.run(.repeatForever(.sequence([
                 .scale(to: kind.scale * 1.08, duration: 0.45),
@@ -609,7 +615,6 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             node.run(.repeatForever(.rotate(byAngle: spin, duration: 1.0)))
         }
 
-        // Opening grace: slightly slower travel.
         let duration = kind.travelDuration * (GameRules.isInOpeningGrace(elapsed: runElapsed) ? 1.25 : 1.0)
         node.run(.sequence([
             .move(to: end, duration: duration),
@@ -620,6 +625,147 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
                 self.obstaclePool.recycle(node)
             }
         ]))
+    }
+
+    private func clearRegularObstacles() {
+        let enemies = liveEnemies
+        for enemy in enemies {
+            guard enemy !== bossNode else { continue }
+            enemy.removeAllActions()
+            untrack(enemy, from: &liveEnemies)
+            obstaclePool.recycle(enemy)
+        }
+    }
+
+    private func spawnBoss() {
+        guard currentState == .playing, playArea.width > 80 else { return }
+
+        removeAction(forKey: "spawningEnemies")
+        clearRegularObstacles()
+        bossActive = true
+
+        let kind = GameConstants.ObstacleKind.boss
+        let node = obstaclePool.checkout()
+        node.texture = TextureCache.texture(kind.rawValue)
+        let texSize = node.texture?.size() ?? CGSize(width: 160, height: 160)
+        node.size = texSize
+        node.setScale(kind.scale)
+        node.name = GameConstants.NodeName.boss
+        node.position = CGPoint(x: playArea.midX, y: playArea.maxY + 180)
+        node.zPosition = GameConstants.Z.enemy + 1
+        node.alpha = 1
+        node.zRotation = .pi
+        node.color = SKColor(red: 0.85, green: 0.22, blue: 0.55, alpha: 1)
+        node.colorBlendFactor = 0.35
+        let radius = GameRules.obstacleHitRadius(for: kind, spriteSize: node.size, scale: node.xScale)
+        node.obstacleKind = kind
+        node.obstacleHP = kind.hitsToDestroy
+        node.hitRadius = radius
+        node.attachCirclePhysics(
+            radius: radius,
+            category: GameConstants.PhysicsCategory.enemy,
+            contact: GameConstants.PhysicsCategory.player | GameConstants.PhysicsCategory.bullet
+        )
+        addChild(node)
+        liveEnemies.append(node)
+        bossNode = node
+
+        bossHealthBar.show(maxHP: GameRules.bossMaxHP)
+        hud.setStatus("Boss Fight!")
+        hud.pulseStatus()
+
+        let hoverY = playArea.minY + playArea.height * 0.58
+        node.run(.sequence([
+            .moveTo(y: hoverY, duration: GameRules.bossDescentDuration),
+            .repeatForever(.sequence([
+                .moveBy(x: 28, y: 0, duration: 1.4),
+                .moveBy(x: -56, y: 0, duration: 2.8),
+                .moveBy(x: 28, y: 0, duration: 1.4)
+            ]))
+        ]))
+
+        node.run(.repeatForever(.sequence([
+            .wait(forDuration: GameRules.bossFireInterval),
+            .run { [weak self] in self?.fireBossVolley() }
+        ])), withKey: "bossFire")
+
+        showStatusBanner(text: "BOSS INCOMING", color: SKColor(red: 1, green: 0.45, blue: 0.35, alpha: 1))
+        AudioManager.play(.mine)
+    }
+
+    private func fireBossVolley() {
+        guard bossActive, let boss = bossNode, boss.parent != nil, currentState == .playing else { return }
+        guard liveFireballs.count < 8 else { return }
+
+        let shots = Bool.random() ? 1 : 2
+        for i in 0..<shots {
+            let spread = CGFloat(i) * 44 - CGFloat(shots - 1) * 22
+            fireBossFireball(from: boss.position, targetX: player.position.x + spread)
+        }
+    }
+
+    private func fireBossFireball(from origin: CGPoint, targetX: CGFloat) {
+        let fireball = fireballPool.checkout()
+        fireball.texture = TextureCache.texture(GameConstants.fireballImage)
+        fireball.setScale(GameRules.fireballScale)
+        fireball.name = GameConstants.NodeName.fireball
+        fireball.position = CGPoint(x: origin.x, y: origin.y - 60)
+        fireball.zPosition = GameConstants.Z.enemyProjectile
+        fireball.zRotation = .pi * 0.5
+        fireball.color = SKColor(red: 1, green: 0.55, blue: 0.12, alpha: 1)
+        fireball.colorBlendFactor = 0.55
+        let radius = fireball.size.width * fireball.xScale * 0.34
+        fireball.hitRadius = radius
+        fireball.attachCirclePhysics(
+            radius: radius,
+            category: GameConstants.PhysicsCategory.enemyProjectile,
+            contact: GameConstants.PhysicsCategory.player
+        )
+        addChild(fireball)
+        liveFireballs.append(fireball)
+
+        let clampedTargetX = GameRules.clampPlayerX(
+            x: targetX,
+            playMinX: playArea.minX,
+            playMaxX: playArea.maxX,
+            halfWidth: radius
+        )
+        let end = CGPoint(x: clampedTargetX, y: playArea.minY - 80)
+        let distance = hypot(end.x - fireball.position.x, end.y - fireball.position.y)
+        let duration = TimeInterval(distance / GameRules.fireballSpeed)
+
+        fireball.run(.sequence([
+            .move(to: end, duration: duration),
+            .run { [weak self, weak fireball] in
+                guard let self, let fireball else { return }
+                self.recycleFireball(fireball)
+            }
+        ]))
+    }
+
+    private func recycleFireball(_ node: PooledSprite) {
+        untrack(node, from: &liveFireballs)
+        fireballPool.recycle(node)
+    }
+
+    private func clearFireballs() {
+        let shots = liveFireballs
+        for shot in shots {
+            shot.removeAllActions()
+            recycleFireball(shot)
+        }
+    }
+
+    private func onBossDefeated(at position: CGPoint) {
+        bossActive = false
+        bossNode = nil
+        bossHealthBar.hideBar()
+        clearFireballs()
+        spawnExplosion(at: position, image: "explosion", scale: 1.6)
+        showStatusBanner(text: "BOSS DEFEATED", color: SKColor(red: 0.35, green: 0.95, blue: 0.55, alpha: 1))
+        HapticManager.upgrade()
+        updateHUD()
+        scheduleNextObstacle()
     }
 
     private func spawnExplosion(at position: CGPoint, image: String, scale: CGFloat = 1) {
@@ -753,13 +899,32 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         let hp = max(0, (sprite?.obstacleHP ?? 1) - 1)
         sprite?.obstacleHP = hp
 
+        if kind == .boss {
+            bossHealthBar.setHP(current: hp, max: GameRules.bossMaxHP)
+            bossHealthBar.pulseDamage()
+        }
+
         if hp > 0 {
             node.run(.sequence([
                 .scale(to: kind.scale * 1.15, duration: 0.06),
                 .scale(to: kind.scale, duration: 0.08)
             ]))
-            spawnExplosion(at: blastPoint, image: "mini_explosion", scale: 0.55)
+            spawnExplosion(at: blastPoint, image: "mini_explosion", scale: kind == .boss ? 0.75 : 0.55)
             HapticManager.enemyDestroyed()
+            return
+        }
+
+        if kind == .boss {
+            if let sprite {
+                untrack(sprite, from: &liveEnemies)
+                obstaclePool.recycle(sprite)
+            } else {
+                node.removeFromParent()
+            }
+            spawnExplosion(at: blastPoint, image: "explosion", scale: 1.45)
+            HapticManager.enemyDestroyed()
+            addScore(kind.points)
+            onBossDefeated(at: blastPoint)
             return
         }
 
@@ -790,6 +955,11 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         if combined == (GameConstants.PhysicsCategory.player | GameConstants.PhysicsCategory.enemy) {
             guard !isInvulnerable else { return }
             let enemyNode = maskA == GameConstants.PhysicsCategory.enemy ? contact.bodyA.node : contact.bodyB.node
+            if let pooled = enemyNode as? PooledSprite, pooled.obstacleKind == .boss {
+                spawnExplosion(at: pooled.position, image: "mini_explosion", scale: 0.95)
+                lostALife(fromContact: true)
+                return
+            }
             if let position = enemyNode?.position {
                 spawnExplosion(at: position, image: "explosion", scale: 1.15)
             }
@@ -798,6 +968,21 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
                 obstaclePool.recycle(enemy)
             } else {
                 enemyNode?.removeFromParent()
+            }
+            lostALife(fromContact: true)
+            return
+        }
+
+        if combined == (GameConstants.PhysicsCategory.player | GameConstants.PhysicsCategory.enemyProjectile) {
+            guard !isInvulnerable else { return }
+            let fireballNode = maskA == GameConstants.PhysicsCategory.enemyProjectile ? contact.bodyA.node : contact.bodyB.node
+            if let position = fireballNode?.position {
+                spawnExplosion(at: position, image: "mini_explosion", scale: 0.85)
+            }
+            if let fireball = fireballNode as? PooledSprite {
+                recycleFireball(fireball)
+            } else {
+                fireballNode?.removeFromParent()
             }
             lostALife(fromContact: true)
             return

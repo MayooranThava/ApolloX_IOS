@@ -28,6 +28,8 @@ enum GameConstants {
     static let starImage = "star_power"
     static let healthImage = "health_plus"
 
+    static let fireballImage = "comet"
+
     enum PowerUpKind: String {
         case star
         case health
@@ -36,22 +38,21 @@ enum GameConstants {
     enum ObstacleKind: String, CaseIterable {
         case asteroid
         case asteroidAlt = "asteroid2"
-        case drone = "enemyShip"
         case mine = "spaceMine"
-        case comet
+        case boss = "enemyShip"
 
         var points: Int {
             switch self {
             case .asteroid, .asteroidAlt: return 1
-            case .drone: return 2
-            case .comet: return 3
             case .mine: return 4
+            case .boss: return GameRules.bossPoints
             }
         }
 
         var hitsToDestroy: Int {
             switch self {
             case .mine: return 2
+            case .boss: return GameRules.bossMaxHP
             default: return 1
             }
         }
@@ -59,9 +60,8 @@ enum GameConstants {
         var travelDuration: TimeInterval {
             switch self {
             case .asteroid, .asteroidAlt: return 2.6
-            case .drone: return 2.2
-            case .comet: return 1.45
             case .mine: return 3.4
+            case .boss: return GameRules.bossDescentDuration
             }
         }
 
@@ -75,6 +75,7 @@ enum GameConstants {
         static let bullet: CGFloat = 1
         static let player: CGFloat = 2
         static let enemy: CGFloat = 2
+        static let enemyProjectile: CGFloat = 2
         static let powerUp: CGFloat = 3
         static let effect: CGFloat = 4
         static let hud: CGFloat = 100
@@ -84,6 +85,8 @@ enum GameConstants {
     enum NodeName {
         static let bullet = "Bullet"
         static let enemy = "Enemy"
+        static let boss = "Boss"
+        static let fireball = "Fireball"
         static let powerUp = "PowerUp"
         static let healthPickup = "HealthPickup"
         static let background = "Background"
@@ -108,6 +111,19 @@ enum GameConstants {
         static let bullet: UInt32 = 0b10
         static let enemy: UInt32 = 0b100
         static let powerUp: UInt32 = 0b1000
+        static let enemyProjectile: UInt32 = 0b10000
+    }
+
+    /// Spawn interval after opening grace, keyed by 30-second time tier.
+    static func timeSpawnInterval(for tier: Int) -> TimeInterval {
+        switch tier {
+        case 0: return 1.85
+        case 1: return 1.45
+        case 2: return 1.15
+        case 3: return 0.90
+        case 4: return 0.72
+        default: return 0.55
+        }
     }
 
     static func levelSpawnInterval(for level: Int) -> TimeInterval {
@@ -124,28 +140,19 @@ enum GameConstants {
         randomObstacle(for: level, roll: Int.random(in: 0...99))
     }
 
-    /// Deterministic variant for tests.
-    static func randomObstacle(for level: Int, roll: Int) -> ObstacleKind {
+    /// Deterministic variant for tests. `tier` is `GameRules.spawnTier(elapsed:)`.
+    static func randomObstacle(for tier: Int, roll: Int) -> ObstacleKind {
         let roll = max(0, min(99, roll))
-        switch level {
+        switch tier {
+        case 0:
+            return roll < 75 ? .asteroid : .asteroidAlt
         case 1:
-            return roll < 80 ? .asteroid : .asteroidAlt
-        case 2:
             if roll < 55 { return .asteroid }
-            if roll < 75 { return .asteroidAlt }
-            if roll < 90 { return .drone }
-            return .comet
-        case 3:
-            if roll < 40 { return .asteroid }
-            if roll < 55 { return .asteroidAlt }
-            if roll < 72 { return .drone }
-            if roll < 88 { return .comet }
+            if roll < 80 { return .asteroidAlt }
             return .mine
         default:
-            if roll < 30 { return .asteroid }
-            if roll < 45 { return .asteroidAlt }
-            if roll < 62 { return .drone }
-            if roll < 82 { return .comet }
+            if roll < 35 { return .asteroid }
+            if roll < 60 { return .asteroidAlt }
             return .mine
         }
     }
