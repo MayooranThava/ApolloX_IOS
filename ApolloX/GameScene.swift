@@ -36,6 +36,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private var bossVulnerable = false
     private var bossSpawnedAt: TimeInterval = 0
     private var bossNode: PooledSprite?
+    private var backgroundTier = -1
+    private var scrollingBackground: ScrollingBackgroundNode?
     /// Cached so swept tests do not rebuild `PlayfieldLayout` every pair.
     private var visibleMaxY: CGFloat = 0
 
@@ -81,7 +83,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         physicsWorld.contactDelegate = self
         physicsWorld.gravity = .zero
 
-        addProductionBackground()
+        scrollingBackground = addProductionBackground()
         addChild(hud)
         addChild(bossHealthBar)
         configurePlayer()
@@ -107,7 +109,15 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             return
         }
         if lastUpdateTime > 0 {
-            runElapsed += currentTime - lastUpdateTime
+            let delta = currentTime - lastUpdateTime
+            runElapsed += delta
+            scrollingBackground?.tick(deltaTime: delta)
+
+            let tier = GameRules.spawnTier(elapsed: runElapsed)
+            if tier != backgroundTier {
+                backgroundTier = tier
+                updateBackgroundTier(tier, animated: tier > 0)
+            }
         }
         lastUpdateTime = currentTime
 
@@ -151,6 +161,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         let layout = playfield
         playArea = layout.safeRect
         visibleMaxY = layout.visibleRect.maxY
+        relayoutProductionBackground()
         hud.layout(in: layout.safeRect)
         bossHealthBar.layout(in: layout.safeRect, below: 108)
 

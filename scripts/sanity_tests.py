@@ -164,6 +164,12 @@ def main() -> int:
     check((ROOT / ".github" / "workflows" / "ci.yml").exists(), "CI workflow missing")
     check((ROOT / ".gitignore").exists(), ".gitignore missing")
 
+    scene_helpers = (ROOT / "ApolloX" / "SceneHelpers.swift").read_text()
+    scrolling_bg = ROOT / "ApolloX" / "ScrollingBackgroundNode.swift"
+    check("addProductionBackground" in scene_helpers, "SceneHelpers should install the production background")
+    check(scrolling_bg.exists(), "ScrollingBackgroundNode.swift missing")
+    check("updateBackgroundTier" in SCENE, "GameScene should shift background palette when spawn tier changes")
+
     # 6) iPhone 16/17 performance contracts
     plist = (ROOT / "ApolloX" / "Info.plist").read_text()
     view = (ROOT / "ApolloX" / "GameViewController.swift").read_text()

@@ -13,6 +13,7 @@ final class GameTitleScene: SKScene {
     private let subtitleLabel = SKLabelNode()
     private let bestLabel = SKLabelNode()
     private var instructionLabels: [SKLabelNode] = []
+    private var lastBackgroundTick: TimeInterval = 0
 
     override func didMove(to view: SKView) {
         view.accessibilityIdentifier = GameConstants.Accessibility.titleScene
@@ -78,7 +79,15 @@ final class GameTitleScene: SKScene {
         }
     }
 
+    override func update(_ currentTime: TimeInterval) {
+        if lastBackgroundTick > 0 {
+            scrollingBackgroundNode()?.tick(deltaTime: currentTime - lastBackgroundTick)
+        }
+        lastBackgroundTick = currentTime
+    }
+
     private func relayout() {
+        relayoutProductionBackground()
         let safe = playfield.safeRect
 
         titleLabel.position = CGPoint(x: safe.midX, y: safe.maxY - 130)
@@ -95,6 +104,7 @@ final class GameTitleScene: SKScene {
     }
 
     override func didChangeSize(_ oldSize: CGSize) {
+        relayoutProductionBackground()
         relayout()
     }
 
