@@ -21,6 +21,8 @@ final class GameViewController: UIViewController {
         skView.ignoresSiblingOrder = true
         skView.isMultipleTouchEnabled = false
         skView.shouldCullNonVisibleNodes = true
+        skView.accessibilityIdentifier = GameConstants.Accessibility.titleScene
+        skView.accessibilityLabel = "ApolloX"
 
         // Production default: hide SpriteKit debug overlays.
         // Pass -ApolloXShowStats as a launch argument when you need FPS/node counts.

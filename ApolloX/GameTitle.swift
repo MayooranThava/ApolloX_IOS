@@ -15,6 +15,8 @@ final class GameTitleScene: SKScene {
     private var instructionLabels: [SKLabelNode] = []
 
     override func didMove(to view: SKView) {
+        view.accessibilityIdentifier = GameConstants.Accessibility.titleScene
+        view.accessibilityLabel = "ApolloX"
         HapticManager.prepare()
         addProductionBackground()
 
@@ -24,6 +26,8 @@ final class GameTitleScene: SKScene {
         titleLabel.fontColor = .white
         titleLabel.verticalAlignmentMode = .center
         titleLabel.zPosition = GameConstants.Z.hud
+        titleLabel.isAccessibilityElement = true
+        titleLabel.accessibilityLabel = "ApolloX"
         addChild(titleLabel)
 
         subtitleLabel.fontName = GameFont.resolved(size: 36)

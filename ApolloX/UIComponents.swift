@@ -231,6 +231,9 @@ final class MenuButtonNode: SKNode {
 
         hitSize = CGSize(width: width + 48, height: height + 40)
         name = title
+        isAccessibilityElement = true
+        accessibilityLabel = title
+        accessibilityTraits = .button
     }
 
     required init?(coder aDecoder: NSCoder) {

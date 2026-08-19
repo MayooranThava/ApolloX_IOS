@@ -1,0 +1,31 @@
+# Xcode user state (keep xcshareddata/)
+xcuserdata/
+*.xcuserstate
+*.xccheckout
+*.xcscmblueprint
+
+# Build products
+DerivedData/
+build/
+*.ipa
+*.dSYM
+*.dSYM.zip
+*.moved-aside
+*.hmap
+
+# OS / editor
+.DS_Store
+*~
+.idea/
+.vscode/
+
+# SwiftPM (if introduced later)
+.swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
+.build/
+
+# Fastlane / signing leftovers
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+*.mobileprovision

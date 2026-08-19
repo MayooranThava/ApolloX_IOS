@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [development, main, master]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sanity:
+    name: Sanity (no Xcode)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: UX contracts and combat microbench
+        run: python3 scripts/sanity_tests.py
+
+  xcode:
+    name: XCTest
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show Xcode
+        run: xcodebuild -version
+      - name: Pick iPhone simulator
+        run: |
+          python3 - <<'PY'
+          import json, os, subprocess, sys
+          raw = subprocess.check_output(["xcrun", "simctl", "list", "devices", "available", "-j"])
+          data = json.loads(raw)
+          ranked = []
+          for runtime, devices in data.get("devices", {}).items():
+              if "iOS" not in runtime:
+                  continue
+              for device in devices:
+                  if not device.get("isAvailable"):
+                      continue
+                  name = device.get("name", "")
+                  if not name.startswith("iPhone"):
+                      continue
+                  score = 0
+                  if "iPhone 17" in name:
+                      score += 30
+                  elif "iPhone 16" in name:
+                      score += 20
+                  elif "iPhone 15" in name:
+                      score += 10
+                  if "Pro Max" in name:
+                      score += 2
+                  elif "Pro" in name:
+                      score += 1
+                  ranked.append((score, name, device["udid"]))
+          if not ranked:
+              sys.exit("No available iPhone simulator")
+          ranked.sort(reverse=True)
+          _, name, udid = ranked[0]
+          print(f"Using {name} ({udid})")
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as fh:
+              fh.write(f"SIM_UDID={udid}\n")
+          PY
+      - name: Unit tests
+        run: |
+          xcodebuild test \
+            -project ApolloX.xcodeproj \
+            -scheme ApolloX \
+            -destination "platform=iOS Simulator,id=$SIM_UDID,arch=arm64" \
+            -only-testing:ApolloXTests \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO
+      - name: Launch smoke
+        run: |
+          xcodebuild test \
+            -project ApolloX.xcodeproj \
+            -scheme ApolloX \
+            -destination "platform=iOS Simulator,id=$SIM_UDID,arch=arm64" \
+            -only-testing:ApolloXUITests \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO

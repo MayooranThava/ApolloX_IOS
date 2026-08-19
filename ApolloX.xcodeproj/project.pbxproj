@@ -39,6 +39,8 @@
 		C1B1001D208A000100BD3501 /* uiTap.wav in Resources */ = {isa = PBXBuildFile; fileRef = C1B1001C208A000100BD3501 /* uiTap.wav */; };
 		C1B20001208A000100BD3501 /* GameRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B20000208A000100BD3501 /* GameRules.swift */; };
 		C1B20011208A000100BD3501 /* GameRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B20010208A000100BD3501 /* GameRulesTests.swift */; };
+		C1B40011208A000100BD3501 /* ScoreStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B40010208A000100BD3501 /* ScoreStoreTests.swift */; };
+		C1B40021208A000100BD3501 /* LaunchSmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B40020208A000100BD3501 /* LaunchSmokeTests.swift */; };
 		C1B2001D208A000100BD3501 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C1B2001C208A000100BD3501 /* XCTest.framework */; };
 /* End PBXBuildFile section */
 
@@ -78,12 +80,22 @@
 		C1B1001C208A000100BD3501 /* uiTap.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = uiTap.wav; sourceTree = "<group>"; };
 		C1B20000208A000100BD3501 /* GameRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameRules.swift; sourceTree = "<group>"; };
 		C1B20010208A000100BD3501 /* GameRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameRulesTests.swift; sourceTree = "<group>"; };
+		C1B40010208A000100BD3501 /* ScoreStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScoreStoreTests.swift; sourceTree = "<group>"; };
+		C1B40020208A000100BD3501 /* LaunchSmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchSmokeTests.swift; sourceTree = "<group>"; };
+		C1B40022208A000100BD3501 /* ApolloXUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ApolloXUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C1B20012208A000100BD3501 /* ApolloXTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ApolloXTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C1B2001C208A000100BD3501 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = System/Library/Frameworks/XCTest.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXContainerItemProxy section */
 		C1B20018208A000100BD3501 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C18A0A6028B4334100B2965A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C18A0A6728B4334100B2965A;
+			remoteInfo = ApolloX;
+		};
+		C1B40027208A000100BD3501 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = C18A0A6028B4334100B2965A /* Project object */;
 			proxyType = 1;
@@ -108,6 +120,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C1B40025208A000100BD3501 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -116,6 +135,7 @@
 			children = (
 				C18A0A6A28B4334100B2965A /* ApolloX */,
 				C1B2001E208A000100BD3501 /* ApolloXTests */,
+				C1B40029208A000100BD3501 /* ApolloXUITests */,
 				C18A0A6928B4334100B2965A /* Products */,
 			);
 			sourceTree = "<group>";
@@ -124,8 +144,17 @@
 			isa = PBXGroup;
 			children = (
 				C1B20010208A000100BD3501 /* GameRulesTests.swift */,
+				C1B40010208A000100BD3501 /* ScoreStoreTests.swift */,
 			);
 			path = ApolloXTests;
+			sourceTree = "<group>";
+		};
+		C1B40029208A000100BD3501 /* ApolloXUITests */ = {
+			isa = PBXGroup;
+			children = (
+				C1B40020208A000100BD3501 /* LaunchSmokeTests.swift */,
+			);
+			path = ApolloXUITests;
 			sourceTree = "<group>";
 		};
 		C18A0A6928B4334100B2965A /* Products */ = {
@@ -133,6 +162,7 @@
 			children = (
 				C18A0A6828B4334100B2965A /* ApolloX.app */,
 				C1B20012208A000100BD3501 /* ApolloXTests.xctest */,
+				C1B40022208A000100BD3501 /* ApolloXUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -214,6 +244,24 @@
 			productReference = C1B20012208A000100BD3501 /* ApolloXTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		C1B40023208A000100BD3501 /* ApolloXUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C1B4002C208A000100BD3501 /* Build configuration list for PBXNativeTarget "ApolloXUITests" */;
+			buildPhases = (
+				C1B40024208A000100BD3501 /* Sources */,
+				C1B40025208A000100BD3501 /* Frameworks */,
+				C1B40026208A000100BD3501 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C1B40028208A000100BD3501 /* PBXTargetDependency */,
+			);
+			name = ApolloXUITests;
+			productName = ApolloXUITests;
+			productReference = C1B40022208A000100BD3501 /* ApolloXUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -229,6 +277,10 @@
 					};
 					C1B20013208A000100BD3501 = {
 						CreatedOnToolsVersion = 13.4.1;
+						TestTargetID = C18A0A6728B4334100B2965A;
+					};
+					C1B40023208A000100BD3501 = {
+						CreatedOnToolsVersion = 16.0;
 						TestTargetID = C18A0A6728B4334100B2965A;
 					};
 				};
@@ -248,6 +300,7 @@
 			targets = (
 				C18A0A6728B4334100B2965A /* ApolloX */,
 				C1B20013208A000100BD3501 /* ApolloXTests */,
+				C1B40023208A000100BD3501 /* ApolloXUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -277,6 +330,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		C1B20016208A000100BD3501 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C1B40026208A000100BD3501 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -314,6 +374,15 @@
 			buildActionMask = 2147483647;
 			files = (
 				C1B20011208A000100BD3501 /* GameRulesTests.swift in Sources */,
+				C1B40011208A000100BD3501 /* ScoreStoreTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C1B40024208A000100BD3501 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C1B40021208A000100BD3501 /* LaunchSmokeTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -324,6 +393,11 @@
 			isa = PBXTargetDependency;
 			target = C18A0A6728B4334100B2965A /* ApolloX */;
 			targetProxy = C1B20018208A000100BD3501 /* PBXContainerItemProxy */;
+		};
+		C1B40028208A000100BD3501 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C18A0A6728B4334100B2965A /* ApolloX */;
+			targetProxy = C1B40027208A000100BD3501 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -575,6 +649,44 @@
 			};
 			name = Release;
 		};
+		C1B4002A208A000100BD3501 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 2YJ478267N;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MARKETING_VERSION = 1.0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mayooran.ApolloXUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = ApolloX;
+			};
+			name = Debug;
+		};
+		C1B4002B208A000100BD3501 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 2YJ478267N;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MARKETING_VERSION = 1.0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mayooran.ApolloXUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = ApolloX;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -601,6 +713,15 @@
 			buildConfigurations = (
 				C1B2001A208A000100BD3501 /* Debug */,
 				C1B2001B208A000100BD3501 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C1B4002C208A000100BD3501 /* Build configuration list for PBXNativeTarget "ApolloXUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C1B4002A208A000100BD3501 /* Debug */,
+				C1B4002B208A000100BD3501 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

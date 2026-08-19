@@ -8,10 +8,14 @@ import Foundation
 enum ScoreStore {
     private static let highScoreKey = "highScoreSaved"
 
+    /// Production uses `.standard`. Tests swap in a suite-named instance so they never
+    /// read or write the real high score on a simulator or device.
+    static var storage: UserDefaults = .standard
+
     private(set) static var currentScore = 0
 
     static var highScore: Int {
-        UserDefaults.standard.integer(forKey: highScoreKey)
+        storage.integer(forKey: highScoreKey)
     }
 
     static func resetCurrentScore() {
@@ -28,7 +32,7 @@ enum ScoreStore {
     static func commitHighScoreIfNeeded() -> Int {
         let best = highScore
         if currentScore > best {
-            UserDefaults.standard.set(currentScore, forKey: highScoreKey)
+            storage.set(currentScore, forKey: highScoreKey)
             return currentScore
         }
         return best
