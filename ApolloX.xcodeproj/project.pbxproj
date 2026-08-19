@@ -31,6 +31,7 @@
 		C1B1000F208A000100BD3501 /* NodePool.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B1000E208A000100BD3501 /* NodePool.swift */; };
 		C1B10011208A000100BD3501 /* UIComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B10010208A000100BD3501 /* UIComponents.swift */; };
 		C1B10013208A000100BD3501 /* AudioManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B10012208A000100BD3501 /* AudioManager.swift */; };
+		C1B30001208A000100BD3501 /* FramePacing.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B30000208A000100BD3501 /* FramePacing.swift */; };
 		C1B10015208A000100BD3501 /* starCollect.wav in Resources */ = {isa = PBXBuildFile; fileRef = C1B10014208A000100BD3501 /* starCollect.wav */; };
 		C1B10017208A000100BD3501 /* boostActivate.wav in Resources */ = {isa = PBXBuildFile; fileRef = C1B10016208A000100BD3501 /* boostActivate.wav */; };
 		C1B10019208A000100BD3501 /* lifeLost.wav in Resources */ = {isa = PBXBuildFile; fileRef = C1B10018208A000100BD3501 /* lifeLost.wav */; };
@@ -69,6 +70,7 @@
 		C1B10010208A000100BD3501 /* UIComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIComponents.swift; sourceTree = "<group>"; };
 
 		C1B10012208A000100BD3501 /* AudioManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioManager.swift; sourceTree = "<group>"; };
+		C1B30000208A000100BD3501 /* FramePacing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FramePacing.swift; sourceTree = "<group>"; };
 		C1B10014208A000100BD3501 /* starCollect.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = starCollect.wav; sourceTree = "<group>"; };
 		C1B10016208A000100BD3501 /* boostActivate.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = boostActivate.wav; sourceTree = "<group>"; };
 		C1B10018208A000100BD3501 /* lifeLost.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = lifeLost.wav; sourceTree = "<group>"; };
@@ -157,6 +159,7 @@
 				C1B10002208A000100BD3501 /* ScoreStore.swift */,
 				C1B10004208A000100BD3501 /* HapticManager.swift */,
 				C1B10012208A000100BD3501 /* AudioManager.swift */,
+				C1B30000208A000100BD3501 /* FramePacing.swift */,
 				C1B10006208A000100BD3501 /* SceneHelpers.swift */,
 				C1B1000A208A000100BD3501 /* PlayfieldLayout.swift */,
 				C1B1000C208A000100BD3501 /* TextureCache.swift */,
@@ -297,6 +300,7 @@
 				C1B1000F208A000100BD3501 /* NodePool.swift in Sources */,
 				C1B10011208A000100BD3501 /* UIComponents.swift in Sources */,
 				C1B10013208A000100BD3501 /* AudioManager.swift in Sources */,
+				C1B30001208A000100BD3501 /* FramePacing.swift in Sources */,
 				C1A7408229DA6EFC00A6F9AE /* GameTitle.swift in Sources */,
 				C18A0A7228B4334100B2965A /* GameScene.swift in Sources */,
 				C18A0A7428B4334100B2965A /* GameViewController.swift in Sources */,
@@ -470,6 +474,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = ApolloX;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_CADisableMinimumFrameDurationOnPhone = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UIMainStoryboardFile = Main;
 				INFOPLIST_KEY_UIRequiresFullScreen = YES;
@@ -506,6 +511,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = ApolloX;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.games";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_CADisableMinimumFrameDurationOnPhone = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UIMainStoryboardFile = Main;
 				INFOPLIST_KEY_UIRequiresFullScreen = YES;

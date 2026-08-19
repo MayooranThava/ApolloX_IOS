@@ -6,6 +6,8 @@
 	<array>
 		<string>THEBOLDFONT.ttf</string>
 	</array>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 </dict>

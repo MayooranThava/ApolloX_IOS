@@ -17,19 +17,68 @@ enum GameTheme {
 }
 
 enum GameFont {
+    private static var cachedName: String?
+
     static func resolved(size: CGFloat) -> String {
-        UIFont(name: GameConstants.fontName, size: size) != nil
+        if let cachedName { return cachedName }
+        let name = UIFont(name: GameConstants.fontName, size: size) != nil
             ? GameConstants.fontName
             : GameConstants.fallbackFontName
+        cachedName = name
+        return name
+    }
+}
+
+/// Cached rounded-rect textures so HUD/buttons batch as sprites instead of `SKShapeNode` tessellation.
+enum ShapeTexture {
+    private static var cache: [String: SKTexture] = [:]
+
+    static func roundedRect(
+        size: CGSize,
+        cornerRadius: CGFloat,
+        fill: SKColor,
+        stroke: SKColor,
+        lineWidth: CGFloat
+    ) -> SKTexture {
+        let key = String(
+            format: "%.0fx%.0f-r%.0f-lw%.0f-%@-%@",
+            size.width, size.height, cornerRadius, lineWidth,
+            fill.debugDescription, stroke.debugDescription
+        )
+        if let cached = cache[key] {
+            return cached
+        }
+
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 2
+        format.opaque = false
+        let renderer = UIGraphicsImageRenderer(size: size, format: format)
+        let image = renderer.image { _ in
+            let inset = lineWidth * 0.5
+            let rect = CGRect(origin: .zero, size: size).insetBy(dx: inset, dy: inset)
+            let path = UIBezierPath(roundedRect: rect, cornerRadius: max(0, cornerRadius - inset))
+            fill.setFill()
+            path.fill()
+            if lineWidth > 0 {
+                stroke.setStroke()
+                path.lineWidth = lineWidth
+                path.stroke()
+            }
+        }
+        let texture = SKTexture(image: image)
+        texture.filteringMode = .linear
+        texture.usesMipmaps = true
+        cache[key] = texture
+        return texture
     }
 }
 
 final class HUDBarNode: SKNode {
-    private let panel = SKShapeNode()
+    private let panel = SKSpriteNode()
     private let scoreLabel = SKLabelNode()
     private let livesLabel = SKLabelNode()
     private let statusLabel = SKLabelNode()
-    private let pauseButton = SKShapeNode()
+    private let pauseButton = SKSpriteNode()
     private let pauseGlyph = SKLabelNode()
 
     /// Scene-space hit rect for the pause control (updated in `layout`).
@@ -39,9 +88,7 @@ final class HUDBarNode: SKNode {
         super.init()
         zPosition = GameConstants.Z.hud
 
-        panel.fillColor = GameTheme.panel
-        panel.strokeColor = SKColor(white: 1, alpha: 0.12)
-        panel.lineWidth = 2
+        panel.color = GameTheme.panel
         addChild(panel)
 
         style(scoreLabel, alignment: .left, color: .white)
@@ -51,9 +98,7 @@ final class HUDBarNode: SKNode {
         addChild(livesLabel)
         addChild(statusLabel)
 
-        pauseButton.fillColor = GameTheme.buttonMuted
-        pauseButton.strokeColor = GameTheme.buttonStroke
-        pauseButton.lineWidth = 2
+        pauseButton.color = GameTheme.buttonMuted
         pauseButton.name = GameConstants.NodeName.pauseButton
         addChild(pauseButton)
 
@@ -74,8 +119,14 @@ final class HUDBarNode: SKNode {
     func layout(in safeRect: CGRect) {
         let height: CGFloat = 108
         let width = safeRect.width
-        let rect = CGRect(x: -width * 0.5, y: -height * 0.5, width: width, height: height)
-        panel.path = CGPath(roundedRect: rect, cornerWidth: 30, cornerHeight: 30, transform: nil)
+        panel.size = CGSize(width: width, height: height)
+        panel.texture = ShapeTexture.roundedRect(
+            size: panel.size,
+            cornerRadius: 30,
+            fill: GameTheme.panel,
+            stroke: SKColor(white: 1, alpha: 0.12),
+            lineWidth: 2
+        )
 
         position = CGPoint(x: safeRect.midX, y: safeRect.maxY - height * 0.5 - 8)
 
@@ -89,13 +140,14 @@ final class HUDBarNode: SKNode {
         statusLabel.position = CGPoint(x: 0, y: -28)
 
         let pauseSize: CGFloat = 56
-        let pausePath = CGPath(
-            roundedRect: CGRect(x: -pauseSize * 0.5, y: -pauseSize * 0.5, width: pauseSize, height: pauseSize),
-            cornerWidth: 16,
-            cornerHeight: 16,
-            transform: nil
+        pauseButton.size = CGSize(width: pauseSize, height: pauseSize)
+        pauseButton.texture = ShapeTexture.roundedRect(
+            size: pauseButton.size,
+            cornerRadius: 16,
+            fill: GameTheme.buttonMuted,
+            stroke: GameTheme.buttonStroke,
+            lineWidth: 2
         )
-        pauseButton.path = pausePath
         pauseButton.position = CGPoint(x: width * 0.5 - sidePad - 8, y: 4)
 
         // Convert local pause button center to scene space for hit testing.
@@ -150,7 +202,7 @@ final class HUDBarNode: SKNode {
 }
 
 final class MenuButtonNode: SKNode {
-    private let background = SKShapeNode()
+    private let background = SKSpriteNode()
     private let label = SKLabelNode()
     private(set) var hitSize = CGSize.zero
 
@@ -158,11 +210,15 @@ final class MenuButtonNode: SKNode {
         super.init()
         zPosition = GameConstants.Z.hud
 
-        let rect = CGRect(x: -width * 0.5, y: -height * 0.5, width: width, height: height)
-        background.path = CGPath(roundedRect: rect, cornerWidth: height * 0.5, cornerHeight: height * 0.5, transform: nil)
-        background.fillColor = emphasized ? GameTheme.buttonFill : GameTheme.buttonMuted
-        background.strokeColor = GameTheme.buttonStroke
-        background.lineWidth = 2
+        let fill = emphasized ? GameTheme.buttonFill : GameTheme.buttonMuted
+        background.size = CGSize(width: width, height: height)
+        background.texture = ShapeTexture.roundedRect(
+            size: background.size,
+            cornerRadius: height * 0.5,
+            fill: fill,
+            stroke: GameTheme.buttonStroke,
+            lineWidth: 2
+        )
         addChild(background)
 
         label.fontName = GameFont.resolved(size: fontSize)

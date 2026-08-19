@@ -30,24 +30,24 @@ extension SKScene {
 
         let backdrop = SKSpriteNode(texture: texture)
         backdrop.name = GameConstants.NodeName.background
-        backdrop.size = CGSize(
-            width: layout.visibleRect.width * 1.1,
-            height: layout.visibleRect.height * 1.1
-        )
+        backdrop.size = layout.visibleRect.size
         backdrop.position = CGPoint(x: size.width * 0.5, y: size.height * 0.5)
         backdrop.zPosition = GameConstants.Z.background
         addChild(backdrop)
 
         let dust = makeStarDustEmitter()
+        dust.name = GameConstants.NodeName.starDust
         dust.position = CGPoint(x: size.width * 0.5, y: size.height * 0.5)
         dust.zPosition = GameConstants.Z.background + 1
+        dust.targetNode = self
         addChild(dust)
+        applyPerformanceQuality()
     }
 
     func makeStarDustEmitter() -> SKEmitterNode {
         let emitter = SKEmitterNode()
         emitter.particleTexture = softDotTexture()
-        emitter.particleBirthRate = 14
+        emitter.particleBirthRate = FramePacing.currentQuality.starDustBirthRate
         emitter.numParticlesToEmit = 0
         emitter.particleLifetime = 5
         emitter.particleLifetimeRange = 1.5
@@ -69,8 +69,9 @@ extension SKScene {
 
     func makeEngineEmitter() -> SKEmitterNode {
         let emitter = SKEmitterNode()
+        emitter.name = GameConstants.NodeName.engine
         emitter.particleTexture = softDotTexture()
-        emitter.particleBirthRate = 42
+        emitter.particleBirthRate = FramePacing.currentQuality.engineBirthRate
         emitter.particleLifetime = 0.26
         emitter.particleLifetimeRange = 0.08
         emitter.particlePositionRange = CGVector(dx: 10, dy: 3)
@@ -88,6 +89,13 @@ extension SKScene {
         emitter.particleBlendMode = .add
         emitter.targetNode = self
         return emitter
+    }
+
+    func applyPerformanceQuality() {
+        let quality = FramePacing.currentQuality
+        enumerateChildNodes(withName: GameConstants.NodeName.starDust) { node, _ in
+            (node as? SKEmitterNode)?.particleBirthRate = quality.starDustBirthRate
+        }
     }
 
     private func softDotTexture() -> SKTexture {
@@ -113,6 +121,7 @@ extension SKScene {
         }
         let texture = SKTexture(image: image)
         texture.filteringMode = .linear
+        texture.usesMipmaps = true
         TextureCache.store(key, texture: texture)
         return texture
     }

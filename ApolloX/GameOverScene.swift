@@ -9,7 +9,7 @@ import UIKit
 final class GameOverScene: SKScene {
 
     private let dim = SKSpriteNode(color: SKColor(white: 0, alpha: 0.45), size: .zero)
-    private let card = SKShapeNode()
+    private let card = SKSpriteNode()
     private let titleLabel = SKLabelNode()
     private let scoreLabel = SKLabelNode()
     private let bestLabel = SKLabelNode()
@@ -25,9 +25,7 @@ final class GameOverScene: SKScene {
         dim.zPosition = GameConstants.Z.hud - 2
         addChild(dim)
 
-        card.fillColor = GameTheme.panel
-        card.strokeColor = SKColor(white: 1, alpha: 0.14)
-        card.lineWidth = 2
+        card.color = GameTheme.panel
         card.zPosition = GameConstants.Z.hud - 1
         addChild(card)
 
@@ -88,8 +86,14 @@ final class GameOverScene: SKScene {
 
         let cardWidth = min(safe.width, 980)
         let cardHeight: CGFloat = 760
-        let rect = CGRect(x: -cardWidth * 0.5, y: -cardHeight * 0.5, width: cardWidth, height: cardHeight)
-        card.path = CGPath(roundedRect: rect, cornerWidth: 42, cornerHeight: 42, transform: nil)
+        card.size = CGSize(width: cardWidth, height: cardHeight)
+        card.texture = ShapeTexture.roundedRect(
+            size: card.size,
+            cornerRadius: 42,
+            fill: GameTheme.panel,
+            stroke: SKColor(white: 1, alpha: 0.14),
+            lineWidth: 2
+        )
         card.position = CGPoint(x: safe.midX, y: safe.midY + 20)
 
         titleLabel.position = CGPoint(x: safe.midX, y: card.position.y + 250)
@@ -109,7 +113,7 @@ final class GameOverScene: SKScene {
 
         if let restartButton, restartButton.containsTouch(point) {
             restartButton.pulse()
-            AudioManager.play(AudioManager.uiTap, on: self)
+            AudioManager.play(.uiTap)
             HapticManager.fire()
             presentScene(GameScene(size: size))
             return
@@ -117,7 +121,7 @@ final class GameOverScene: SKScene {
 
         if let menuButton, menuButton.containsTouch(point) {
             menuButton.pulse()
-            AudioManager.play(AudioManager.uiTap, on: self)
+            AudioManager.play(.uiTap)
             HapticManager.fire()
             presentScene(GameTitleScene(size: size))
         }

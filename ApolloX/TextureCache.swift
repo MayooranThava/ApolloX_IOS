@@ -14,6 +14,9 @@ enum TextureCache {
         }
         let texture = SKTexture(imageNamed: name)
         texture.filteringMode = .linear
+        // Mipmaps help minified sprites (player/obstacles) on 3x Super Retina.
+        // Background is magnified to fill the playfield, so skip the extra GPU memory.
+        texture.usesMipmaps = (name != "background")
         cache[name] = texture
         return texture
     }
@@ -26,7 +29,7 @@ enum TextureCache {
         cache[name]
     }
 
-    static func preload() {
+    static func preload(completion: @escaping () -> Void = {}) {
         let names = [
             "background",
             "playerShip",
@@ -42,6 +45,6 @@ enum TextureCache {
             "explosion",
             "mini_explosion"
         ]
-        SKTexture.preload(names.map(texture)) {}
+        SKTexture.preload(names.map(texture), withCompletionHandler: completion)
     }
 }

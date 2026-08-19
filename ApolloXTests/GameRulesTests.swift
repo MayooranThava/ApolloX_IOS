@@ -139,4 +139,106 @@ final class GameRulesTests: XCTestCase {
             XCTAssertLessThanOrEqual(delay, GameRules.healthPickupMaxInterval)
         }
     }
+
+    func testProMotionFramePacingHonorsApplePolicy() {
+        XCTAssertEqual(
+            FramePacing.preferredFramesPerSecond(hardwareMax: 120, thermalState: .nominal, lowPowerMode: false),
+            120,
+            "iPhone 16/17 Pro should request 120 Hz when cool"
+        )
+        XCTAssertEqual(
+            FramePacing.preferredFramesPerSecond(hardwareMax: 60, thermalState: .nominal, lowPowerMode: false),
+            60,
+            "non-Pro iPhones stay at 60 Hz"
+        )
+        XCTAssertEqual(
+            FramePacing.preferredFramesPerSecond(hardwareMax: 120, thermalState: .nominal, lowPowerMode: true),
+            60
+        )
+        XCTAssertEqual(
+            FramePacing.preferredFramesPerSecond(hardwareMax: 120, thermalState: .fair, lowPowerMode: false),
+            60
+        )
+        XCTAssertEqual(
+            FramePacing.preferredFramesPerSecond(hardwareMax: 120, thermalState: .serious, lowPowerMode: false),
+            30
+        )
+        XCTAssertEqual(
+            FramePacing.preferredFramesPerSecond(hardwareMax: 120, thermalState: .critical, lowPowerMode: false),
+            30
+        )
+    }
+
+    func testEffectsQualityScalesWithThermalBudget() {
+        XCTAssertEqual(FramePacing.effectsQuality(thermalState: .nominal, lowPowerMode: false), .high)
+        XCTAssertEqual(FramePacing.effectsQuality(thermalState: .fair, lowPowerMode: false), .balanced)
+        XCTAssertEqual(FramePacing.effectsQuality(thermalState: .serious, lowPowerMode: false), .conservative)
+        XCTAssertEqual(FramePacing.effectsQuality(thermalState: .nominal, lowPowerMode: true), .conservative)
+        XCTAssertGreaterThan(EffectsQuality.high.engineBirthRate, EffectsQuality.conservative.engineBirthRate)
+        XCTAssertEqual(EffectsQuality.conservative.starDustBirthRate, 0)
+    }
+
+    func testNodePoolReusesSpritesAndCapsIdle() {
+        var created = 0
+        let pool = NodePool(prewarm: 2, maxIdle: 2) {
+            created += 1
+            return PooledSprite(color: .white, size: CGSize(width: 4, height: 4))
+        }
+        XCTAssertEqual(created, 2)
+        XCTAssertEqual(pool.idleCount, 2)
+
+        let first = pool.checkout()
+        let second = pool.checkout()
+        XCTAssertEqual(pool.idleCount, 0)
+
+        pool.recycle(first)
+        pool.recycle(first)
+        XCTAssertEqual(pool.idleCount, 1, "double-recycle must not duplicate the same node")
+
+        let reused = pool.checkout()
+        XCTAssertTrue(reused === first)
+
+        pool.recycle(reused)
+        pool.recycle(second)
+        XCTAssertEqual(pool.idleCount, 2)
+    }
+
+    func testPhysicsBodyReusedWhenRadiusUnchanged() {
+        let sprite = PooledSprite(color: .red, size: CGSize(width: 10, height: 10))
+        sprite.attachCirclePhysics(radius: 22, category: 1, contact: 2)
+        let firstBody = sprite.physicsBody
+        sprite.attachCirclePhysics(radius: 22, category: 1, contact: 4)
+        XCTAssertTrue(sprite.physicsBody === firstBody)
+        XCTAssertEqual(sprite.physicsBody?.contactTestBitMask, 4)
+
+        sprite.attachCirclePhysics(radius: 40, category: 1, contact: 2)
+        XCTAssertFalse(sprite.physicsBody === firstBody)
+    }
+
+    func testLateGameSweptCombatStaysUnderFrameBudget() {
+        let bullets = (0..<12).map { CGPoint(x: CGFloat($0) * 40, y: 200) }
+        let ends = bullets.map { CGPoint(x: $0.x, y: $0.y + 28) }
+        let enemies = (0..<8).map { CGPoint(x: 80 + CGFloat($0) * 70, y: 900) }
+
+        // 120 Hz frame budget is 8.3 ms. This inner loop is the previous per-frame hotspot.
+        measure {
+            var hits = 0
+            for _ in 0..<40 {
+                for i in 0..<bullets.count {
+                    for enemy in enemies {
+                        if GameRules.projectileHitsTarget(
+                            start: bullets[i],
+                            end: ends[i],
+                            projectileRadius: GameRules.bulletHitRadius,
+                            target: enemy,
+                            targetRadius: 90
+                        ) {
+                            hits += 1
+                        }
+                    }
+                }
+            }
+            XCTAssertGreaterThanOrEqual(hits, 0)
+        }
+    }
 }

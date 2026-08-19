@@ -150,6 +150,42 @@ def main() -> int:
     check("GameRules.startingLives" in CONSTANTS, "GameConstants should delegate startingLives")
     check("GameRules.starsNeededForUpgrade" in CONSTANTS, "GameConstants should delegate starsNeeded")
 
+    # 6) iPhone 16/17 performance contracts
+    plist = (ROOT / "ApolloX" / "Info.plist").read_text()
+    view = (ROOT / "ApolloX" / "GameViewController.swift").read_text()
+    audio = (ROOT / "ApolloX" / "AudioManager.swift").read_text()
+    pacing = ROOT / "ApolloX" / "FramePacing.swift"
+    check("CADisableMinimumFrameDurationOnPhone" in plist, "Info.plist must opt in to ProMotion >60 Hz")
+    check(pacing.exists(), "FramePacing.swift missing")
+    pacing_src = pacing.read_text()
+    check("lowPowerMode" in pacing_src and "thermalState" in pacing_src, "frame pacing must honor Low Power Mode and thermal state")
+    check("liveBullets" in SCENE, "combat should keep live bullet lists instead of enumerating the scene graph")
+    check("usesPreciseCollisionDetection = true" not in SCENE, "physics CCD should stay off; swept tests already cover tunneling")
+    check("SKShapeNode()" not in HUD and "SKShapeNode()" not in (ROOT / "ApolloX" / "GameOverScene.swift").read_text(), "HUD/game-over chrome should use sprite-batched rounded rects")
+    check("enum AudioCue" in audio and "AVAudioPlayer" in audio, "combat SFX should be preloaded AVAudioPlayer pools")
+    check("preferredFramesPerSecond = 120" not in view, "hardcoded 120 fps bypasses Low Power / thermal policy")
+    check("FramePacing.start" in view, "SKView should take its refresh rate from FramePacing")
+
+    import time
+
+    frames = 8000
+    t0 = time.perf_counter()
+    hits = 0
+    for _ in range(frames):
+        for i in range(12):
+            for e in range(8):
+                if projectile_hits((i * 40.0, 200.0), (i * 40.0, 228.0), 22.0, (80.0 + e * 70.0, 900.0), 90.0):
+                    hits += 1
+    elapsed = time.perf_counter() - t0
+    per_frame_us = elapsed / frames * 1_000_000
+    print(
+        f"BENCH late-game swept combat: {per_frame_us:.2f} µs/frame "
+        f"(Python, {frames} frames, 12 bullets × 8 enemies, hits={hits})"
+    )
+    check(per_frame_us < 500, f"swept combat too expensive even in Python ({per_frame_us:.1f} µs/frame)")
+    # 120 Hz budget is 8333 µs; this inner loop should be a tiny fraction of it.
+    print(f"BENCH vs 120 Hz frame budget: {per_frame_us / 8333 * 100:.3f}% of 8.33 ms")
+
     if failures:
         real = [f for f in failures if f != "placeholder"]
         print(f"FAIL ({len(real)}):")
