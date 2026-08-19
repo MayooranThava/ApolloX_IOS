@@ -51,10 +51,12 @@ enum GameRules {
     static let spawnRampInterval: TimeInterval = 30.0
 
     static let bossSpawnTime: TimeInterval = 40.0
-    static let bossMaxHP = 10
+    static let bossMaxHP = 15
     static let bossPoints = 25
     static let bossScale: CGFloat = 2.35
     static let bossDescentDuration: TimeInterval = 22.0
+    /// Boss ignores player shots until fully on-screen and at least this long has passed.
+    static let bossVulnerableDelay: TimeInterval = 5.0
     static let bossFireInterval: TimeInterval = 2.1
     static let fireballSpeed: CGFloat = 520
     static let fireballScale: CGFloat = 0.72
@@ -211,6 +213,23 @@ enum GameRules {
 
     static func shouldSpawnBoss(elapsed: TimeInterval, bossSpawned: Bool, bossActive: Bool) -> Bool {
         !bossSpawned && !bossActive && elapsed >= bossSpawnTime
+    }
+
+    /// True when the entire boss sprite fits inside the play area vertically.
+    static func isBossFullyVisible(
+        centerY: CGFloat,
+        halfHeight: CGFloat,
+        playMinY: CGFloat,
+        playMaxY: CGFloat
+    ) -> Bool {
+        let top = centerY + halfHeight
+        let bottom = centerY - halfHeight
+        return top <= playMaxY && bottom >= playMinY
+    }
+
+    /// Boss can be damaged once it has been on-screen long enough and is fully visible.
+    static func isBossVulnerable(elapsedSinceSpawn: TimeInterval, fullyVisible: Bool) -> Bool {
+        elapsedSinceSpawn >= bossVulnerableDelay && fullyVisible
     }
 
     static func shouldAdvanceLevel(previousScore: Int, newScore: Int) -> Bool {

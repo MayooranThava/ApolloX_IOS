@@ -33,6 +33,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private var lastUpdateTime: TimeInterval = 0
     private var bossSpawned = false
     private var bossActive = false
+    private var bossVulnerable = false
+    private var bossSpawnedAt: TimeInterval = 0
     private var bossNode: PooledSprite?
     /// Cached so swept tests do not rebuild `PlayfieldLayout` every pair.
     private var visibleMaxY: CGFloat = 0
@@ -113,6 +115,29 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             bossSpawned = true
             spawnBoss()
         }
+
+        updateBossVulnerability()
+    }
+
+    private func updateBossVulnerability() {
+        guard bossActive, !bossVulnerable, let boss = bossNode, boss.parent != nil else { return }
+
+        let elapsed = runElapsed - bossSpawnedAt
+        let halfHeight = boss.size.height * boss.xScale * 0.5
+        let fullyVisible = GameRules.isBossFullyVisible(
+            centerY: boss.position.y,
+            halfHeight: halfHeight,
+            playMinY: playArea.minY,
+            playMaxY: playArea.maxY
+        )
+        guard GameRules.isBossVulnerable(elapsedSinceSpawn: elapsed, fullyVisible: fullyVisible) else { return }
+
+        bossVulnerable = true
+        boss.removeAction(forKey: "bossInvulnPulse")
+        boss.alpha = 1
+        hud.setStatus("Boss Fight!")
+        hud.pulseStatus()
+        showStatusBanner(text: "ENGAGE!", color: GameTheme.accent)
     }
 
     override func didFinishUpdate() {
@@ -643,6 +668,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         removeAction(forKey: "spawningEnemies")
         clearRegularObstacles()
         bossActive = true
+        bossVulnerable = false
+        bossSpawnedAt = runElapsed
 
         let kind = GameConstants.ObstacleKind.boss
         let node = obstaclePool.checkout()
@@ -671,8 +698,14 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         bossNode = node
 
         bossHealthBar.show(maxHP: GameRules.bossMaxHP)
-        hud.setStatus("Boss Fight!")
+        hud.setStatus("Boss Incoming")
         hud.pulseStatus()
+
+        node.alpha = 0.82
+        node.run(.repeatForever(.sequence([
+            .fadeAlpha(to: 0.62, duration: 0.4),
+            .fadeAlpha(to: 0.82, duration: 0.4)
+        ])), withKey: "bossInvulnPulse")
 
         let hoverY = playArea.minY + playArea.height * 0.58
         node.run(.sequence([
@@ -694,7 +727,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     private func fireBossVolley() {
-        guard bossActive, let boss = bossNode, boss.parent != nil, currentState == .playing else { return }
+        guard bossActive, bossVulnerable, let boss = bossNode, boss.parent != nil, currentState == .playing else { return }
         guard liveFireballs.count < 8 else { return }
 
         let shots = Bool.random() ? 1 : 2
@@ -758,6 +791,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     private func onBossDefeated(at position: CGPoint) {
         bossActive = false
+        bossVulnerable = false
         bossNode = nil
         bossHealthBar.hideBar()
         clearFireballs()
@@ -896,6 +930,12 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private func damageObstacle(_ node: SKNode, blastPoint: CGPoint) {
         let sprite = node as? PooledSprite
         let kind = sprite?.obstacleKind ?? .asteroid
+
+        if kind == .boss && !bossVulnerable {
+            spawnExplosion(at: blastPoint, image: "mini_explosion", scale: 0.35)
+            return
+        }
+
         let hp = max(0, (sprite?.obstacleHP ?? 1) - 1)
         sprite?.obstacleHP = hp
 
