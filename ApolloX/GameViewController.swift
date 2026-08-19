@@ -13,11 +13,12 @@ final class GameViewController: UIViewController {
         super.viewDidLoad()
         configureAudioSession()
         TextureCache.preload()
+        AudioManager.preload()
+        HapticManager.prepare()
 
         guard let skView = view as? SKView else { return }
 
         skView.ignoresSiblingOrder = true
-        skView.preferredFramesPerSecond = 120
         skView.isMultipleTouchEnabled = false
         skView.shouldCullNonVisibleNodes = true
 
@@ -29,9 +30,15 @@ final class GameViewController: UIViewController {
         skView.showsPhysics = false
         skView.showsDrawCount = false
 
+        FramePacing.start(on: skView)
+
         let scene = GameTitleScene(size: GameConstants.sceneSize)
         scene.scaleMode = .aspectFill
         skView.presentScene(scene)
+    }
+
+    deinit {
+        FramePacing.stopMonitoring()
     }
 
     private func configureAudioSession() {

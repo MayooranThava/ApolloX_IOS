@@ -98,7 +98,7 @@ final class GameTitleScene: SKScene {
         let point = touch.location(in: self)
         if playButton.containsTouch(point) {
             playButton.pulse()
-            AudioManager.play(AudioManager.uiTap, on: self)
+            AudioManager.play(.uiTap)
             HapticManager.fire()
             presentScene(GameScene(size: size))
         }

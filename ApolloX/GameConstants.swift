@@ -93,6 +93,8 @@ enum GameConstants {
         static let powerUpKind = "powerUpKind"
         static let pauseButton = "PauseButton"
         static let resumeButton = "Resume"
+        static let starDust = "StarDust"
+        static let engine = "Engine"
     }
 
     enum PhysicsCategory {

@@ -30,20 +30,27 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private var isInvulnerable = false
     private var runElapsed: TimeInterval = 0
     private var lastUpdateTime: TimeInterval = 0
+    /// Cached so swept tests do not rebuild `PlayfieldLayout` every pair.
+    private var visibleMaxY: CGFloat = 0
 
     private var pauseOverlay: SKNode?
     private var resumeButton: MenuButtonNode?
-    /// Previous-frame projectile positions for swept hit tests against fast shots.
-    private var lastProjectilePositions: [ObjectIdentifier: CGPoint] = [:]
 
-    private lazy var bulletPool = NodePool(prewarm: 18) {
-        SKSpriteNode(texture: TextureCache.texture(GameConstants.bulletImage))
+    private var liveBullets: [PooledSprite] = []
+    private var liveEnemies: [PooledSprite] = []
+    private var livePickups: [PooledSprite] = []
+
+    private lazy var bulletPool = NodePool(prewarm: 18, maxIdle: 24) {
+        PooledSprite(texture: TextureCache.texture(GameConstants.bulletImage))
     }
-    private lazy var obstaclePool = NodePool(prewarm: 10) {
-        SKSpriteNode(texture: TextureCache.texture("asteroid"))
+    private lazy var obstaclePool = NodePool(prewarm: 10, maxIdle: 16) {
+        PooledSprite(texture: TextureCache.texture("asteroid"))
     }
-    private lazy var explosionPool = NodePool(prewarm: 10) {
-        SKSpriteNode(texture: TextureCache.texture("explosion"))
+    private lazy var explosionPool = NodePool(prewarm: 10, maxIdle: 16) {
+        PooledSprite(texture: TextureCache.texture("explosion"))
+    }
+    private lazy var pickupPool = NodePool(prewarm: 2, maxIdle: 6) {
+        PooledSprite(texture: TextureCache.texture(GameConstants.starImage))
     }
 
     override init(size: CGSize) {
@@ -76,6 +83,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         startSpawning()
         registerLifecycleObservers()
         updateHUD()
+        applyPerformanceQuality()
     }
 
     override func didChangeSize(_ oldSize: CGSize) {
@@ -103,6 +111,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private func relayoutForSafeArea() {
         let layout = playfield
         playArea = layout.safeRect
+        visibleMaxY = layout.visibleRect.maxY
         hud.layout(in: layout.safeRect)
 
         if player.parent != nil {
@@ -165,6 +174,18 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             name: UIApplication.didBecomeActiveNotification,
             object: nil
         )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handlePerformanceChange),
+            name: .apolloXPerformanceDidChange,
+            object: nil
+        )
+    }
+
+    @objc private func handlePerformanceChange() {
+        applyPerformanceQuality()
+        guard currentState == .playing else { return }
+        engineEmitter?.particleBirthRate = FramePacing.currentQuality.engineBirthRate
     }
 
     @objc private func appWillResignActive() {
@@ -275,7 +296,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         hud.setLives(lives)
         hud.pulseLives()
         HapticManager.lifeLost()
-        AudioManager.play(AudioManager.lifeLost, on: self)
+        AudioManager.play(.lifeLost)
 
         if outcome.isGameOver {
             runGameOver()
@@ -326,15 +347,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         engineEmitter?.particleBirthRate = 0
 
         removeAllActions()
-        for name in [
-            GameConstants.NodeName.bullet,
-            GameConstants.NodeName.enemy,
-            GameConstants.NodeName.powerUp,
-            GameConstants.NodeName.healthPickup
-        ] {
-            enumerateChildNodes(withName: name) { node, _ in
-                node.removeAllActions()
-            }
+        for sprite in liveBullets + liveEnemies + livePickups {
+            sprite.removeAllActions()
         }
 
         ScoreStore.commitHighScoreIfNeeded()
@@ -360,7 +374,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             presentPauseOverlay()
         }
         if !fromSystem {
-            AudioManager.play(AudioManager.uiTap, on: self)
+            AudioManager.play(.uiTap)
             HapticManager.fire()
         }
     }
@@ -372,7 +386,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         isPaused = false
         view?.isPaused = false
         lastUpdateTime = 0
-        AudioManager.play(AudioManager.uiTap, on: self)
+        AudioManager.play(.uiTap)
         HapticManager.fire()
     }
 
@@ -433,27 +447,24 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         bullet.name = GameConstants.NodeName.bullet
         bullet.position = CGPoint(x: player.position.x, y: player.position.y + player.size.height * player.yScale * 0.28)
         bullet.zPosition = GameConstants.Z.bullet
-        bullet.physicsBody = SKPhysicsBody(circleOfRadius: GameRules.bulletHitRadius)
-        bullet.physicsBody?.isDynamic = true
-        bullet.physicsBody?.affectedByGravity = false
-        bullet.physicsBody?.allowsRotation = false
-        bullet.physicsBody?.usesPreciseCollisionDetection = true
-        bullet.physicsBody?.categoryBitMask = GameConstants.PhysicsCategory.bullet
-        bullet.physicsBody?.collisionBitMask = GameConstants.PhysicsCategory.none
-        bullet.physicsBody?.contactTestBitMask =
-            GameConstants.PhysicsCategory.enemy | GameConstants.PhysicsCategory.powerUp
+        bullet.hitRadius = GameRules.bulletHitRadius
+        bullet.lastPosition = bullet.position
+        bullet.attachCirclePhysics(
+            radius: GameRules.bulletHitRadius,
+            category: GameConstants.PhysicsCategory.bullet,
+            contact: GameConstants.PhysicsCategory.enemy | GameConstants.PhysicsCategory.powerUp
+        )
         addChild(bullet)
-        lastProjectilePositions[ObjectIdentifier(bullet)] = bullet.position
+        liveBullets.append(bullet)
 
-        AudioManager.play(AudioManager.laser, on: self)
+        AudioManager.play(.laser)
 
         let duration = TimeInterval((size.height - bullet.position.y + 80) / GameRules.bulletSpeed)
         bullet.run(.sequence([
             .moveTo(y: size.height + 80, duration: duration),
             .run { [weak self, weak bullet] in
                 guard let self, let bullet else { return }
-                self.forgetProjectile(bullet)
-                self.bulletPool.recycle(bullet)
+                self.recycleProjectile(bullet)
             }
         ]))
     }
@@ -465,21 +476,21 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         let startX = CGFloat.random(in: playArea.minX + inset...playArea.maxX - inset)
         let endX = CGFloat.random(in: playArea.minX + inset...playArea.maxX - inset)
 
-        let powerUp = SKSpriteNode(texture: TextureCache.texture(GameConstants.starImage))
+        let powerUp = pickupPool.checkout()
+        powerUp.texture = TextureCache.texture(GameConstants.starImage)
         powerUp.name = GameConstants.NodeName.powerUp
         powerUp.setScale(GameRules.starScale)
         powerUp.position = CGPoint(x: startX, y: playArea.maxY + 80)
         powerUp.zPosition = GameConstants.Z.powerUp
-        powerUp.userData = NSMutableDictionary(dictionary: [
-            GameConstants.NodeName.powerUpKind: GameConstants.PowerUpKind.star.rawValue
-        ])
-        powerUp.physicsBody = SKPhysicsBody(circleOfRadius: powerUp.size.width * GameRules.starHitboxFactor)
-        powerUp.physicsBody?.isDynamic = true
-        powerUp.physicsBody?.affectedByGravity = false
-        powerUp.physicsBody?.categoryBitMask = GameConstants.PhysicsCategory.powerUp
-        powerUp.physicsBody?.collisionBitMask = GameConstants.PhysicsCategory.none
-        powerUp.physicsBody?.contactTestBitMask = GameConstants.PhysicsCategory.bullet
+        powerUp.powerUpKind = .star
+        powerUp.hitRadius = powerUp.size.width * GameRules.starHitboxFactor
+        powerUp.attachCirclePhysics(
+            radius: powerUp.hitRadius,
+            category: GameConstants.PhysicsCategory.powerUp,
+            contact: GameConstants.PhysicsCategory.bullet
+        )
         addChild(powerUp)
+        livePickups.append(powerUp)
 
         powerUp.run(.repeatForever(.sequence([
             .scale(to: GameRules.starPulseScale, duration: 0.55),
@@ -488,7 +499,10 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         powerUp.run(.repeatForever(.rotate(byAngle: .pi, duration: 3.2)))
         powerUp.run(.sequence([
             .move(to: CGPoint(x: endX, y: playArea.minY - 80), duration: GameConstants.powerUpTravelDuration),
-            .removeFromParent()
+            .run { [weak self, weak powerUp] in
+                guard let self, let powerUp else { return }
+                self.recyclePickup(powerUp)
+            }
         ]))
     }
 
@@ -501,21 +515,21 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         let startX = CGFloat.random(in: playArea.minX + inset...playArea.maxX - inset)
         let endX = CGFloat.random(in: playArea.minX + inset...playArea.maxX - inset)
 
-        let pickup = SKSpriteNode(texture: TextureCache.texture(GameConstants.healthImage))
+        let pickup = pickupPool.checkout()
+        pickup.texture = TextureCache.texture(GameConstants.healthImage)
         pickup.name = GameConstants.NodeName.healthPickup
         pickup.setScale(GameRules.healthPickupScale)
         pickup.position = CGPoint(x: startX, y: playArea.maxY + 80)
         pickup.zPosition = GameConstants.Z.powerUp
-        pickup.userData = NSMutableDictionary(dictionary: [
-            GameConstants.NodeName.powerUpKind: GameConstants.PowerUpKind.health.rawValue
-        ])
-        pickup.physicsBody = SKPhysicsBody(circleOfRadius: pickup.size.width * GameRules.healthHitboxFactor)
-        pickup.physicsBody?.isDynamic = true
-        pickup.physicsBody?.affectedByGravity = false
-        pickup.physicsBody?.categoryBitMask = GameConstants.PhysicsCategory.powerUp
-        pickup.physicsBody?.collisionBitMask = GameConstants.PhysicsCategory.none
-        pickup.physicsBody?.contactTestBitMask = GameConstants.PhysicsCategory.bullet
+        pickup.powerUpKind = .health
+        pickup.hitRadius = pickup.size.width * GameRules.healthHitboxFactor
+        pickup.attachCirclePhysics(
+            radius: pickup.hitRadius,
+            category: GameConstants.PhysicsCategory.powerUp,
+            contact: GameConstants.PhysicsCategory.bullet
+        )
         addChild(pickup)
+        livePickups.append(pickup)
 
         pickup.run(.repeatForever(.sequence([
             .scale(to: GameRules.healthPickupPulseScale, duration: 0.5),
@@ -523,7 +537,10 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         ])))
         pickup.run(.sequence([
             .move(to: CGPoint(x: endX, y: playArea.minY - 80), duration: GameConstants.powerUpTravelDuration),
-            .removeFromParent()
+            .run { [weak self, weak pickup] in
+                guard let self, let pickup else { return }
+                self.recyclePickup(pickup)
+            }
         ]))
     }
 
@@ -564,22 +581,16 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         node.alpha = 1
         node.zRotation = 0
         let radius = GameRules.obstacleHitRadius(for: kind, spriteSize: node.size, scale: node.xScale)
-        node.userData = NSMutableDictionary(dictionary: [
-            GameConstants.NodeName.obstacleKind: kind.rawValue,
-            GameConstants.NodeName.obstacleHP: kind.hitsToDestroy,
-            GameConstants.NodeName.hitRadius: NSNumber(value: Double(radius))
-        ])
-
-        node.physicsBody = SKPhysicsBody(circleOfRadius: radius)
-        node.physicsBody?.isDynamic = true
-        node.physicsBody?.affectedByGravity = false
-        node.physicsBody?.allowsRotation = false
-        node.physicsBody?.usesPreciseCollisionDetection = true
-        node.physicsBody?.categoryBitMask = GameConstants.PhysicsCategory.enemy
-        node.physicsBody?.collisionBitMask = GameConstants.PhysicsCategory.none
-        node.physicsBody?.contactTestBitMask =
-            GameConstants.PhysicsCategory.player | GameConstants.PhysicsCategory.bullet
+        node.obstacleKind = kind
+        node.obstacleHP = kind.hitsToDestroy
+        node.hitRadius = radius
+        node.attachCirclePhysics(
+            radius: radius,
+            category: GameConstants.PhysicsCategory.enemy,
+            contact: GameConstants.PhysicsCategory.player | GameConstants.PhysicsCategory.bullet
+        )
         addChild(node)
+        liveEnemies.append(node)
 
         if kind == .comet {
             let dx = end.x - start.x
@@ -588,7 +599,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         } else if kind == .drone {
             node.zRotation = 0
         } else if kind == .mine {
-            AudioManager.play(AudioManager.mine, on: self)
+            AudioManager.play(.mine)
             node.run(.repeatForever(.sequence([
                 .scale(to: kind.scale * 1.08, duration: 0.45),
                 .scale(to: kind.scale, duration: 0.45)
@@ -605,6 +616,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             .run { [weak self] in self?.lostALife(fromContact: false) },
             .run { [weak self, weak node] in
                 guard let self, let node else { return }
+                self.untrack(node, from: &self.liveEnemies)
                 self.obstaclePool.recycle(node)
             }
         ]))
@@ -619,7 +631,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         explosion.setScale(0)
         explosion.alpha = 1
         addChild(explosion)
-        AudioManager.play(AudioManager.explosion, on: self)
+        AudioManager.play(.explosion)
 
         explosion.run(.sequence([
             .group([
@@ -637,7 +649,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         let outcome = GameRules.collectStar(currentCharge: starCharge)
         starCharge = outcome.starCharge
         HapticManager.starHit()
-        AudioManager.play(AudioManager.star, on: self)
+        AudioManager.play(.star)
         spawnExplosion(at: position, image: "mini_explosion", scale: 0.85)
 
         if outcome.activated {
@@ -645,7 +657,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             fireDelay = GameConstants.poweredFireDelay
             poweredShotsRemaining = outcome.poweredShots
             HapticManager.upgrade()
-            AudioManager.play(AudioManager.boost, on: self)
+            AudioManager.play(.boost)
             refreshFireRate()
             showBoostBanner()
         } else {
@@ -658,7 +670,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         let previous = lives
         lives = GameRules.livesAfterHealthPickup(current: lives)
         HapticManager.upgrade()
-        AudioManager.play(AudioManager.star, on: self)
+        AudioManager.play(.star)
         spawnExplosion(at: position, image: "mini_explosion", scale: 0.75)
         hud.setLives(lives)
         hud.pulseLives()
@@ -736,14 +748,10 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     private func damageObstacle(_ node: SKNode, blastPoint: CGPoint) {
-        guard let data = node.userData else {
-            destroyObstacle(node, blastPoint: blastPoint, points: 1)
-            return
-        }
-        let kindRaw = data[GameConstants.NodeName.obstacleKind] as? String
-        let kind = kindRaw.flatMap(GameConstants.ObstacleKind.init(rawValue:)) ?? .asteroid
-        let hp = max(0, (data[GameConstants.NodeName.obstacleHP] as? Int ?? 1) - 1)
-        data[GameConstants.NodeName.obstacleHP] = hp
+        let sprite = node as? PooledSprite
+        let kind = sprite?.obstacleKind ?? .asteroid
+        let hp = max(0, (sprite?.obstacleHP ?? 1) - 1)
+        sprite?.obstacleHP = hp
 
         if hp > 0 {
             node.run(.sequence([
@@ -759,7 +767,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     private func destroyObstacle(_ node: SKNode, blastPoint: CGPoint, points: Int) {
-        if let sprite = node as? SKSpriteNode {
+        if let sprite = node as? PooledSprite {
+            untrack(sprite, from: &liveEnemies)
             obstaclePool.recycle(sprite)
         } else {
             node.removeFromParent()
@@ -784,7 +793,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             if let position = enemyNode?.position {
                 spawnExplosion(at: position, image: "explosion", scale: 1.15)
             }
-            if let enemy = enemyNode as? SKSpriteNode {
+            if let enemy = enemyNode as? PooledSprite {
+                untrack(enemy, from: &liveEnemies)
                 obstaclePool.recycle(enemy)
             } else {
                 enemyNode?.removeFromParent()
@@ -810,23 +820,12 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             let bulletNode = maskA == GameConstants.PhysicsCategory.bullet ? contact.bodyA.node : contact.bodyB.node
             let pickupNode = maskA == GameConstants.PhysicsCategory.powerUp ? contact.bodyA.node : contact.bodyB.node
             guard let pickupNode, pickupNode.parent != nil else { return }
-            let hitRadius = pickupNode.frame.width * 0.5
-            guard pickupNode.position.y - hitRadius < playfield.visibleRect.maxY else { return }
+            let hitRadius = colliderRadius(forPickup: pickupNode)
+            guard pickupNode.position.y - hitRadius < visibleMaxY else { return }
 
             let point = pickupNode.position
             recycleProjectile(bulletNode)
-
-            let kindRaw = pickupNode.userData?[GameConstants.NodeName.powerUpKind] as? String
-            let kind = kindRaw.flatMap(GameConstants.PowerUpKind.init(rawValue:))
-                ?? (pickupNode.name == GameConstants.NodeName.healthPickup ? .health : .star)
-            pickupNode.removeFromParent()
-
-            switch kind {
-            case .star:
-                collectStar(at: point)
-            case .health:
-                collectHealth(at: point)
-            }
+            collectPickup(pickupNode, at: point)
         }
     }
 
@@ -879,111 +878,115 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     // MARK: - Swept projectile hits
 
     private func recycleProjectile(_ node: SKNode?) {
-        guard let node else { return }
-        forgetProjectile(node)
-        if let bullet = node as? SKSpriteNode {
-            bulletPool.recycle(bullet)
+        guard let bullet = node as? PooledSprite else {
+            node?.removeFromParent()
+            return
+        }
+        untrack(bullet, from: &liveBullets)
+        bulletPool.recycle(bullet)
+    }
+
+    private func recyclePickup(_ node: PooledSprite) {
+        untrack(node, from: &livePickups)
+        pickupPool.recycle(node)
+    }
+
+    private func collectPickup(_ node: SKNode, at point: CGPoint) {
+        let pooled = node as? PooledSprite
+        let kind = pooled?.powerUpKind
+            ?? (node.name == GameConstants.NodeName.healthPickup ? .health : .star)
+        if let pooled {
+            recyclePickup(pooled)
         } else {
             node.removeFromParent()
+        }
+        switch kind {
+        case .star:
+            collectStar(at: point)
+        case .health:
+            collectHealth(at: point)
+        }
+    }
+
+    private func untrack(_ node: SKNode, from list: inout [PooledSprite]) {
+        if let index = list.firstIndex(where: { $0 === node }) {
+            list.swapAt(index, list.count - 1)
+            list.removeLast()
         }
     }
 
     private func colliderRadius(forEnemy node: SKNode) -> CGFloat {
-        let kindRaw = node.userData?[GameConstants.NodeName.obstacleKind] as? String
-        let kind = kindRaw.flatMap(GameConstants.ObstacleKind.init(rawValue:)) ?? .asteroid
+        if let pooled = node as? PooledSprite, pooled.hitRadius > 0 {
+            return pooled.hitRadius
+        }
+        let kind = (node as? PooledSprite)?.obstacleKind ?? .asteroid
         if let sprite = node as? SKSpriteNode {
             return GameRules.obstacleHitRadius(for: kind, spriteSize: sprite.size, scale: sprite.xScale)
-        }
-        if let number = node.userData?[GameConstants.NodeName.hitRadius] as? NSNumber {
-            return CGFloat(truncating: number)
         }
         return 80
     }
 
+    private func colliderRadius(forPickup node: SKNode) -> CGFloat {
+        if let pooled = node as? PooledSprite, pooled.hitRadius > 0 {
+            return pooled.hitRadius
+        }
+        return node.frame.width * 0.5
+    }
+
     private func isColliderOnscreen(_ node: SKNode, radius: CGFloat) -> Bool {
-        node.position.y - radius < playfield.visibleRect.maxY
+        node.position.y - radius < visibleMaxY
     }
 
     private func resolveSweptProjectileHits() {
-        var bullets: [SKSpriteNode] = []
-        enumerateChildNodes(withName: GameConstants.NodeName.bullet) { node, _ in
-            if let sprite = node as? SKSpriteNode, sprite.parent != nil {
-                bullets.append(sprite)
+        var index = 0
+        while index < liveBullets.count {
+            let bullet = liveBullets[index]
+            guard bullet.parent != nil else {
+                liveBullets.remove(at: index)
+                continue
             }
-        }
-
-        var liveKeys = Set<ObjectIdentifier>()
-        for bullet in bullets {
-            let key = ObjectIdentifier(bullet)
-            liveKeys.insert(key)
-            let start = lastProjectilePositions[key] ?? bullet.position
+            let start = bullet.lastPosition
             let end = bullet.position
-            lastProjectilePositions[key] = end
-
+            bullet.lastPosition = end
             if applySweptHit(bullet: bullet, start: start, end: end) {
                 continue
             }
+            index += 1
         }
-
-        lastProjectilePositions = lastProjectilePositions.filter { liveKeys.contains($0.key) }
     }
 
-    private func applySweptHit(bullet: SKSpriteNode, start: CGPoint, end: CGPoint) -> Bool {
-        var hitEnemy: SKNode?
-        enumerateChildNodes(withName: GameConstants.NodeName.enemy) { node, stop in
-            guard node.parent != nil else { return }
-            let radius = colliderRadius(forEnemy: node)
-            guard isColliderOnscreen(node, radius: radius) else { return }
+    private func applySweptHit(bullet: PooledSprite, start: CGPoint, end: CGPoint) -> Bool {
+        for enemy in liveEnemies {
+            guard enemy.parent != nil else { continue }
+            let radius = colliderRadius(forEnemy: enemy)
+            guard isColliderOnscreen(enemy, radius: radius) else { continue }
             if GameRules.projectileHitsTarget(
                 start: start,
                 end: end,
                 projectileRadius: GameRules.bulletHitRadius,
-                target: node.position,
+                target: enemy.position,
                 targetRadius: radius
             ) {
-                hitEnemy = node
-                stop.pointee = true
+                recycleProjectile(bullet)
+                damageObstacle(enemy, blastPoint: enemy.position)
+                return true
             }
-        }
-        if let enemy = hitEnemy {
-            recycleProjectile(bullet)
-            damageObstacle(enemy, blastPoint: enemy.position)
-            return true
         }
 
-        var hitPickup: SKNode?
-        let pickupNames = [GameConstants.NodeName.powerUp, GameConstants.NodeName.healthPickup]
-        for name in pickupNames {
-            enumerateChildNodes(withName: name) { node, stop in
-                guard node.parent != nil else { return }
-                let radius = node.frame.width * 0.5
-                if GameRules.projectileHitsTarget(
-                    start: start,
-                    end: end,
-                    projectileRadius: GameRules.bulletHitRadius,
-                    target: node.position,
-                    targetRadius: radius
-                ) {
-                    hitPickup = node
-                    stop.pointee = true
-                }
+        for pickup in livePickups {
+            guard pickup.parent != nil else { continue }
+            let radius = colliderRadius(forPickup: pickup)
+            if GameRules.projectileHitsTarget(
+                start: start,
+                end: end,
+                projectileRadius: GameRules.bulletHitRadius,
+                target: pickup.position,
+                targetRadius: radius
+            ) {
+                recycleProjectile(bullet)
+                collectPickup(pickup, at: pickup.position)
+                return true
             }
-            if hitPickup != nil { break }
-        }
-        if let pickup = hitPickup {
-            recycleProjectile(bullet)
-            let point = pickup.position
-            let kindRaw = pickup.userData?[GameConstants.NodeName.powerUpKind] as? String
-            let kind = kindRaw.flatMap(GameConstants.PowerUpKind.init(rawValue:))
-                ?? (pickup.name == GameConstants.NodeName.healthPickup ? .health : .star)
-            pickup.removeFromParent()
-            switch kind {
-            case .star:
-                collectStar(at: point)
-            case .health:
-                collectHealth(at: point)
-            }
-            return true
         }
 
         return false

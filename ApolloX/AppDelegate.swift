@@ -27,6 +27,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func applicationDidBecomeActive(_ application: UIApplication) {
+        FramePacing.apply()
         // GameScene resumes itself when appropriate; menus can always run.
         if activeSKView()?.scene is GameScene {
             return
