@@ -22,14 +22,17 @@ enum GameRules {
 
     static let bulletSize = CGSize(width: 40, height: 80)
     static let poweredBulletSize = CGSize(width: 46, height: 92)
-    static let bulletHitRadius: CGFloat = 14
+    /// Matches the visible bolt (half-width ~20) with a little extra so grazes count.
+    static let bulletHitRadius: CGFloat = 22
+    /// Points per second. Fast enough that discrete physics can tunnel without a sweep.
+    static let bulletSpeed: CGFloat = 1700
 
     /// Fraction of visible sprite used for collision (smaller = more forgiving).
     static let playerHitboxFactor: CGFloat = 0.26
     /// Default circular enemy hitbox (non-asteroids).
     static let enemyHitboxFactor: CGFloat = 0.28
-    /// Asteroids use near-full coverage so grazing shots still blast.
-    static let asteroidHitboxFactor: CGFloat = 0.50
+    /// Fraction of the sprite's circumradius. 1.0 covers every pixel of the asteroid quad.
+    static let asteroidHitboxFactor: CGFloat = 1.0
     static let starHitboxFactor: CGFloat = 0.34
     static let healthHitboxFactor: CGFloat = 0.36
 
@@ -55,8 +58,62 @@ enum GameRules {
         }
     }
 
+    /// Scene-space radius that should count as a hit against this obstacle.
+    /// Asteroids use the sprite circumradius so a shot that clips any corner still blasts.
+    static func obstacleHitRadius(
+        for kind: GameConstants.ObstacleKind,
+        spriteSize: CGSize,
+        scale: CGFloat
+    ) -> CGFloat {
+        let width = spriteSize.width * scale
+        let height = spriteSize.height * scale
+        switch kind {
+        case .asteroid, .asteroidAlt:
+            return hypot(width, height) * 0.5 * asteroidHitboxFactor
+        default:
+            return min(width, height) * enemyHitboxFactor
+        }
+    }
+
+    /// Texture polygons miss thin rims and tunnel under fast shots; asteroids use a circle instead.
     static func usesTextureHitbox(_ kind: GameConstants.ObstacleKind) -> Bool {
-        kind == .asteroid || kind == .asteroidAlt
+        switch kind {
+        case .asteroid, .asteroidAlt, .drone, .comet, .mine:
+            return false
+        }
+    }
+
+    /// Continuous (swept) circle vs circle. Catches shots that skip past a rim between frames.
+    static func projectileHitsTarget(
+        start: CGPoint,
+        end: CGPoint,
+        projectileRadius: CGFloat,
+        target: CGPoint,
+        targetRadius: CGFloat
+    ) -> Bool {
+        let combined = projectileRadius + targetRadius
+        guard combined > 0 else { return false }
+        let combinedSquared = combined * combined
+
+        func overlaps(_ point: CGPoint) -> Bool {
+            let dx = point.x - target.x
+            let dy = point.y - target.y
+            return dx * dx + dy * dy <= combinedSquared
+        }
+
+        if overlaps(end) || overlaps(start) {
+            return true
+        }
+
+        let vx = end.x - start.x
+        let vy = end.y - start.y
+        let lengthSquared = vx * vx + vy * vy
+        guard lengthSquared > 0.0001 else { return false }
+
+        var t = ((target.x - start.x) * vx + (target.y - start.y) * vy) / lengthSquared
+        t = min(1, max(0, t))
+        let closest = CGPoint(x: start.x + t * vx, y: start.y + t * vy)
+        return overlaps(closest)
     }
 
     static func nextHealthPickupDelay() -> TimeInterval {

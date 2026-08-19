@@ -33,6 +33,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     private var pauseOverlay: SKNode?
     private var resumeButton: MenuButtonNode?
+    /// Previous-frame projectile positions for swept hit tests against fast shots.
+    private var lastProjectilePositions: [ObjectIdentifier: CGPoint] = [:]
 
     private lazy var bulletPool = NodePool(prewarm: 18) {
         SKSpriteNode(texture: TextureCache.texture(GameConstants.bulletImage))
@@ -89,6 +91,11 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             runElapsed += currentTime - lastUpdateTime
         }
         lastUpdateTime = currentTime
+    }
+
+    override func didFinishUpdate() {
+        guard currentState == .playing, !isPausedBySystem else { return }
+        resolveSweptProjectileHits()
     }
 
     // MARK: - Layout
@@ -429,19 +436,23 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         bullet.physicsBody = SKPhysicsBody(circleOfRadius: GameRules.bulletHitRadius)
         bullet.physicsBody?.isDynamic = true
         bullet.physicsBody?.affectedByGravity = false
+        bullet.physicsBody?.allowsRotation = false
+        bullet.physicsBody?.usesPreciseCollisionDetection = true
         bullet.physicsBody?.categoryBitMask = GameConstants.PhysicsCategory.bullet
         bullet.physicsBody?.collisionBitMask = GameConstants.PhysicsCategory.none
         bullet.physicsBody?.contactTestBitMask =
             GameConstants.PhysicsCategory.enemy | GameConstants.PhysicsCategory.powerUp
         addChild(bullet)
+        lastProjectilePositions[ObjectIdentifier(bullet)] = bullet.position
 
         AudioManager.play(AudioManager.laser, on: self)
 
-        let duration = TimeInterval((size.height - bullet.position.y + 80) / 1700)
+        let duration = TimeInterval((size.height - bullet.position.y + 80) / GameRules.bulletSpeed)
         bullet.run(.sequence([
             .moveTo(y: size.height + 80, duration: duration),
             .run { [weak self, weak bullet] in
                 guard let self, let bullet else { return }
+                self.forgetProjectile(bullet)
                 self.bulletPool.recycle(bullet)
             }
         ]))
@@ -552,24 +563,18 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         node.zPosition = GameConstants.Z.enemy
         node.alpha = 1
         node.zRotation = 0
+        let radius = GameRules.obstacleHitRadius(for: kind, spriteSize: node.size, scale: node.xScale)
         node.userData = NSMutableDictionary(dictionary: [
             GameConstants.NodeName.obstacleKind: kind.rawValue,
-            GameConstants.NodeName.obstacleHP: kind.hitsToDestroy
+            GameConstants.NodeName.obstacleHP: kind.hitsToDestroy,
+            GameConstants.NodeName.hitRadius: NSNumber(value: Double(radius))
         ])
 
-        let radius = min(node.size.width, node.size.height) * node.xScale * GameRules.enemyHitboxFactor(for: kind)
-        if GameRules.usesTextureHitbox(kind), let texture = node.texture {
-            // Match opaque pixels so grazing hits on any part of the rock still blast.
-            let bodySize = CGSize(
-                width: texture.size().width * node.xScale,
-                height: texture.size().height * node.yScale
-            )
-            node.physicsBody = SKPhysicsBody(texture: texture, alphaThreshold: 0.15, size: bodySize)
-        } else {
-            node.physicsBody = SKPhysicsBody(circleOfRadius: radius)
-        }
+        node.physicsBody = SKPhysicsBody(circleOfRadius: radius)
         node.physicsBody?.isDynamic = true
         node.physicsBody?.affectedByGravity = false
+        node.physicsBody?.allowsRotation = false
+        node.physicsBody?.usesPreciseCollisionDetection = true
         node.physicsBody?.categoryBitMask = GameConstants.PhysicsCategory.enemy
         node.physicsBody?.collisionBitMask = GameConstants.PhysicsCategory.none
         node.physicsBody?.contactTestBitMask =
@@ -791,14 +796,12 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         if combined == (GameConstants.PhysicsCategory.bullet | GameConstants.PhysicsCategory.enemy) {
             let bulletNode = maskA == GameConstants.PhysicsCategory.bullet ? contact.bodyA.node : contact.bodyB.node
             let enemyNode = maskA == GameConstants.PhysicsCategory.enemy ? contact.bodyA.node : contact.bodyB.node
-            guard let enemyNode, enemyNode.position.y < playArea.maxY + 50 else { return }
+            guard let enemyNode, enemyNode.parent != nil else { return }
+            let hitRadius = colliderRadius(forEnemy: enemyNode)
+            guard isColliderOnscreen(enemyNode, radius: hitRadius) else { return }
 
             let blast = enemyNode.position
-            if let bullet = bulletNode as? SKSpriteNode {
-                bulletPool.recycle(bullet)
-            } else {
-                bulletNode?.removeFromParent()
-            }
+            recycleProjectile(bulletNode)
             damageObstacle(enemyNode, blastPoint: blast)
             return
         }
@@ -806,14 +809,12 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         if combined == (GameConstants.PhysicsCategory.bullet | GameConstants.PhysicsCategory.powerUp) {
             let bulletNode = maskA == GameConstants.PhysicsCategory.bullet ? contact.bodyA.node : contact.bodyB.node
             let pickupNode = maskA == GameConstants.PhysicsCategory.powerUp ? contact.bodyA.node : contact.bodyB.node
-            guard let pickupNode, pickupNode.position.y < playArea.maxY + 50 else { return }
+            guard let pickupNode, pickupNode.parent != nil else { return }
+            let hitRadius = pickupNode.frame.width * 0.5
+            guard pickupNode.position.y - hitRadius < playfield.visibleRect.maxY else { return }
 
             let point = pickupNode.position
-            if let bullet = bulletNode as? SKSpriteNode {
-                bulletPool.recycle(bullet)
-            } else {
-                bulletNode?.removeFromParent()
-            }
+            recycleProjectile(bulletNode)
 
             let kindRaw = pickupNode.userData?[GameConstants.NodeName.powerUpKind] as? String
             let kind = kindRaw.flatMap(GameConstants.PowerUpKind.init(rawValue:))
@@ -873,5 +874,118 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             playMaxX: playArea.maxX,
             halfWidth: halfWidth
         )
+    }
+
+    // MARK: - Swept projectile hits
+
+    private func recycleProjectile(_ node: SKNode?) {
+        guard let node else { return }
+        forgetProjectile(node)
+        if let bullet = node as? SKSpriteNode {
+            bulletPool.recycle(bullet)
+        } else {
+            node.removeFromParent()
+        }
+    }
+
+    private func colliderRadius(forEnemy node: SKNode) -> CGFloat {
+        let kindRaw = node.userData?[GameConstants.NodeName.obstacleKind] as? String
+        let kind = kindRaw.flatMap(GameConstants.ObstacleKind.init(rawValue:)) ?? .asteroid
+        if let sprite = node as? SKSpriteNode {
+            return GameRules.obstacleHitRadius(for: kind, spriteSize: sprite.size, scale: sprite.xScale)
+        }
+        if let number = node.userData?[GameConstants.NodeName.hitRadius] as? NSNumber {
+            return CGFloat(truncating: number)
+        }
+        return 80
+    }
+
+    private func isColliderOnscreen(_ node: SKNode, radius: CGFloat) -> Bool {
+        node.position.y - radius < playfield.visibleRect.maxY
+    }
+
+    private func resolveSweptProjectileHits() {
+        var bullets: [SKSpriteNode] = []
+        enumerateChildNodes(withName: GameConstants.NodeName.bullet) { node, _ in
+            if let sprite = node as? SKSpriteNode, sprite.parent != nil {
+                bullets.append(sprite)
+            }
+        }
+
+        var liveKeys = Set<ObjectIdentifier>()
+        for bullet in bullets {
+            let key = ObjectIdentifier(bullet)
+            liveKeys.insert(key)
+            let start = lastProjectilePositions[key] ?? bullet.position
+            let end = bullet.position
+            lastProjectilePositions[key] = end
+
+            if applySweptHit(bullet: bullet, start: start, end: end) {
+                continue
+            }
+        }
+
+        lastProjectilePositions = lastProjectilePositions.filter { liveKeys.contains($0.key) }
+    }
+
+    private func applySweptHit(bullet: SKSpriteNode, start: CGPoint, end: CGPoint) -> Bool {
+        var hitEnemy: SKNode?
+        enumerateChildNodes(withName: GameConstants.NodeName.enemy) { node, stop in
+            guard node.parent != nil else { return }
+            let radius = colliderRadius(forEnemy: node)
+            guard isColliderOnscreen(node, radius: radius) else { return }
+            if GameRules.projectileHitsTarget(
+                start: start,
+                end: end,
+                projectileRadius: GameRules.bulletHitRadius,
+                target: node.position,
+                targetRadius: radius
+            ) {
+                hitEnemy = node
+                stop.pointee = true
+            }
+        }
+        if let enemy = hitEnemy {
+            recycleProjectile(bullet)
+            damageObstacle(enemy, blastPoint: enemy.position)
+            return true
+        }
+
+        var hitPickup: SKNode?
+        let pickupNames = [GameConstants.NodeName.powerUp, GameConstants.NodeName.healthPickup]
+        for name in pickupNames {
+            enumerateChildNodes(withName: name) { node, stop in
+                guard node.parent != nil else { return }
+                let radius = node.frame.width * 0.5
+                if GameRules.projectileHitsTarget(
+                    start: start,
+                    end: end,
+                    projectileRadius: GameRules.bulletHitRadius,
+                    target: node.position,
+                    targetRadius: radius
+                ) {
+                    hitPickup = node
+                    stop.pointee = true
+                }
+            }
+            if hitPickup != nil { break }
+        }
+        if let pickup = hitPickup {
+            recycleProjectile(bullet)
+            let point = pickup.position
+            let kindRaw = pickup.userData?[GameConstants.NodeName.powerUpKind] as? String
+            let kind = kindRaw.flatMap(GameConstants.PowerUpKind.init(rawValue:))
+                ?? (pickup.name == GameConstants.NodeName.healthPickup ? .health : .star)
+            pickup.removeFromParent()
+            switch kind {
+            case .star:
+                collectStar(at: point)
+            case .health:
+                collectHealth(at: point)
+            }
+            return true
+        }
+
+        return false
     }
 }
