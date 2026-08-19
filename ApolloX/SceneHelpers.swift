@@ -86,7 +86,7 @@ extension SKScene {
 
     func makeStarDustEmitter(tier: Int = 0) -> SKEmitterNode {
         let palette = scrollingBackgroundNode()?.dustPalette(for: tier)
-            ?? (SKColor(white: 0.92, alpha: 1), 18.0)
+            ?? (color: SKColor(white: 0.92, alpha: 1), speed: 18.0)
 
         let emitter = SKEmitterNode()
         emitter.particleTexture = softDotTexture()
