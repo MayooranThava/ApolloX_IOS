@@ -83,11 +83,47 @@ final class GameRulesTests: XCTestCase {
     }
 
     func testAsteroidHitboxCoversMostOfSprite() {
-        XCTAssertGreaterThanOrEqual(GameRules.enemyHitboxFactor(for: .asteroid), 0.45)
-        XCTAssertTrue(GameRules.usesTextureHitbox(.asteroid))
-        XCTAssertTrue(GameRules.usesTextureHitbox(.asteroidAlt))
+        XCTAssertGreaterThanOrEqual(GameRules.enemyHitboxFactor(for: .asteroid), 0.95)
+        XCTAssertFalse(GameRules.usesTextureHitbox(.asteroid))
+        XCTAssertFalse(GameRules.usesTextureHitbox(.asteroidAlt))
         XCTAssertFalse(GameRules.usesTextureHitbox(.drone))
-        XCTAssertGreaterThan(GameRules.bulletHitRadius, 11)
+        XCTAssertGreaterThanOrEqual(GameRules.bulletHitRadius, 20)
+
+        let size = CGSize(width: 100, height: 100)
+        let asteroidRadius = GameRules.obstacleHitRadius(for: .asteroid, spriteSize: size, scale: 1)
+        XCTAssertGreaterThanOrEqual(asteroidRadius, hypot(50, 50), "asteroid collider must cover sprite corners")
+
+        let droneRadius = GameRules.obstacleHitRadius(for: .drone, spriteSize: size, scale: 1)
+        XCTAssertLessThan(droneRadius, asteroidRadius)
+    }
+
+    func testSweptProjectileCatchesGrazingPath() {
+        let clipped = GameRules.projectileHitsTarget(
+            start: CGPoint(x: 0, y: 0),
+            end: CGPoint(x: 0, y: 100),
+            projectileRadius: 10,
+            target: CGPoint(x: 25, y: 50),
+            targetRadius: 20
+        )
+        XCTAssertTrue(clipped, "path that clips the rim must count as a hit")
+
+        let overlapEnd = GameRules.projectileHitsTarget(
+            start: CGPoint(x: 0, y: 0),
+            end: CGPoint(x: 0, y: 40),
+            projectileRadius: 8,
+            target: CGPoint(x: 0, y: 50),
+            targetRadius: 12
+        )
+        XCTAssertTrue(overlapEnd)
+
+        let cleanMiss = GameRules.projectileHitsTarget(
+            start: CGPoint(x: 0, y: 0),
+            end: CGPoint(x: 0, y: 100),
+            projectileRadius: 5,
+            target: CGPoint(x: 80, y: 50),
+            targetRadius: 10
+        )
+        XCTAssertFalse(cleanMiss)
     }
 
     func testHealthPickupGrantsLifeUpToCap() {

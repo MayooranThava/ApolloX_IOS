@@ -93,14 +93,45 @@ def main() -> int:
     check("showBoostBanner" in SCENE and "BOOST!" in SCENE, "boost banner feedback missing")
 
     # Asteroid full-body hits + health pickup
-    check(swift_number(RULES, "asteroidHitboxFactor") >= 0.45, "asteroid hitbox should cover most of sprite")
-    check("usesTextureHitbox" in SCENE or "alphaThreshold" in SCENE, "asteroids should use texture hitboxes")
+    check(swift_number(RULES, "asteroidHitboxFactor") >= 0.95, "asteroid hitbox should cover the full sprite")
+    check("projectileHitsTarget" in SCENE, "asteroids should use swept projectile hit tests")
+    check("obstacleHitRadius" in SCENE, "asteroids should use full-sprite hit radii")
+    check("alphaThreshold" not in SCENE, "texture hitboxes miss grazing shots; use a covering circle instead")
+    check(swift_number(RULES, "bulletHitRadius") >= 20, "bullet hit radius should match the visible bolt")
+    check(swift_number(RULES, "bulletSpeed") >= 1500, "bullet speed constant missing")
     check(swift_number(RULES, "healthPickupMinInterval") == 15, "health min interval should be 15s")
     check(swift_number(RULES, "healthPickupMaxInterval") == 20, "health max interval should be 20s")
     check(swift_number(RULES, "maxLives") >= 5, "max lives cap expected")
     check("spawnHealthPickup" in SCENE and "collectHealth" in SCENE, "health pickup spawn/collect missing")
     check('healthImage = "health_plus"' in CONSTANTS, "health_plus asset constant missing")
     check((ROOT / "ApolloX/Assets.xcassets/health_plus.imageset/health_plus.png").exists(), "health_plus.png missing")
+
+    def projectile_hits(start, end, pr, target, tr):
+        combined = pr + tr
+        if combined <= 0:
+            return False
+        combined2 = combined * combined
+
+        def overlaps(point):
+            dx = point[0] - target[0]
+            dy = point[1] - target[1]
+            return dx * dx + dy * dy <= combined2
+
+        if overlaps(end) or overlaps(start):
+            return True
+        vx = end[0] - start[0]
+        vy = end[1] - start[1]
+        length2 = vx * vx + vy * vy
+        if length2 <= 0.0001:
+            return False
+        t = ((target[0] - start[0]) * vx + (target[1] - start[1]) * vy) / length2
+        t = min(1, max(0, t))
+        closest = (start[0] + t * vx, start[1] + t * vy)
+        return overlaps(closest)
+
+    check(projectile_hits((0, 0), (0, 100), 10, (25, 50), 20), "swept graze should hit")
+    check(not projectile_hits((0, 0), (0, 100), 5, (80, 50), 10), "far sweep should miss")
+    check(projectile_hits((0, 0), (0, 40), 8, (0, 50), 12), "end overlap should hit")
 
     # Lives math
     def resolve(lives: int):
