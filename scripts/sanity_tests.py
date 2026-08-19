@@ -150,6 +150,16 @@ def main() -> int:
     check("GameRules.startingLives" in CONSTANTS, "GameConstants should delegate startingLives")
     check("GameRules.starsNeededForUpgrade" in CONSTANTS, "GameConstants should delegate starsNeeded")
 
+    score = (ROOT / "ApolloX" / "ScoreStore.swift").read_text()
+    title = (ROOT / "ApolloX" / "GameTitle.swift").read_text()
+    check("static var storage: UserDefaults" in score, "ScoreStore must allow injecting UserDefaults for tests")
+    check("UserDefaults.standard.integer" not in score, "ScoreStore tests cannot use .standard high score")
+    check((ROOT / "ApolloXTests" / "ScoreStoreTests.swift").exists(), "ScoreStoreTests.swift missing")
+    check('titleScene' in CONSTANTS and "titleScene" in title, "title scene needs an accessibility identifier for the launch smoke test")
+    check((ROOT / "ApolloXUITests" / "LaunchSmokeTests.swift").exists(), "launch smoke UI test missing")
+    check((ROOT / ".github" / "workflows" / "ci.yml").exists(), "CI workflow missing")
+    check((ROOT / ".gitignore").exists(), ".gitignore missing")
+
     # 6) iPhone 16/17 performance contracts
     plist = (ROOT / "ApolloX" / "Info.plist").read_text()
     view = (ROOT / "ApolloX" / "GameViewController.swift").read_text()

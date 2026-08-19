@@ -34,6 +34,20 @@
                ReferencedContainer = "container:ApolloX.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "NO"
+            buildForProfiling = "NO"
+            buildForArchiving = "NO"
+            buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "C1B40023208A000100BD3501"
+               BuildableName = "ApolloXUITests.xctest"
+               BlueprintName = "ApolloXUITests"
+               ReferencedContainer = "container:ApolloX.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
@@ -49,6 +63,16 @@
                BlueprintIdentifier = "C1B20013208A000100BD3501"
                BuildableName = "ApolloXTests.xctest"
                BlueprintName = "ApolloXTests"
+               ReferencedContainer = "container:ApolloX.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "C1B40023208A000100BD3501"
+               BuildableName = "ApolloXUITests.xctest"
+               BlueprintName = "ApolloXUITests"
                ReferencedContainer = "container:ApolloX.xcodeproj">
             </BuildableReference>
          </TestableReference>

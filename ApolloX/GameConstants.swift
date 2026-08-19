@@ -97,6 +97,13 @@ enum GameConstants {
         static let engine = "Engine"
     }
 
+    /// Identifiers used by VoiceOver and the launch smoke UI test.
+    enum Accessibility {
+        static let titleScene = "titleScene"
+        static let titleLabel = "titleLabel"
+        static let playButton = "playButton"
+    }
+
     enum PhysicsCategory {
         static let none: UInt32 = 0
         static let player: UInt32 = 0b1
