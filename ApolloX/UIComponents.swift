@@ -278,15 +278,15 @@ final class BossHealthBarNode: SKNode {
 
     func show(maxHP: Int) {
         isHidden = false
-        setHP(current: maxHP, max: maxHP)
+        setHP(current: maxHP, maximum: maxHP)
     }
 
     func hideBar() {
         isHidden = true
     }
 
-    func setHP(current: Int, max: Int) {
-        let ratio = max > 0 ? CGFloat(current) / CGFloat(max) : 0
+    func setHP(current: Int, maximum: Int) {
+        let ratio = maximum > 0 ? CGFloat(current) / CGFloat(maximum) : 0
         fill.xScale = max(0, min(1, ratio))
     }
 

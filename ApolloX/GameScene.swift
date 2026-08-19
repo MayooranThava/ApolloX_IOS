@@ -900,7 +900,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         sprite?.obstacleHP = hp
 
         if kind == .boss {
-            bossHealthBar.setHP(current: hp, max: GameRules.bossMaxHP)
+            bossHealthBar.setHP(current: hp, maximum: GameRules.bossMaxHP)
             bossHealthBar.pulseDamage()
         }
 
