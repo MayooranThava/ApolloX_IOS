@@ -59,30 +59,34 @@ def main() -> int:
     check("1.18" in RULES or "obstacleScale" in RULES, "obstacle scales should be increased via GameRules")
 
     # 4) Soft opening
-    check(swift_number(RULES, "openingGraceDuration") >= 10, "opening grace should be ~12s")
-    check(swift_number(RULES, "openingSpawnInterval") > 1.7, "opening spawn should be slower than level 1")
+    check(swift_number(RULES, "openingGraceDuration") >= 15, "opening grace should be ~15s")
+    check(swift_number(RULES, "openingSpawnInterval") > 1.7, "opening spawn should be slower than tier 0")
     check("isInOpeningGrace" in SCENE, "GameScene should honor opening grace")
+    check("spawnBoss" in SCENE and "BossHealthBarNode" in HUD, "boss fight plumbing missing")
+    check("bossSpawnTime" in RULES or "bossSpawnTime" in CONSTANTS, "boss spawn time constant missing")
 
     # Simulate grace obstacle picker (mirrors GameRules.obstacleKind)
-    def obstacle_kind(level: int, elapsed: float, roll: int) -> str:
+    def obstacle_kind(elapsed: float, roll: int) -> str:
         roll = max(0, min(99, roll))
-        if elapsed < 12.0:
+        if elapsed < 15.0:
             return "asteroid" if roll < 70 else "asteroidAlt"
-        # late game sample
-        if level >= 4:
-            if roll < 30: return "asteroid"
-            if roll < 45: return "asteroidAlt"
-            if roll < 62: return "drone"
-            if roll < 82: return "comet"
+        tier = int(elapsed // 30)
+        if tier == 0:
+            return "asteroid" if roll < 75 else "asteroidAlt"
+        if tier == 1:
+            if roll < 55: return "asteroid"
+            if roll < 80: return "asteroidAlt"
             return "mine"
-        return "asteroid"
+        if roll < 35: return "asteroid"
+        if roll < 60: return "asteroidAlt"
+        return "mine"
 
     for roll in range(100):
-        kind = obstacle_kind(3, 5.0, roll)
+        kind = obstacle_kind(5.0, roll)
         check(kind in ("asteroid", "asteroidAlt"), f"grace spawn leaked {kind} at roll {roll}")
 
-    check(obstacle_kind(4, 30, 95) == "mine", "late game should allow mines")
-    check(obstacle_kind(4, 30, 70) == "comet", "late game should allow comets")
+    check(obstacle_kind(35, 90) == "mine", "late game should allow mines")
+    check("drone" not in CONSTANTS and "case comet" not in CONSTANTS, "rocket-like drone/comet obstacles removed")
 
     # 5) Pause control
     check("pauseButton" in HUD or "PauseButton" in HUD, "HUD should include pause control")

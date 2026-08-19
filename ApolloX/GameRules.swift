@@ -43,9 +43,21 @@ enum GameRules {
     static let healthPickupMaxInterval: TimeInterval = 20.0
 
     static let invulnerabilityDuration: TimeInterval = 1.6
-    static let openingGraceDuration: TimeInterval = 12.0
-    static let openingSpawnInterval: TimeInterval = 2.15
+    /// First 15 seconds: slower spawns and asteroids only.
+    static let openingGraceDuration: TimeInterval = 15.0
+    static let openingSpawnInterval: TimeInterval = 2.6
     static let openingPowerUpDelay: TimeInterval = 4.0
+    /// Every 30 seconds the spawn rate steps up (after opening grace).
+    static let spawnRampInterval: TimeInterval = 30.0
+
+    static let bossSpawnTime: TimeInterval = 40.0
+    static let bossMaxHP = 10
+    static let bossPoints = 25
+    static let bossScale: CGFloat = 2.35
+    static let bossDescentDuration: TimeInterval = 22.0
+    static let bossFireInterval: TimeInterval = 2.1
+    static let fireballSpeed: CGFloat = 520
+    static let fireballScale: CGFloat = 0.72
 
     static let levelScoreThresholds = [10, 25, 50, 80]
 
@@ -53,6 +65,8 @@ enum GameRules {
         switch kind {
         case .asteroid, .asteroidAlt:
             return asteroidHitboxFactor
+        case .boss:
+            return 0.32
         default:
             return enemyHitboxFactor
         }
@@ -70,6 +84,8 @@ enum GameRules {
         switch kind {
         case .asteroid, .asteroidAlt:
             return hypot(width, height) * 0.5 * asteroidHitboxFactor
+        case .boss:
+            return min(width, height) * enemyHitboxFactor(for: kind)
         default:
             return min(width, height) * enemyHitboxFactor
         }
@@ -78,7 +94,7 @@ enum GameRules {
     /// Texture polygons miss thin rims and tunnel under fast shots; asteroids use a circle instead.
     static func usesTextureHitbox(_ kind: GameConstants.ObstacleKind) -> Bool {
         switch kind {
-        case .asteroid, .asteroidAlt, .drone, .comet, .mine:
+        case .asteroid, .asteroidAlt, .mine, .boss:
             return false
         }
     }
@@ -125,12 +141,10 @@ enum GameRules {
     }
 
     static func obstacleScale(for kind: GameConstants.ObstacleKind) -> CGFloat {
-        // ~1.65× prior scales for readability.
         switch kind {
         case .asteroid, .asteroidAlt: return 1.18
-        case .drone: return 1.28
-        case .comet: return 1.35
         case .mine: return 1.02
+        case .boss: return bossScale
         }
     }
 
@@ -174,21 +188,29 @@ enum GameRules {
         elapsed < openingGraceDuration
     }
 
-    static func spawnInterval(level: Int, elapsed: TimeInterval) -> TimeInterval {
+    /// Time-based difficulty tier; steps every `spawnRampInterval` seconds.
+    static func spawnTier(elapsed: TimeInterval) -> Int {
+        max(0, Int(elapsed / spawnRampInterval))
+    }
+
+    static func spawnInterval(elapsed: TimeInterval) -> TimeInterval {
         if isInOpeningGrace(elapsed: elapsed) {
             return openingSpawnInterval
         }
-        return GameConstants.levelSpawnInterval(for: level)
+        return GameConstants.timeSpawnInterval(for: spawnTier(elapsed: elapsed))
     }
 
     /// Deterministic obstacle picker (pass `roll` in 0...99 for tests).
-    static func obstacleKind(level: Int, elapsed: TimeInterval, roll: Int) -> GameConstants.ObstacleKind {
+    static func obstacleKind(elapsed: TimeInterval, roll: Int) -> GameConstants.ObstacleKind {
         let clamped = max(0, min(99, roll))
         if isInOpeningGrace(elapsed: elapsed) {
-            // Soft open: only asteroids, wider gaps already handled by spawn interval.
             return clamped < 70 ? .asteroid : .asteroidAlt
         }
-        return GameConstants.randomObstacle(for: level, roll: clamped)
+        return GameConstants.randomObstacle(for: spawnTier(elapsed: elapsed), roll: clamped)
+    }
+
+    static func shouldSpawnBoss(elapsed: TimeInterval, bossSpawned: Bool, bossActive: Bool) -> Bool {
+        !bossSpawned && !bossActive && elapsed >= bossSpawnTime
     }
 
     static func shouldAdvanceLevel(previousScore: Int, newScore: Int) -> Bool {

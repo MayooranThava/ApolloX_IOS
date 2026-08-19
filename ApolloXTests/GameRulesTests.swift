@@ -30,11 +30,11 @@ final class GameRulesTests: XCTestCase {
 
     func testOpeningGraceOnlySpawnsAsteroids() {
         XCTAssertTrue(GameRules.isInOpeningGrace(elapsed: 0))
-        XCTAssertTrue(GameRules.isInOpeningGrace(elapsed: 11.9))
-        XCTAssertFalse(GameRules.isInOpeningGrace(elapsed: 12.0))
+        XCTAssertTrue(GameRules.isInOpeningGrace(elapsed: 14.9))
+        XCTAssertFalse(GameRules.isInOpeningGrace(elapsed: 15.0))
 
         for roll in 0...99 {
-            let kind = GameRules.obstacleKind(level: 3, elapsed: 5, roll: roll)
+            let kind = GameRules.obstacleKind(elapsed: 5, roll: roll)
             XCTAssertTrue(
                 kind == .asteroid || kind == .asteroidAlt,
                 "Grace period must not spawn \(kind) for roll \(roll)"
@@ -43,11 +43,31 @@ final class GameRulesTests: XCTestCase {
     }
 
     func testOpeningSpawnIntervalIsSlower() {
-        let grace = GameRules.spawnInterval(level: 4, elapsed: 3)
-        let later = GameRules.spawnInterval(level: 4, elapsed: 20)
+        let grace = GameRules.spawnInterval(elapsed: 3)
+        let later = GameRules.spawnInterval(elapsed: 20)
         XCTAssertEqual(grace, GameRules.openingSpawnInterval)
-        XCTAssertEqual(later, GameConstants.levelSpawnInterval(for: 4))
+        XCTAssertEqual(later, GameConstants.timeSpawnInterval(for: 0))
         XCTAssertGreaterThan(grace, later)
+    }
+
+    func testSpawnRateStepsEveryThirtySeconds() {
+        XCTAssertEqual(GameRules.spawnTier(elapsed: 0), 0)
+        XCTAssertEqual(GameRules.spawnTier(elapsed: 29.9), 0)
+        XCTAssertEqual(GameRules.spawnTier(elapsed: 30), 1)
+        XCTAssertEqual(GameRules.spawnTier(elapsed: 60), 2)
+
+        let tier0 = GameRules.spawnInterval(elapsed: 20)
+        let tier1 = GameRules.spawnInterval(elapsed: 35)
+        let tier2 = GameRules.spawnInterval(elapsed: 65)
+        XCTAssertGreaterThan(tier0, tier1)
+        XCTAssertGreaterThan(tier1, tier2)
+    }
+
+    func testBossSpawnGate() {
+        XCTAssertFalse(GameRules.shouldSpawnBoss(elapsed: 39.9, bossSpawned: false, bossActive: false))
+        XCTAssertTrue(GameRules.shouldSpawnBoss(elapsed: 40, bossSpawned: false, bossActive: false))
+        XCTAssertFalse(GameRules.shouldSpawnBoss(elapsed: 50, bossSpawned: true, bossActive: false))
+        XCTAssertFalse(GameRules.shouldSpawnBoss(elapsed: 50, bossSpawned: false, bossActive: true))
     }
 
     func testSpriteScalesWereIncreased() {
@@ -70,11 +90,18 @@ final class GameRulesTests: XCTestCase {
         XCTAssertEqual(y, 90)
     }
 
-    func testLateGameCanSpawnMinesAndComets() {
-        let mine = GameRules.obstacleKind(level: 4, elapsed: 30, roll: 95)
+    func testLateGameCanSpawnMines() {
+        let mine = GameRules.obstacleKind(elapsed: 35, roll: 90)
         XCTAssertEqual(mine, .mine)
-        let comet = GameRules.obstacleKind(level: 4, elapsed: 30, roll: 70)
-        XCTAssertEqual(comet, .comet)
+        let asteroid = GameRules.obstacleKind(elapsed: 35, roll: 10)
+        XCTAssertEqual(asteroid, .asteroid)
+    }
+
+    func testRocketsRemovedFromObstaclePool() {
+        for roll in 0...99 {
+            let kind = GameRules.obstacleKind(elapsed: 90, roll: roll)
+            XCTAssertFalse(kind == .boss, "regular spawns must not include the boss")
+        }
     }
 
     func testInvulnerabilityDurationIsPlayable() {
@@ -86,15 +113,20 @@ final class GameRulesTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(GameRules.enemyHitboxFactor(for: .asteroid), 0.95)
         XCTAssertFalse(GameRules.usesTextureHitbox(.asteroid))
         XCTAssertFalse(GameRules.usesTextureHitbox(.asteroidAlt))
-        XCTAssertFalse(GameRules.usesTextureHitbox(.drone))
+        XCTAssertFalse(GameRules.usesTextureHitbox(.mine))
         XCTAssertGreaterThanOrEqual(GameRules.bulletHitRadius, 20)
 
         let size = CGSize(width: 100, height: 100)
         let asteroidRadius = GameRules.obstacleHitRadius(for: .asteroid, spriteSize: size, scale: 1)
         XCTAssertGreaterThanOrEqual(asteroidRadius, hypot(50, 50), "asteroid collider must cover sprite corners")
 
-        let droneRadius = GameRules.obstacleHitRadius(for: .drone, spriteSize: size, scale: 1)
-        XCTAssertLessThan(droneRadius, asteroidRadius)
+        let mineRadius = GameRules.obstacleHitRadius(for: .mine, spriteSize: size, scale: 1)
+        XCTAssertLessThan(mineRadius, asteroidRadius)
+    }
+
+    func testBossHasTenHP() {
+        XCTAssertEqual(GameConstants.ObstacleKind.boss.hitsToDestroy, 10)
+        XCTAssertEqual(GameRules.bossMaxHP, 10)
     }
 
     func testSweptProjectileCatchesGrazingPath() {

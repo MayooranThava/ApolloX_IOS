@@ -201,6 +201,103 @@ final class HUDBarNode: SKNode {
     }
 }
 
+/// Boss HP bar shown below the main HUD during the space-monster fight.
+final class BossHealthBarNode: SKNode {
+    private let panel = SKSpriteNode()
+    private let track = SKSpriteNode()
+    private let fill = SKSpriteNode()
+    private let title = SKLabelNode()
+
+    private var barWidth: CGFloat = 420
+
+    override init() {
+        super.init()
+        zPosition = GameConstants.Z.hud + 1
+        isHidden = true
+
+        panel.color = GameTheme.panel
+        addChild(panel)
+
+        track.color = SKColor(white: 1, alpha: 0.12)
+        addChild(track)
+
+        fill.color = SKColor(red: 0.95, green: 0.28, blue: 0.18, alpha: 1)
+        fill.anchorPoint = CGPoint(x: 0, y: 0.5)
+        addChild(fill)
+
+        title.fontName = GameFont.resolved(size: 22)
+        title.fontSize = 22
+        title.fontColor = GameTheme.accent
+        title.text = "SPACE MONSTER"
+        title.verticalAlignmentMode = .center
+        title.horizontalAlignmentMode = .center
+        addChild(title)
+    }
+
+    required init?(coder aDecoder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    func layout(in safeRect: CGRect, below hudHeight: CGFloat) {
+        let width = min(safeRect.width - 80, 520)
+        let height: CGFloat = 44
+        barWidth = width - 32
+
+        panel.size = CGSize(width: width, height: height)
+        panel.texture = ShapeTexture.roundedRect(
+            size: panel.size,
+            cornerRadius: 18,
+            fill: GameTheme.panel,
+            stroke: SKColor(white: 1, alpha: 0.14),
+            lineWidth: 2
+        )
+        position = CGPoint(x: safeRect.midX, y: safeRect.maxY - hudHeight - height * 0.5 - 18)
+
+        title.position = CGPoint(x: 0, y: height * 0.5 + 16)
+
+        track.size = CGSize(width: barWidth, height: 14)
+        track.texture = ShapeTexture.roundedRect(
+            size: track.size,
+            cornerRadius: 7,
+            fill: SKColor(white: 1, alpha: 0.10),
+            stroke: SKColor(white: 1, alpha: 0.08),
+            lineWidth: 1
+        )
+        track.position = CGPoint(x: 0, y: 0)
+
+        fill.size = track.size
+        fill.position = CGPoint(x: -barWidth * 0.5, y: 0)
+        fill.texture = ShapeTexture.roundedRect(
+            size: fill.size,
+            cornerRadius: 7,
+            fill: fill.color,
+            stroke: SKColor(white: 1, alpha: 0.06),
+            lineWidth: 1
+        )
+    }
+
+    func show(maxHP: Int) {
+        isHidden = false
+        setHP(current: maxHP, max: maxHP)
+    }
+
+    func hideBar() {
+        isHidden = true
+    }
+
+    func setHP(current: Int, max: Int) {
+        let ratio = max > 0 ? CGFloat(current) / CGFloat(max) : 0
+        fill.xScale = max(0, min(1, ratio))
+    }
+
+    func pulseDamage() {
+        fill.run(.sequence([
+            .colorize(with: .white, colorBlendFactor: 0.45, duration: 0.05),
+            .colorize(with: SKColor(red: 0.95, green: 0.28, blue: 0.18, alpha: 1), colorBlendFactor: 0, duration: 0.12)
+        ]))
+    }
+}
+
 final class MenuButtonNode: SKNode {
     private let background = SKSpriteNode()
     private let label = SKLabelNode()
