@@ -28,7 +28,6 @@ final class GameTitleScene: SKScene {
         titleLabel.zPosition = GameConstants.Z.hud
         titleLabel.isAccessibilityElement = true
         titleLabel.accessibilityLabel = "ApolloX"
-        titleLabel.accessibilityIdentifier = GameConstants.Accessibility.titleLabel
         addChild(titleLabel)
 
         subtitleLabel.fontName = GameFont.resolved(size: 36)
@@ -61,7 +60,6 @@ final class GameTitleScene: SKScene {
         addChild(bestLabel)
 
         let button = MenuButtonNode(title: "Play", width: 420, height: 110, fontSize: 56, emphasized: true)
-        button.accessibilityIdentifier = GameConstants.Accessibility.playButton
         playButton = button
         addChild(button)
 

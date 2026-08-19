@@ -66,7 +66,7 @@ jobs:
           xcodebuild test \
             -project ApolloX.xcodeproj \
             -scheme ApolloX \
-            -destination "id=$SIM_UDID" \
+            -destination "platform=iOS Simulator,id=$SIM_UDID,arch=arm64" \
             -only-testing:ApolloXTests \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO
@@ -75,7 +75,7 @@ jobs:
           xcodebuild test \
             -project ApolloX.xcodeproj \
             -scheme ApolloX \
-            -destination "id=$SIM_UDID" \
+            -destination "platform=iOS Simulator,id=$SIM_UDID,arch=arm64" \
             -only-testing:ApolloXUITests \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO

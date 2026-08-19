@@ -38,6 +38,19 @@ xcodebuild test \
 
 CI runs the Python gate on Ubuntu and `xcodebuild test` on macOS.
 
+## Remaining to ship
+
+| Priority | Item | Owner | Status |
+|---|---|---|---|
+| 1 | Green CI (`ApolloXTests` + launch smoke) | Repo | In this PR |
+| 2 | Internal TestFlight on iPhone 16/17 Pro **and** a 60 Hz iPhone | Device / App Store Connect | Next |
+| 3 | Remove or compress unused `gameBGM.wav` (~6.8 MB) | Repo | Not started |
+| 4 | Texture atlas + larger / @3x background | Repo | Not started |
+| 5 | App Store Connect: privacy nutrition label, 2026 age rating, 6.7" + 6.1" screenshots, support/privacy URLs | App Store Connect | Not started |
+| 6 | 15-minute play session, then check TestFlight / Organizer crashes | Device | After TestFlight |
+
+Do not add Game Center, IAP, or analytics until there is a product reason.
+
 ## Ship checklist (TestFlight → App Store)
 
 Do these on a real phone. The simulator cannot prove ProMotion, haptics, or thermal throttling.

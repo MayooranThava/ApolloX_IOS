@@ -234,7 +234,6 @@ final class MenuButtonNode: SKNode {
         isAccessibilityElement = true
         accessibilityLabel = title
         accessibilityTraits = .button
-        accessibilityIdentifier = title
     }
 
     required init?(coder aDecoder: NSCoder) {

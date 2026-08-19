@@ -100,8 +100,6 @@ enum GameConstants {
     /// Identifiers used by VoiceOver and the launch smoke UI test.
     enum Accessibility {
         static let titleScene = "titleScene"
-        static let titleLabel = "titleLabel"
-        static let playButton = "playButton"
     }
 
     enum PhysicsCategory {
