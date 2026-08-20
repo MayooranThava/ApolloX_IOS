@@ -13,6 +13,8 @@ enum ScoreStore {
     static var storage: UserDefaults = .standard
 
     private(set) static var currentScore = 0
+    /// Prevents GameScene and GameOverScene from crediting the same run twice.
+    private static var didCommitWalletForRun = false
 
     static var highScore: Int {
         storage.integer(forKey: highScoreKey)
@@ -20,6 +22,7 @@ enum ScoreStore {
 
     static func resetCurrentScore() {
         currentScore = 0
+        didCommitWalletForRun = false
     }
 
     @discardableResult
@@ -36,5 +39,17 @@ enum ScoreStore {
             return currentScore
         }
         return best
+    }
+
+    /// Adds this run's score to the persistent wallet once. Safe to call from both
+    /// `GameScene` and `GameOverScene`.
+    @discardableResult
+    static func commitWalletIfNeeded() -> Int {
+        guard !didCommitWalletForRun else { return PlayerProgress.credits }
+        didCommitWalletForRun = true
+        if currentScore > 0 {
+            PlayerProgress.addCredits(currentScore)
+        }
+        return PlayerProgress.credits
     }
 }

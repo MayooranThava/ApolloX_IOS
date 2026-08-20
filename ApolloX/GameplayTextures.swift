@@ -18,6 +18,7 @@ enum GameplayTextures {
     static let yellowClearMinePixelSize = CGSize(width: 128, height: 128)
 
     static func registerProceduralTextures() {
+        PlayerShipCatalog.registerTextures()
         guard TextureCache.optional(fallingRocketName) == nil else { return }
         TextureCache.store(fallingRocketName, texture: makeFallingRocket())
         TextureCache.store(warningBadgeName, texture: makeWarningBadge())

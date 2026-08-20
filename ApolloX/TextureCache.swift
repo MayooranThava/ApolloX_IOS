@@ -31,11 +31,15 @@ enum TextureCache {
 
     static func preload(completion: @escaping () -> Void = {}) {
         GameplayTextures.registerProceduralTextures()
+        PlayerShipCatalog.registerTextures()
         let names = [
             GameplayTextures.fallingRocketName,
             GameplayTextures.warningBadgeName,
             "background",
             "playerShip",
+            PlayerShipCatalog.auroraLance.textureName,
+            PlayerShipCatalog.emberViper.textureName,
+            PlayerShipCatalog.voidPhantom.textureName,
             "enemyShip",
             "asteroid",
             "asteroid2",
