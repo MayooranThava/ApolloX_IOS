@@ -108,12 +108,16 @@ final class GameRulesTests: XCTestCase {
         XCTAssertEqual(GameRules.starPickupSpawnInterval(elapsed: 60), GameConstants.powerUpSpawnInterval)
         var earlySpawns = 0
         var lateSpawns = 0
+        var floorSpawns = 0
         for roll in 0..<100 {
-            if GameRules.shouldSpawnStar(elapsed: 10, roll: roll) { earlySpawns += 1 }
-            if GameRules.shouldSpawnStar(elapsed: 120, roll: roll) { lateSpawns += 1 }
+            // threshold = max(55, 85 - tier * 5); tier = elapsed / 30
+            if GameRules.shouldSpawnStar(elapsed: 10, roll: roll) { earlySpawns += 1 }   // tier 0 → 85
+            if GameRules.shouldSpawnStar(elapsed: 120, roll: roll) { lateSpawns += 1 } // tier 4 → 65
+            if GameRules.shouldSpawnStar(elapsed: 200, roll: roll) { floorSpawns += 1 } // tier 6 → 55
         }
         XCTAssertEqual(earlySpawns, 85)
-        XCTAssertEqual(lateSpawns, 55)
+        XCTAssertEqual(lateSpawns, 65)
+        XCTAssertEqual(floorSpawns, 55)
     }
 
     func testClearMineRules() {
