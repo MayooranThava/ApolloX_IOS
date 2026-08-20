@@ -387,8 +387,11 @@ final class GameRulesTests: XCTestCase {
         }
     }
 
-    func testRocketScaleIsOneThirdOfPlayer() {
-        XCTAssertEqual(GameRules.rocketScale, GameRules.playerScale / 3.0, accuracy: 0.001)
+    func testRocketScaleTargetsVisibleHeight() {
+        let playerHeight = 480.0 * Double(GameRules.playerScale)
+        let rocketHeight = Double(GameplayTextures.fallingRocketPixelSize.height) * Double(GameRules.rocketScale)
+        XCTAssertGreaterThan(rocketHeight, playerHeight * 0.35)
+        XCTAssertLessThan(rocketHeight, playerHeight * 0.55)
     }
 
     func testRocketsWaitUntilAfterOpeningGrace() {
