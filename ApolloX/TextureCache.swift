@@ -43,7 +43,13 @@ enum TextureCache {
             "star_power",
             "health_plus",
             "explosion",
-            "mini_explosion"
+            "mini_explosion",
+            "bossNebula",
+            "bossCrimson",
+            "bossAcid",
+            "bossFrost",
+            "bossMagma",
+            "bossEmperor"
         ]
         SKTexture.preload(names.map(texture), withCompletionHandler: completion)
     }

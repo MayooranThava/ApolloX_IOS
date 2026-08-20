@@ -276,8 +276,9 @@ final class BossHealthBarNode: SKNode {
         )
     }
 
-    func show(maxHP: Int) {
+    func show(maxHP: Int, title: String = "SPACE MONSTER") {
         isHidden = false
+        self.title.text = title.uppercased()
         setHP(current: maxHP, maximum: maxHP)
     }
 

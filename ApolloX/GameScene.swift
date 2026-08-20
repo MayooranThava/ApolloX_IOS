@@ -33,7 +33,9 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private var isInvulnerable = false
     private var runElapsed: TimeInterval = 0
     private var lastUpdateTime: TimeInterval = 0
-    private var bossSpawned = false
+    private var bossesSpawnedCount = 0
+    private var currentBossMaxHP = GameRules.bossMaxHP
+    private var currentBossPoints = GameRules.bossPoints
     private var bossActive = false
     private var bossVulnerable = false
     private var bossSpawnedAt: TimeInterval = 0
@@ -45,6 +47,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     private var pauseOverlay: SKNode?
     private var resumeButton: MenuButtonNode?
+    private var gameplayFrozen = false
 
     private var liveBullets: [PooledSprite] = []
     private var liveEnemies: [PooledSprite] = []
@@ -123,8 +126,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         }
         lastUpdateTime = currentTime
 
-        if GameRules.shouldSpawnBoss(elapsed: runElapsed, bossSpawned: bossSpawned, bossActive: bossActive) {
-            bossSpawned = true
+        if GameRules.shouldSpawnBoss(elapsed: runElapsed, bossesSpawned: bossesSpawnedCount, bossActive: bossActive) {
             spawnBoss()
         }
 
@@ -249,9 +251,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     @objc private func appWillResignActive() {
-        // Screenshot and Control Center only send resign-active/active — halt the loop briefly.
-        isPaused = true
-        view?.isPaused = true
+        guard currentState == .playing, !requiresManualResume else { return }
+        freezeGameplay()
     }
 
     @objc private func appDidEnterBackground() {
@@ -259,9 +260,10 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         isPausedBySystem = true
         if currentState == .playing {
             enterPause(showOverlay: true, fromSystem: true)
+        } else if currentState == .paused {
+            freezeGameplay()
         } else if currentState != .gameOver {
-            isPaused = true
-            view?.isPaused = true
+            freezeGameplay()
         }
     }
 
@@ -269,15 +271,14 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         isPausedBySystem = false
         if requiresManualResume {
             if currentState == .paused {
-                isPaused = true
-                view?.isPaused = true
+                freezeGameplay()
             }
             return
         }
-        guard currentState == .playing else { return }
-        isPaused = false
-        view?.isPaused = false
-        lastUpdateTime = 0
+        if currentState == .playing {
+            unfreezeGameplay()
+            lastUpdateTime = 0
+        }
     }
 
     // MARK: - Flow
@@ -314,10 +315,25 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         let initialDelay = max(0, GameRules.openingPowerUpDelay - runElapsed)
         run(.sequence([
             .wait(forDuration: initialDelay),
-            .repeatForever(.sequence([
-                .run { [weak self] in self?.spawnPowerUp() },
-                .wait(forDuration: GameConstants.powerUpSpawnInterval)
-            ]))
+            .run { [weak self] in self?.scheduleNextStarPickup() }
+        ]), withKey: "spawningPowerUp")
+    }
+
+    private func scheduleNextStarPickup() {
+        guard currentState == .playing else { return }
+        let delay = GameRules.starPickupSpawnInterval(elapsed: runElapsed)
+        run(.sequence([
+            .wait(forDuration: delay),
+            .run { [weak self] in
+                guard let self, self.currentState == .playing else { return }
+                if GameRules.shouldSpawnStar(
+                    elapsed: self.runElapsed,
+                    roll: Int.random(in: 0..<100)
+                ) {
+                    self.spawnPowerUp()
+                }
+                self.scheduleNextStarPickup()
+            }
         ]), withKey: "spawningPowerUp")
     }
 
@@ -443,8 +459,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private func enterPause(showOverlay: Bool, fromSystem: Bool = false) {
         guard currentState == .playing || currentState == .paused else { return }
         currentState = .paused
-        isPaused = true
-        view?.isPaused = true
+        freezeGameplay()
         if showOverlay {
             presentPauseOverlay()
         }
@@ -459,11 +474,43 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         requiresManualResume = false
         dismissPauseOverlay()
         currentState = .playing
-        isPaused = false
-        view?.isPaused = false
+        unfreezeGameplay()
         lastUpdateTime = 0
         AudioManager.play(.uiTap)
         HapticManager.fire()
+    }
+
+    private func freezeGameplay() {
+        guard !gameplayFrozen else { return }
+        gameplayFrozen = true
+        removeAction(forKey: "spawningEnemies")
+        removeAction(forKey: "spawningPowerUp")
+        removeAction(forKey: "spawningHealth")
+        removeAction(forKey: "fireBullets")
+        player.isPaused = true
+        engineEmitter?.isPaused = true
+        for node in liveBullets + liveEnemies + livePickups + liveFireballs {
+            node.isPaused = true
+        }
+        bossNode?.isPaused = true
+    }
+
+    private func unfreezeGameplay() {
+        guard gameplayFrozen else { return }
+        gameplayFrozen = false
+        player.isPaused = false
+        engineEmitter?.isPaused = false
+        for node in liveBullets + liveEnemies + livePickups + liveFireballs {
+            node.isPaused = false
+        }
+        bossNode?.isPaused = false
+        guard currentState == .playing else { return }
+        if !bossActive {
+            scheduleNextObstacle()
+            schedulePowerUps()
+            scheduleHealthPickups()
+        }
+        restartFiring()
     }
 
     private func presentPauseOverlay() {
@@ -699,7 +746,13 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private func spawnBoss() {
         guard currentState == .playing, playArea.width > 80 else { return }
 
+        let profile = GameRules.bossProfile(at: bossesSpawnedCount)
+        bossesSpawnedCount += 1
+        currentBossMaxHP = profile.maxHP
+        currentBossPoints = profile.points
+
         removeAction(forKey: "spawningEnemies")
+        removeAction(forKey: "spawningPowerUp")
         clearRegularObstacles()
         bossActive = true
         bossVulnerable = false
@@ -707,20 +760,25 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
         let kind = GameConstants.ObstacleKind.boss
         let node = obstaclePool.checkout()
-        node.texture = TextureCache.texture(kind.rawValue)
+        node.texture = TextureCache.texture(profile.sprite)
         let texSize = node.texture?.size() ?? CGSize(width: 160, height: 160)
         node.size = texSize
-        node.setScale(kind.scale)
+        node.setScale(profile.scale)
         node.name = GameConstants.NodeName.boss
         node.position = CGPoint(x: playArea.midX, y: playArea.maxY + 180)
         node.zPosition = GameConstants.Z.enemy + 1
         node.alpha = 1
-        node.zRotation = .pi
-        node.color = SKColor(red: 0.85, green: 0.22, blue: 0.55, alpha: 1)
-        node.colorBlendFactor = 0.35
+        node.zRotation = 0
+        node.color = SKColor(
+            red: profile.tintRed,
+            green: profile.tintGreen,
+            blue: profile.tintBlue,
+            alpha: 1
+        )
+        node.colorBlendFactor = profile.tintBlend
         let radius = GameRules.obstacleHitRadius(for: kind, spriteSize: node.size, scale: node.xScale)
         node.obstacleKind = kind
-        node.obstacleHP = kind.hitsToDestroy
+        node.obstacleHP = profile.maxHP
         node.hitRadius = radius
         node.attachCirclePhysics(
             radius: radius,
@@ -731,8 +789,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         liveEnemies.append(node)
         bossNode = node
 
-        bossHealthBar.show(maxHP: GameRules.bossMaxHP)
-        hud.setStatus("Boss Incoming")
+        bossHealthBar.show(maxHP: profile.maxHP, title: profile.name)
+        hud.setStatus("Boss \(bossesSpawnedCount)/\(GameRules.maxBossCount)")
         hud.pulseStatus()
 
         node.alpha = 0.82
@@ -752,11 +810,17 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         ]))
 
         node.run(.repeatForever(.sequence([
-            .wait(forDuration: GameRules.bossFireInterval),
+            .wait(forDuration: profile.fireInterval),
             .run { [weak self] in self?.fireBossVolley() }
         ])), withKey: "bossFire")
 
-        showStatusBanner(text: "BOSS INCOMING", color: SKColor(red: 1, green: 0.45, blue: 0.35, alpha: 1))
+        let banner = SKColor(
+            red: profile.bannerRed,
+            green: profile.bannerGreen,
+            blue: profile.bannerBlue,
+            alpha: 1
+        )
+        showStatusBanner(text: profile.name.uppercased(), color: banner)
         AudioManager.play(.mine)
     }
 
@@ -834,6 +898,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         HapticManager.upgrade()
         updateHUD()
         scheduleNextObstacle()
+        schedulePowerUps()
     }
 
     private func spawnExplosion(at position: CGPoint, image: String, scale: CGFloat = 1) {
@@ -974,7 +1039,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         sprite?.obstacleHP = hp
 
         if kind == .boss {
-            bossHealthBar.setHP(current: hp, maximum: GameRules.bossMaxHP)
+            bossHealthBar.setHP(current: hp, maximum: currentBossMaxHP)
             bossHealthBar.pulseDamage()
         }
 
@@ -997,7 +1062,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             }
             spawnExplosion(at: blastPoint, image: "explosion", scale: 1.45)
             HapticManager.enemyDestroyed()
-            addScore(kind.points)
+            addScore(currentBossPoints)
             onBossDefeated(at: blastPoint)
             return
         }
@@ -1103,10 +1168,11 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         let point = touch.location(in: self)
 
         if currentState == .paused {
-            if let resumeButton, resumeButton.containsTouch(CGPoint(
+            let overlayPoint = CGPoint(
                 x: point.x - (pauseOverlay?.position.x ?? 0),
                 y: point.y - (pauseOverlay?.position.y ?? 0)
-            )) {
+            )
+            if let resumeButton, resumeButton.containsTouch(overlayPoint) {
                 resumeButton.pulse()
                 resumeFromPause()
             }

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Void Runner — Boss Roster</title>
+<style>
+  :root {
+    --bg: #050814;
+    --panel: rgba(12, 18, 36, 0.88);
+    --accent: #ffd661;
+    --text: #eef2ff;
+    --muted: rgba(238, 242, 255, 0.65);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Avenir Next", "Segoe UI", sans-serif;
+    background: radial-gradient(circle at 20% 10%, #1a2a55, transparent 45%), var(--bg);
+    color: var(--text);
+    padding: 32px 20px 48px;
+  }
+  h1 { font-size: 28px; margin-bottom: 8px; }
+  p.lead { color: var(--muted); margin-bottom: 28px; max-width: 720px; line-height: 1.5; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 18px;
+    max-width: 1100px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 18px;
+    padding: 18px;
+    display: grid;
+    grid-template-columns: 96px 1fr;
+    gap: 16px;
+    align-items: center;
+  }
+  .preview {
+    width: 96px;
+    height: 96px;
+    border-radius: 16px;
+    display: grid;
+    place-items: center;
+    background: rgba(255,255,255,0.04);
+    overflow: hidden;
+  }
+  .preview img {
+    width: 88px;
+    height: 88px;
+    object-fit: contain;
+  }
+  .name { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .spawn { color: var(--accent); font-size: 13px; letter-spacing: 0.04em; margin-bottom: 8px; }
+  .stats { color: var(--muted); font-size: 14px; line-height: 1.45; }
+  .stats strong { color: var(--text); }
+</style>
+</head>
+<body>
+  <h1>Void Runner — Boss Roster</h1>
+  <p class="lead">Six distinct cartoon space monsters. One every 30 seconds (0:30 → 3:00). HP and fire rate scale up each fight.</p>
+  <div class="grid">
+    <article class="card">
+      <div class="preview"><img src="../ApolloX/Assets.xcassets/bossNebula.imageset/bossNebula.png" alt="Nebula Cyclops" /></div>
+      <div>
+        <div class="name">1. Nebula Cyclops</div>
+        <div class="spawn">Spawns at 0:30</div>
+        <div class="stats"><strong>HP:</strong> 15 · <strong>Points:</strong> 25 · <strong>Fire:</strong> 2.1s</div>
+      </div>
+    </article>
+    <article class="card">
+      <div class="preview"><img src="../ApolloX/Assets.xcassets/bossCrimson.imageset/bossCrimson.png" alt="Crimson Clawfiend" /></div>
+      <div>
+        <div class="name">2. Crimson Clawfiend</div>
+        <div class="spawn">Spawns at 1:00</div>
+        <div class="stats"><strong>HP:</strong> 22 · <strong>Points:</strong> 32 · <strong>Fire:</strong> 1.95s</div>
+      </div>
+    </article>
+    <article class="card">
+      <div class="preview"><img src="../ApolloX/Assets.xcassets/bossAcid.imageset/bossAcid.png" alt="Acid Hydra" /></div>
+      <div>
+        <div class="name">3. Acid Hydra</div>
+        <div class="spawn">Spawns at 1:30</div>
+        <div class="stats"><strong>HP:</strong> 30 · <strong>Points:</strong> 40 · <strong>Fire:</strong> 1.85s</div>
+      </div>
+    </article>
+    <article class="card">
+      <div class="preview"><img src="../ApolloX/Assets.xcassets/bossFrost.imageset/bossFrost.png" alt="Frost Maw" /></div>
+      <div>
+        <div class="name">4. Frost Maw</div>
+        <div class="spawn">Spawns at 2:00</div>
+        <div class="stats"><strong>HP:</strong> 40 · <strong>Points:</strong> 50 · <strong>Fire:</strong> 1.7s</div>
+      </div>
+    </article>
+    <article class="card">
+      <div class="preview"><img src="../ApolloX/Assets.xcassets/bossMagma.imageset/bossMagma.png" alt="Magma Behemoth" /></div>
+      <div>
+        <div class="name">5. Magma Behemoth</div>
+        <div class="spawn">Spawns at 2:30</div>
+        <div class="stats"><strong>HP:</strong> 52 · <strong>Points:</strong> 62 · <strong>Fire:</strong> 1.55s</div>
+      </div>
+    </article>
+    <article class="card">
+      <div class="preview"><img src="../ApolloX/Assets.xcassets/bossEmperor.imageset/bossEmperor.png" alt="Void Emperor" /></div>
+      <div>
+        <div class="name">6. Void Emperor</div>
+        <div class="spawn">Spawns at 3:00</div>
+        <div class="stats"><strong>HP:</strong> 65 · <strong>Points:</strong> 80 · <strong>Fire:</strong> 1.4s</div>
+      </div>
+    </article>
+  </div>
+</body>
+</html>
