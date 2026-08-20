@@ -89,7 +89,7 @@ extension SKScene {
 
         let emitter = SKEmitterNode()
         emitter.particleTexture = softDotTexture()
-        emitter.particleBirthRate = FramePacing.currentQuality.starDustBirthRate
+        emitter.particleBirthRate = FramePacing.scaledBirthRate(FramePacing.currentQuality.starDustBirthRate)
         emitter.numParticlesToEmit = 0
         emitter.particleLifetime = 5
         emitter.particleLifetimeRange = 1.5
@@ -130,7 +130,7 @@ extension SKScene {
         let emitter = SKEmitterNode()
         emitter.name = GameConstants.NodeName.engine
         emitter.particleTexture = softDotTexture()
-        emitter.particleBirthRate = FramePacing.currentQuality.engineBirthRate
+        emitter.particleBirthRate = FramePacing.scaledBirthRate(FramePacing.currentQuality.engineBirthRate)
         emitter.particleLifetime = 0.26
         emitter.particleLifetimeRange = 0.08
         emitter.particlePositionRange = CGVector(dx: 10, dy: 3)
@@ -150,10 +150,11 @@ extension SKScene {
         return emitter
     }
 
-    func applyPerformanceQuality() {
+    func applyPerformanceQuality(starDustRate: CGFloat? = nil) {
         let quality = FramePacing.currentQuality
+        let dust = starDustRate ?? FramePacing.scaledBirthRate(quality.starDustBirthRate)
         enumerateChildNodes(withName: GameConstants.NodeName.starDust) { node, _ in
-            (node as? SKEmitterNode)?.particleBirthRate = quality.starDustBirthRate
+            (node as? SKEmitterNode)?.particleBirthRate = dust
         }
     }
 
