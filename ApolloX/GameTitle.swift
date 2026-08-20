@@ -42,7 +42,7 @@ final class GameTitleScene: SKScene {
         let instructions = [
             "Drag to steer your rocket",
             "Blast asteroids and mines",
-            "Six bosses arrive every 30 seconds",
+            "Six bosses — 30 seconds between each defeat",
             "Mines take two hits — stay clear",
             "Star boosts are rare — make them count",
             "Shoot the green + for an extra life"

@@ -53,9 +53,9 @@ enum GameRules {
     static let bossSpawnInterval: TimeInterval = 30.0
     static let maxBossCount = 6
     static let bossScale: CGFloat = 2.35
-    static let bossDescentDuration: TimeInterval = 22.0
+    static let bossDescentDuration: TimeInterval = 9.0
     /// Boss ignores player shots until fully on-screen and at least this long has passed.
-    static let bossVulnerableDelay: TimeInterval = 5.0
+    static let bossVulnerableDelay: TimeInterval = 1.8
     static let fireballSpeed: CGFloat = 520
     static let fireballScale: CGFloat = 0.72
 
@@ -324,17 +324,28 @@ enum GameRules {
         return roll < threshold
     }
 
-    static func bossSpawnTime(forIndex index: Int) -> TimeInterval {
-        Double(index + 1) * bossSpawnInterval
+    /// When the first boss should appear (seconds from run start).
+    static func firstBossSpawnTime() -> TimeInterval {
+        bossSpawnInterval
+    }
+
+    /// Schedule the next boss after the current one is defeated.
+    static func nextBossSpawnTime(afterDefeatAt elapsed: TimeInterval) -> TimeInterval {
+        elapsed + bossSpawnInterval
     }
 
     static func bossProfile(at index: Int) -> BossProfile {
         bossProfiles[min(max(0, index), bossProfiles.count - 1)]
     }
 
-    static func shouldSpawnBoss(elapsed: TimeInterval, bossesSpawned: Int, bossActive: Bool) -> Bool {
+    static func shouldSpawnBoss(
+        elapsed: TimeInterval,
+        bossesSpawned: Int,
+        bossActive: Bool,
+        nextBossSpawnAt: TimeInterval
+    ) -> Bool {
         guard !bossActive, bossesSpawned < maxBossCount else { return false }
-        return elapsed >= bossSpawnTime(forIndex: bossesSpawned)
+        return elapsed >= nextBossSpawnAt
     }
 
     /// True when the entire boss sprite fits inside the play area vertically.

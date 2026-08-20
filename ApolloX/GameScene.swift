@@ -39,6 +39,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private var bossActive = false
     private var bossVulnerable = false
     private var bossSpawnedAt: TimeInterval = 0
+    private var nextBossSpawnAt: TimeInterval = GameRules.firstBossSpawnTime()
     private var bossNode: PooledSprite?
     private var backgroundTier = -1
     private var scrollingBackground: ScrollingBackgroundNode?
@@ -128,7 +129,12 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         }
         lastUpdateTime = currentTime
 
-        if GameRules.shouldSpawnBoss(elapsed: runElapsed, bossesSpawned: bossesSpawnedCount, bossActive: bossActive) {
+        if GameRules.shouldSpawnBoss(
+            elapsed: runElapsed,
+            bossesSpawned: bossesSpawnedCount,
+            bossActive: bossActive,
+            nextBossSpawnAt: nextBossSpawnAt
+        ) {
             spawnBoss()
         }
 
@@ -914,6 +920,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         bossNode = nil
         bossHealthBar.hideBar()
         clearFireballs()
+        nextBossSpawnAt = GameRules.nextBossSpawnTime(afterDefeatAt: runElapsed)
         spawnExplosion(at: position, image: "explosion", scale: 1.6)
         showStatusBanner(text: "BOSS DEFEATED", color: SKColor(red: 0.35, green: 0.95, blue: 0.55, alpha: 1))
         HapticManager.upgrade()

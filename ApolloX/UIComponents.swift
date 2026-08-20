@@ -11,9 +11,11 @@ enum GameTheme {
     static let secondary = SKColor(white: 0.82, alpha: 1)
     static let accent = SKColor(red: 1.0, green: 0.84, blue: 0.38, alpha: 1)
     static let panel = SKColor(red: 0.04, green: 0.07, blue: 0.14, alpha: 0.62)
-    static let buttonFill = SKColor(red: 0.14, green: 0.28, blue: 0.52, alpha: 0.95)
-    static let buttonStroke = SKColor(white: 1, alpha: 0.22)
-    static let buttonMuted = SKColor(white: 1, alpha: 0.10)
+    static let buttonFill = SKColor(red: 0.18, green: 0.36, blue: 0.66, alpha: 0.98)
+    static let buttonStroke = SKColor(white: 1, alpha: 0.38)
+    static let buttonMuted = SKColor(white: 1, alpha: 0.14)
+    static let buttonText = SKColor.white
+    static let buttonTextShadow = SKColor(white: 0, alpha: 0.55)
 }
 
 enum GameFont {
@@ -301,6 +303,7 @@ final class BossHealthBarNode: SKNode {
 
 final class MenuButtonNode: SKNode {
     private let background = SKSpriteNode()
+    private let shadowLabel = SKLabelNode()
     private let label = SKLabelNode()
     private(set) var hitSize = CGSize.zero
 
@@ -317,14 +320,23 @@ final class MenuButtonNode: SKNode {
             stroke: GameTheme.buttonStroke,
             lineWidth: 2
         )
+        background.zPosition = 0
         addChild(background)
 
-        label.fontName = GameFont.resolved(size: fontSize)
-        label.text = title
-        label.fontSize = fontSize
-        label.fontColor = .white
-        label.verticalAlignmentMode = .center
-        label.horizontalAlignmentMode = .center
+        let textColor = emphasized ? GameTheme.buttonText : GameTheme.accent
+        for textNode in [shadowLabel, label] {
+            textNode.fontName = GameFont.resolved(size: fontSize)
+            textNode.text = title
+            textNode.fontSize = fontSize
+            textNode.verticalAlignmentMode = .center
+            textNode.horizontalAlignmentMode = .center
+            textNode.zPosition = 2
+        }
+        shadowLabel.fontColor = GameTheme.buttonTextShadow
+        shadowLabel.position = CGPoint(x: 0, y: -2)
+        shadowLabel.zPosition = 1
+        label.fontColor = textColor
+        addChild(shadowLabel)
         addChild(label)
 
         hitSize = CGSize(width: width + 48, height: height + 40)

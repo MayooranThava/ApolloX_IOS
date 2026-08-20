@@ -64,19 +64,34 @@ final class GameRulesTests: XCTestCase {
     }
 
     func testBossSpawnGate() {
-        XCTAssertFalse(GameRules.shouldSpawnBoss(elapsed: 29.9, bossesSpawned: 0, bossActive: false))
-        XCTAssertTrue(GameRules.shouldSpawnBoss(elapsed: 30, bossesSpawned: 0, bossActive: false))
-        XCTAssertFalse(GameRules.shouldSpawnBoss(elapsed: 50, bossesSpawned: 1, bossActive: false))
-        XCTAssertTrue(GameRules.shouldSpawnBoss(elapsed: 60, bossesSpawned: 1, bossActive: false))
-        XCTAssertFalse(GameRules.shouldSpawnBoss(elapsed: 50, bossesSpawned: 0, bossActive: true))
-        XCTAssertFalse(GameRules.shouldSpawnBoss(elapsed: 200, bossesSpawned: 6, bossActive: false))
+        let firstSpawn = GameRules.firstBossSpawnTime()
+        XCTAssertFalse(GameRules.shouldSpawnBoss(
+            elapsed: firstSpawn - 0.1, bossesSpawned: 0, bossActive: false, nextBossSpawnAt: firstSpawn
+        ))
+        XCTAssertTrue(GameRules.shouldSpawnBoss(
+            elapsed: firstSpawn, bossesSpawned: 0, bossActive: false, nextBossSpawnAt: firstSpawn
+        ))
+        // Second boss waits 30s after defeat, not a fixed run clock.
+        let afterFirstDefeat = GameRules.nextBossSpawnTime(afterDefeatAt: 42)
+        XCTAssertFalse(GameRules.shouldSpawnBoss(
+            elapsed: afterFirstDefeat - 0.1, bossesSpawned: 1, bossActive: false, nextBossSpawnAt: afterFirstDefeat
+        ))
+        XCTAssertTrue(GameRules.shouldSpawnBoss(
+            elapsed: afterFirstDefeat, bossesSpawned: 1, bossActive: false, nextBossSpawnAt: afterFirstDefeat
+        ))
+        XCTAssertFalse(GameRules.shouldSpawnBoss(
+            elapsed: 50, bossesSpawned: 0, bossActive: true, nextBossSpawnAt: 30
+        ))
+        XCTAssertFalse(GameRules.shouldSpawnBoss(
+            elapsed: 200, bossesSpawned: 6, bossActive: false, nextBossSpawnAt: 999
+        ))
     }
 
     func testBossRosterHasSixEntries() {
         XCTAssertEqual(GameRules.bossProfiles.count, 6)
         XCTAssertEqual(GameRules.maxBossCount, 6)
-        XCTAssertEqual(GameRules.bossSpawnTime(forIndex: 0), 30)
-        XCTAssertEqual(GameRules.bossSpawnTime(forIndex: 5), 180)
+        XCTAssertEqual(GameRules.firstBossSpawnTime(), 30)
+        XCTAssertEqual(GameRules.nextBossSpawnTime(afterDefeatAt: 40), 70)
         XCTAssertEqual(GameRules.bossProfile(at: 0).maxHP, 15)
         XCTAssertEqual(GameRules.bossProfile(at: 5).maxHP, 65)
         XCTAssertGreaterThan(GameRules.bossProfile(at: 5).points, GameRules.bossProfile(at: 0).points)
@@ -158,9 +173,9 @@ final class GameRulesTests: XCTestCase {
     }
 
     func testBossVulnerabilityRequiresVisibilityAndDelay() {
-        XCTAssertFalse(GameRules.isBossVulnerable(elapsedSinceSpawn: 4.9, fullyVisible: true))
-        XCTAssertFalse(GameRules.isBossVulnerable(elapsedSinceSpawn: 6.0, fullyVisible: false))
-        XCTAssertTrue(GameRules.isBossVulnerable(elapsedSinceSpawn: 5.0, fullyVisible: true))
+        XCTAssertFalse(GameRules.isBossVulnerable(elapsedSinceSpawn: 1.7, fullyVisible: true))
+        XCTAssertFalse(GameRules.isBossVulnerable(elapsedSinceSpawn: 2.0, fullyVisible: false))
+        XCTAssertTrue(GameRules.isBossVulnerable(elapsedSinceSpawn: 1.8, fullyVisible: true))
     }
 
     func testBossFullyVisibleWhenInsidePlayArea() {
