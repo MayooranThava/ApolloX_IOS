@@ -19,6 +19,7 @@ enum GameplayTextures {
         guard TextureCache.optional(fallingRocketName) == nil else { return }
         TextureCache.store(fallingRocketName, texture: makeFallingRocket())
         TextureCache.store(warningBadgeName, texture: makeWarningBadge())
+        BossAttackTextures.registerTextures()
     }
 
     private static func makeFallingRocket() -> SKTexture {

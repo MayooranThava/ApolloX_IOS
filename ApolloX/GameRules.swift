@@ -82,6 +82,21 @@ enum GameRules {
     static let bossFireInterval: TimeInterval = 2.1
 
     /// Space monsters that appear every 30s (up to six per run).
+    enum BossAttackPattern: String, CaseIterable {
+        /// Single heavy cosmic plasma bolt aimed at the player.
+        case nebulaCyclops
+        /// Fast triple claw-shard fan.
+        case crimsonClawfiend
+        /// Rotating green slime balls, drip stream, and big splats.
+        case acidHydra
+        /// Slow spreading ice crystal shards.
+        case frostMaw
+        /// Large molten boulders that drop straight down.
+        case magmaBehemoth
+        /// Arc of dark void orbs.
+        case voidEmperor
+    }
+
     struct BossProfile {
         let name: String
         let sprite: String
@@ -96,6 +111,7 @@ enum GameRules {
         let bannerRed: CGFloat
         let bannerGreen: CGFloat
         let bannerBlue: CGFloat
+        let attackPattern: BossAttackPattern
     }
 
     static let bossProfiles: [BossProfile] = [
@@ -107,7 +123,8 @@ enum GameRules {
             tintRed: 1, tintGreen: 1, tintBlue: 1, tintBlend: 0,
             fireInterval: 2.1,
             scale: 2.35,
-            bannerRed: 0.85, bannerGreen: 0.35, bannerBlue: 1.0
+            bannerRed: 0.85, bannerGreen: 0.35, bannerBlue: 1.0,
+            attackPattern: .nebulaCyclops
         ),
         BossProfile(
             name: "Crimson Clawfiend",
@@ -117,7 +134,8 @@ enum GameRules {
             tintRed: 1, tintGreen: 1, tintBlue: 1, tintBlend: 0,
             fireInterval: 1.95,
             scale: 2.35,
-            bannerRed: 1.0, bannerGreen: 0.25, bannerBlue: 0.2
+            bannerRed: 1.0, bannerGreen: 0.25, bannerBlue: 0.2,
+            attackPattern: .crimsonClawfiend
         ),
         BossProfile(
             name: "Acid Hydra",
@@ -127,7 +145,8 @@ enum GameRules {
             tintRed: 1, tintGreen: 1, tintBlue: 1, tintBlend: 0,
             fireInterval: 1.85,
             scale: 2.40,
-            bannerRed: 0.45, bannerGreen: 1.0, bannerBlue: 0.25
+            bannerRed: 0.45, bannerGreen: 1.0, bannerBlue: 0.25,
+            attackPattern: .acidHydra
         ),
         BossProfile(
             name: "Frost Maw",
@@ -137,7 +156,8 @@ enum GameRules {
             tintRed: 1, tintGreen: 1, tintBlue: 1, tintBlend: 0,
             fireInterval: 1.7,
             scale: 2.40,
-            bannerRed: 0.45, bannerGreen: 0.85, bannerBlue: 1.0
+            bannerRed: 0.45, bannerGreen: 0.85, bannerBlue: 1.0,
+            attackPattern: .frostMaw
         ),
         BossProfile(
             name: "Magma Behemoth",
@@ -147,7 +167,8 @@ enum GameRules {
             tintRed: 1, tintGreen: 1, tintBlue: 1, tintBlend: 0,
             fireInterval: 1.55,
             scale: 2.45,
-            bannerRed: 1.0, bannerGreen: 0.55, bannerBlue: 0.15
+            bannerRed: 1.0, bannerGreen: 0.55, bannerBlue: 0.15,
+            attackPattern: .magmaBehemoth
         ),
         BossProfile(
             name: "Void Emperor",
@@ -157,7 +178,8 @@ enum GameRules {
             tintRed: 1, tintGreen: 1, tintBlue: 1, tintBlend: 0,
             fireInterval: 1.4,
             scale: 2.35,
-            bannerRed: 0.75, bannerGreen: 0.2, bannerBlue: 1.0
+            bannerRed: 0.75, bannerGreen: 0.2, bannerBlue: 1.0,
+            attackPattern: .voidEmperor
         )
     ]
 

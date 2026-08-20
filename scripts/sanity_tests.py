@@ -112,6 +112,8 @@ def main() -> int:
     boss_spawn_block = SCENE[boss_start:boss_end]
     check("clearRegularObstacles" not in boss_spawn_block, "boss spawn should not clear on-screen obstacles")
     check("clearRockets" not in boss_spawn_block, "boss spawn should not clear in-flight rockets")
+    check("BossAttackPattern" in RULES and "fireAcidHydraVolley" in SCENE, "per-boss attack patterns expected")
+    check("BossAttackTextures" in (ROOT / "ApolloX" / "BossAttackTextures.swift").read_text(), "boss projectile textures missing")
 
     # Asteroid full-body hits + health pickup
     check(swift_number(RULES, "asteroidHitboxFactor") >= 0.95, "asteroid hitbox should cover the full sprite")

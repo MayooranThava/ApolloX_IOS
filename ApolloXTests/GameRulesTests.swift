@@ -97,6 +97,12 @@ final class GameRulesTests: XCTestCase {
         XCTAssertGreaterThan(GameRules.bossProfile(at: 5).points, GameRules.bossProfile(at: 0).points)
     }
 
+    func testEachBossHasUniqueAttackPattern() {
+        let patterns = GameRules.bossProfiles.map(\.attackPattern)
+        XCTAssertEqual(Set(patterns).count, patterns.count)
+        XCTAssertEqual(GameRules.bossProfile(at: 2).attackPattern, .acidHydra)
+    }
+
     func testStarPickupIsMuchRarer() {
         XCTAssertGreaterThanOrEqual(GameRules.starPickupSpawnInterval(elapsed: 0), 26)
         XCTAssertGreaterThan(
