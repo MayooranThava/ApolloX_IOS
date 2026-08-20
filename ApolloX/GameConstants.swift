@@ -40,12 +40,14 @@ enum GameConstants {
         case asteroid
         case asteroidAlt = "asteroid2"
         case mine = "spaceMine"
+        case clearMine = "yellowClearMine"
         case boss = "enemyShip"
 
         var points: Int {
             switch self {
             case .asteroid, .asteroidAlt: return 1
             case .mine: return 4
+            case .clearMine: return GameRules.clearMinePoints
             case .boss: return GameRules.bossPoints
             }
         }
@@ -53,6 +55,7 @@ enum GameConstants {
         var hitsToDestroy: Int {
             switch self {
             case .mine: return 2
+            case .clearMine: return 1
             case .boss: return GameRules.bossMaxHP
             default: return 1
             }
@@ -61,7 +64,7 @@ enum GameConstants {
         var travelDuration: TimeInterval {
             switch self {
             case .asteroid, .asteroidAlt: return 2.6
-            case .mine: return 3.4
+            case .mine, .clearMine: return 3.4
             case .boss: return GameRules.bossDescentDuration
             }
         }
@@ -153,11 +156,13 @@ enum GameConstants {
         case 1:
             if roll < 55 { return .asteroid }
             if roll < 80 { return .asteroidAlt }
-            return .mine
+            if roll < 95 { return .mine }
+            return .clearMine
         default:
-            if roll < 35 { return .asteroid }
-            if roll < 60 { return .asteroidAlt }
-            return .mine
+            if roll < 33 { return .asteroid }
+            if roll < 58 { return .asteroidAlt }
+            if roll < 92 { return .mine }
+            return .clearMine
         }
     }
 }

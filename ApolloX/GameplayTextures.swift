@@ -11,14 +11,17 @@ import UIKit
 enum GameplayTextures {
     static let fallingRocketName = "fallingRocket"
     static let warningBadgeName = "rocketWarningBadge"
+    static let yellowClearMineName = "yellowClearMine"
 
     /// Tall blue rocket drawn nose-down (matches Jetpack Joyride-style missiles).
     static let fallingRocketPixelSize = CGSize(width: 96, height: 240)
+    static let yellowClearMinePixelSize = CGSize(width: 128, height: 128)
 
     static func registerProceduralTextures() {
         guard TextureCache.optional(fallingRocketName) == nil else { return }
         TextureCache.store(fallingRocketName, texture: makeFallingRocket())
         TextureCache.store(warningBadgeName, texture: makeWarningBadge())
+        TextureCache.store(yellowClearMineName, texture: makeYellowClearMine())
         BossAttackTextures.registerTextures()
     }
 
@@ -103,6 +106,90 @@ enum GameplayTextures {
             cg.setStrokeColor(UIColor(white: 1, alpha: 0.25).cgColor)
             cg.setLineWidth(2)
             cg.strokeEllipse(in: CGRect(x: w * 0.12, y: h * 0.08, width: w * 0.76, height: h * 0.86))
+        }
+        let texture = SKTexture(image: image)
+        texture.filteringMode = .linear
+        texture.usesMipmaps = true
+        return texture
+    }
+
+    /// Golden hazard mine with pulsing core — shoot it to chain-clear the screen.
+    private static func makeYellowClearMine() -> SKTexture {
+        let size = yellowClearMinePixelSize
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 2
+        format.opaque = false
+        let renderer = UIGraphicsImageRenderer(size: size, format: format)
+        let image = renderer.image { ctx in
+            let cg = ctx.cgContext
+            let w = size.width
+            let h = size.height
+            let center = CGPoint(x: w * 0.5, y: h * 0.5)
+            let outerRadius = w * 0.42
+
+            // Soft outer glow.
+            cg.saveGState()
+            let glowRect = CGRect(x: center.x - outerRadius * 1.35, y: center.y - outerRadius * 1.35,
+                                  width: outerRadius * 2.7, height: outerRadius * 2.7)
+            cg.setFillColor(UIColor(red: 1.0, green: 0.82, blue: 0.08, alpha: 0.22).cgColor)
+            cg.fillEllipse(in: glowRect)
+            cg.restoreGState()
+
+            // Main spherical body.
+            let bodyRect = CGRect(x: center.x - outerRadius, y: center.y - outerRadius,
+                                  width: outerRadius * 2, height: outerRadius * 2)
+            cg.saveGState()
+            cg.addEllipse(in: bodyRect)
+            cg.clip()
+            let colors = [
+                UIColor(red: 1.0, green: 0.95, blue: 0.45, alpha: 1).cgColor,
+                UIColor(red: 1.0, green: 0.72, blue: 0.05, alpha: 1).cgColor,
+                UIColor(red: 0.92, green: 0.48, blue: 0.02, alpha: 1).cgColor
+            ] as CFArray
+            let locations: [CGFloat] = [0.0, 0.55, 1.0]
+            if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: locations) {
+                cg.drawLinearGradient(
+                    gradient,
+                    start: CGPoint(x: center.x - outerRadius * 0.4, y: center.y + outerRadius * 0.5),
+                    end: CGPoint(x: center.x + outerRadius * 0.6, y: center.y - outerRadius * 0.7),
+                    options: []
+                )
+            }
+            cg.restoreGState()
+
+            // Hazard chevrons.
+            SKColor(red: 0.15, green: 0.08, blue: 0.02, alpha: 0.85).setFill()
+            for angle in stride(from: 0.0, to: 360.0, by: 60.0) {
+                let rad = angle * .pi / 180
+                let cx = center.x + cos(rad) * outerRadius * 0.55
+                let cy = center.y + sin(rad) * outerRadius * 0.55
+                let tri = UIBezierPath()
+                tri.move(to: CGPoint(x: cx, y: cy + outerRadius * 0.14))
+                tri.addLine(to: CGPoint(x: cx - outerRadius * 0.11, y: cy - outerRadius * 0.06))
+                tri.addLine(to: CGPoint(x: cx + outerRadius * 0.11, y: cy - outerRadius * 0.06))
+                tri.close()
+                tri.fill()
+            }
+
+            // Bright core.
+            let coreRect = CGRect(x: center.x - outerRadius * 0.22, y: center.y - outerRadius * 0.22,
+                                  width: outerRadius * 0.44, height: outerRadius * 0.44)
+            SKColor(red: 1.0, green: 0.98, blue: 0.75, alpha: 1).setFill()
+            UIBezierPath(ovalIn: coreRect).fill()
+            SKColor(red: 1.0, green: 0.55, blue: 0.05, alpha: 0.9).setStroke()
+            UIBezierPath(ovalIn: coreRect.insetBy(dx: 2, dy: 2)).lineWidth = 2.5
+            UIBezierPath(ovalIn: coreRect.insetBy(dx: 2, dy: 2)).stroke()
+
+            // Specular highlight.
+            let highlight = UIBezierPath(ovalIn: CGRect(x: center.x - outerRadius * 0.35, y: center.y + outerRadius * 0.05,
+                                                        width: outerRadius * 0.35, height: outerRadius * 0.18))
+            SKColor(white: 1, alpha: 0.55).setFill()
+            highlight.fill()
+
+            // Outline for contrast on dark backgrounds.
+            SKColor(white: 1, alpha: 0.35).setStroke()
+            UIBezierPath(ovalIn: bodyRect.insetBy(dx: 2, dy: 2)).lineWidth = 3
+            UIBezierPath(ovalIn: bodyRect.insetBy(dx: 2, dy: 2)).stroke()
         }
         let texture = SKTexture(image: image)
         texture.filteringMode = .linear

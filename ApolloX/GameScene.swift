@@ -59,6 +59,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private var playerXHistory: [PlayerXSample] = []
     private var rocketSequenceCounter = 0
     private var pendingRocketAudio = false
+    /// Obstacle spawns hold until this run timestamp after a yellow clear-mine detonation.
+    private var obstacleSpawnPausedUntil: TimeInterval = 0
 
     private var pauseOverlay: SKNode?
     private var resumeButton: MenuButtonNode?
@@ -381,20 +383,47 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         schedulePowerUps()
         scheduleHealthPickups()
         scheduleNextRocket()
+        scheduleNextClearMine()
     }
 
     private func scheduleNextObstacle() {
         removeAction(forKey: "spawningEnemies")
         guard !bossActive else { return }
-        let delay = GameRules.spawnInterval(elapsed: runElapsed)
+        let intervalDelay = GameRules.spawnInterval(elapsed: runElapsed)
+        let pauseRemaining = max(0, obstacleSpawnPausedUntil - runElapsed)
+        let delay = max(intervalDelay, pauseRemaining)
         run(.sequence([
             .wait(forDuration: delay),
             .run { [weak self] in
                 guard let self, self.currentState == .playing, !self.bossActive else { return }
+                if self.runElapsed < self.obstacleSpawnPausedUntil {
+                    self.scheduleNextObstacle()
+                    return
+                }
                 self.spawnObstacle()
                 self.scheduleNextObstacle()
             }
         ]), withKey: "spawningEnemies")
+    }
+
+    private func scheduleNextClearMine() {
+        removeAction(forKey: "spawningClearMine")
+        guard currentState == .playing else { return }
+        let delay = GameRules.clearMineSpawnInterval(elapsed: runElapsed, bossActive: bossActive)
+        run(.sequence([
+            .wait(forDuration: delay),
+            .run { [weak self] in
+                guard let self, self.currentState == .playing else { return }
+                if GameRules.shouldSpawnClearMine(
+                    elapsed: self.runElapsed,
+                    bossActive: self.bossActive,
+                    roll: Int.random(in: 0..<100)
+                ) {
+                    self.spawnClearMine()
+                }
+                self.scheduleNextClearMine()
+            }
+        ]), withKey: "spawningClearMine")
     }
 
     private func schedulePowerUps() {
@@ -705,6 +734,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         removeAction(forKey: "spawningPowerUp")
         removeAction(forKey: "spawningHealth")
         removeAction(forKey: "spawningRockets")
+        removeAction(forKey: "spawningClearMine")
         removeAction(forKey: "fireBullets")
         player.isPaused = true
         engineEmitter?.isPaused = true
@@ -724,10 +754,11 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         }
         bossNode?.isPaused = false
         guard currentState == .playing else { return }
+        schedulePowerUps()
+        scheduleHealthPickups()
+        scheduleNextClearMine()
         if !bossActive {
             scheduleNextObstacle()
-            schedulePowerUps()
-            scheduleHealthPickups()
             scheduleNextRocket()
         }
         restartFiring()
@@ -908,7 +939,9 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         let end = CGPoint(x: endX, y: playArea.minY - 120)
 
         let node = obstaclePool.checkout()
-        node.texture = TextureCache.texture(kind.rawValue)
+        node.texture = TextureCache.texture(
+            kind == .clearMine ? GameplayTextures.yellowClearMineName : kind.rawValue
+        )
         let texSize = node.texture?.size() ?? CGSize(width: 160, height: 160)
         node.size = texSize
         node.setScale(kind.scale)
@@ -936,6 +969,13 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
                 .scale(to: kind.scale * 1.08, duration: 0.45),
                 .scale(to: kind.scale, duration: 0.45)
             ])))
+        } else if kind == .clearMine {
+            AudioManager.play(.mine)
+            node.run(.repeatForever(.sequence([
+                .scale(to: kind.scale * 1.12, duration: 0.35),
+                .scale(to: kind.scale * 0.96, duration: 0.35)
+            ])))
+            node.run(.repeatForever(.rotate(byAngle: .pi * 2, duration: 4.8)))
         } else {
             let spin = CGFloat.random(in: 0.6...1.4) * (Bool.random() ? 1 : -1)
             node.run(.repeatForever(.rotate(byAngle: spin, duration: 1.0)))
@@ -945,6 +985,61 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         node.run(.sequence([
             .move(to: end, duration: duration),
             .run { [weak self] in self?.lostALife(fromContact: false) },
+            .run { [weak self, weak node] in
+                guard let self, let node else { return }
+                self.untrack(node, from: &self.liveEnemies)
+                self.obstaclePool.recycle(node)
+            }
+        ]))
+    }
+
+    private func spawnClearMine() {
+        guard currentState == .playing, playArea.width > 80 else { return }
+        guard !liveEnemies.contains(where: { $0.obstacleKind == .clearMine && $0 !== bossNode }) else { return }
+
+        let kind = GameConstants.ObstacleKind.clearMine
+        let inset: CGFloat = 58
+        let startX = CGFloat.random(in: playArea.minX + inset...playArea.maxX - inset)
+        let endX = CGFloat.random(in: playArea.minX + inset...playArea.maxX - inset)
+        let start = CGPoint(x: startX, y: playArea.maxY + 100)
+        let end = CGPoint(x: endX, y: playArea.minY - 120)
+
+        let node = obstaclePool.checkout()
+        node.texture = TextureCache.texture(GameplayTextures.yellowClearMineName)
+        let texSize = node.texture?.size() ?? GameplayTextures.yellowClearMinePixelSize
+        node.size = texSize
+        node.setScale(kind.scale)
+        node.name = GameConstants.NodeName.enemy
+        node.position = start
+        node.zPosition = GameConstants.Z.enemy + (bossActive ? 1 : 0)
+        node.alpha = 1
+        node.zRotation = 0
+        node.colorBlendFactor = 0
+        let radius = GameRules.obstacleHitRadius(for: kind, spriteSize: node.size, scale: node.xScale)
+        node.obstacleKind = kind
+        node.obstacleHP = kind.hitsToDestroy
+        node.hitRadius = radius
+        node.attachCirclePhysics(
+            radius: radius,
+            category: GameConstants.PhysicsCategory.enemy,
+            contact: GameConstants.PhysicsCategory.player | GameConstants.PhysicsCategory.bullet
+        )
+        addChild(node)
+        liveEnemies.append(node)
+
+        AudioManager.play(.mine)
+        node.run(.repeatForever(.sequence([
+            .scale(to: kind.scale * 1.12, duration: 0.35),
+            .scale(to: kind.scale * 0.96, duration: 0.35)
+        ])))
+        node.run(.repeatForever(.rotate(byAngle: .pi * 2, duration: 4.8)))
+
+        node.run(.sequence([
+            .move(to: end, duration: kind.travelDuration),
+            .run { [weak self] in
+                guard let self, !self.bossActive else { return }
+                self.lostALife(fromContact: false)
+            },
             .run { [weak self, weak node] in
                 guard let self, let node else { return }
                 self.untrack(node, from: &self.liveEnemies)
@@ -972,7 +1067,6 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         currentBossPoints = profile.points
 
         removeAction(forKey: "spawningEnemies")
-        removeAction(forKey: "spawningPowerUp")
         removeAction(forKey: "spawningRockets")
         bossActive = true
         bossVulnerable = false
@@ -1279,10 +1373,11 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         scheduleNextObstacle()
         schedulePowerUps()
         scheduleNextRocket()
+        scheduleNextClearMine()
         refreshParticleRates()
     }
 
-    private func spawnExplosion(at position: CGPoint, image: String, scale: CGFloat = 1) {
+    private func spawnExplosion(at position: CGPoint, image: String, scale: CGFloat = 1, playSound: Bool = true) {
         let explosion = explosionPool.checkout()
         explosion.texture = TextureCache.texture(image)
         explosion.size = explosion.texture?.size() ?? CGSize(width: 160, height: 160)
@@ -1291,7 +1386,9 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         explosion.setScale(0)
         explosion.alpha = 1
         addChild(explosion)
-        AudioManager.play(.explosion)
+        if playSound {
+            AudioManager.play(.explosion)
+        }
 
         explosion.run(.sequence([
             .group([
@@ -1411,6 +1508,11 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         let sprite = node as? PooledSprite
         let kind = sprite?.obstacleKind ?? .asteroid
 
+        if kind == .clearMine {
+            detonateClearMine(node, at: blastPoint)
+            return
+        }
+
         if kind == .boss && !bossVulnerable {
             spawnExplosion(at: blastPoint, image: "mini_explosion", scale: 0.35)
             return
@@ -1463,6 +1565,186 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         addScore(points)
     }
 
+        ]))
+    }
+
+    // MARK: - Yellow clear mine
+
+    private func detonateClearMine(_ node: SKNode, at blastPoint: CGPoint) {
+        if let sprite = node as? PooledSprite {
+            untrack(sprite, from: &liveEnemies)
+            obstaclePool.recycle(sprite)
+        } else {
+            node.removeFromParent()
+        }
+        addScore(GameRules.clearMinePoints)
+        HapticManager.upgrade()
+        AudioManager.play(.explosion)
+
+        if bossActive {
+            playClearMineBossBurst(at: blastPoint)
+            applyClearMineBossDamage(blastPoint: blastPoint)
+        } else {
+            obstacleSpawnPausedUntil = runElapsed + GameRules.clearMineSpawnPauseDuration
+            removeAction(forKey: "spawningEnemies")
+            playClearMineScreenDetonation(at: blastPoint)
+            showStatusBanner(
+                text: "CHAIN CLEAR!",
+                color: SKColor(red: 1.0, green: 0.88, blue: 0.22, alpha: 1)
+            )
+            scheduleNextObstacle()
+        }
+    }
+
+    private func applyClearMineBossDamage(blastPoint: CGPoint) {
+        guard let boss = bossNode else { return }
+        let damage = GameRules.clearMineBossDamage
+
+        if !bossVulnerable {
+            spawnExplosion(at: blastPoint, image: "mini_explosion", scale: 0.55)
+            return
+        }
+
+        let hp = max(0, boss.obstacleHP - damage)
+        boss.obstacleHP = hp
+        bossHealthBar.setHP(current: hp, maximum: currentBossMaxHP)
+        bossHealthBar.pulseDamage()
+        spawnExplosion(at: blastPoint, image: "explosion", scale: 1.15)
+        showStatusBanner(
+            text: "-\(damage) BOSS HP",
+            color: SKColor(red: 1.0, green: 0.78, blue: 0.18, alpha: 1)
+        )
+
+        if hp <= 0 {
+            let defeatPoint = boss.position
+            untrack(boss, from: &liveEnemies)
+            obstaclePool.recycle(boss)
+            bossNode = nil
+            spawnExplosion(at: defeatPoint, image: "explosion", scale: 1.45)
+            HapticManager.enemyDestroyed()
+            addScore(currentBossPoints)
+            onBossDefeated(at: blastPoint)
+        }
+    }
+
+    private func playClearMineBossBurst(at origin: CGPoint) {
+        spawnExplosion(at: origin, image: "explosion", scale: 1.35)
+        let ring = SKShapeNode(circleOfRadius: 36)
+        ring.strokeColor = SKColor(red: 1, green: 0.82, blue: 0.15, alpha: 0.85)
+        ring.fillColor = .clear
+        ring.lineWidth = 7
+        ring.position = origin
+        ring.zPosition = GameConstants.Z.effect + 2
+        ring.setScale(0.25)
+        addChild(ring)
+        ring.run(.sequence([
+            .group([
+                .scale(to: 5.5, duration: 0.42),
+                .fadeOut(withDuration: 0.42)
+            ]),
+            .removeFromParent()
+        ]))
+    }
+
+    private func playClearMineScreenDetonation(at origin: CGPoint) {
+        spawnExplosion(at: origin, image: "explosion", scale: 1.85)
+
+        let ring = SKShapeNode(circleOfRadius: 44)
+        ring.strokeColor = SKColor(red: 1, green: 0.88, blue: 0.25, alpha: 0.95)
+        ring.fillColor = SKColor(red: 1, green: 0.72, blue: 0.08, alpha: 0.08)
+        ring.lineWidth = 10
+        ring.position = origin
+        ring.zPosition = GameConstants.Z.effect + 2
+        ring.setScale(0.15)
+        addChild(ring)
+        ring.run(.sequence([
+            .group([
+                .scale(to: 14, duration: 0.62),
+                .fadeOut(withDuration: 0.62)
+            ]),
+            .removeFromParent()
+        ]))
+
+        let innerRing = SKShapeNode(circleOfRadius: 28)
+        innerRing.strokeColor = SKColor(red: 1, green: 0.98, blue: 0.65, alpha: 0.9)
+        innerRing.fillColor = .clear
+        innerRing.lineWidth = 5
+        innerRing.position = origin
+        innerRing.zPosition = GameConstants.Z.effect + 1
+        innerRing.setScale(0.2)
+        addChild(innerRing)
+        innerRing.run(.sequence([
+            .wait(forDuration: 0.08),
+            .group([
+                .scale(to: 10, duration: 0.48),
+                .fadeOut(withDuration: 0.48)
+            ]),
+            .removeFromParent()
+        ]))
+
+        let flash = SKSpriteNode(
+            color: SKColor(red: 1, green: 0.92, blue: 0.45, alpha: 0.38),
+            size: CGSize(width: size.width * 1.15, height: size.height * 1.15)
+        )
+        flash.position = CGPoint(x: size.width * 0.5, y: size.height * 0.5)
+        flash.zPosition = GameConstants.Z.effect + 3
+        flash.alpha = 0
+        addChild(flash)
+        flash.run(.sequence([
+            .fadeAlpha(to: 1, duration: 0.05),
+            .fadeOut(withDuration: 0.38),
+            .removeFromParent()
+        ]))
+
+        for index in 0..<10 {
+            let angle = CGFloat(index) * (.pi * 2 / 10)
+            let offset = CGPoint(x: cos(angle) * 72, y: sin(angle) * 72)
+            run(.sequence([
+                .wait(forDuration: 0.03 * Double(index)),
+                .run { [weak self] in
+                    self?.spawnExplosion(
+                        at: CGPoint(x: origin.x + offset.x, y: origin.y + offset.y),
+                        image: "mini_explosion",
+                        scale: 0.75,
+                        playSound: false
+                    )
+                }
+            ]))
+        }
+
+        clearObstaclesFromClearMine(origin: origin)
+    }
+
+    private func clearObstaclesFromClearMine(origin: CGPoint) {
+        let targets = liveEnemies.filter { enemy in
+            enemy !== bossNode && enemy.obstacleKind != .clearMine
+        }
+        let sorted = targets.sorted {
+            hypot($0.position.x - origin.x, $0.position.y - origin.y)
+                < hypot($1.position.x - origin.x, $1.position.y - origin.y)
+        }
+
+        for (index, enemy) in sorted.enumerated() {
+            let delay = 0.06 + Double(index) * 0.038
+            run(.sequence([
+                .wait(forDuration: delay),
+                .run { [weak self, weak enemy] in
+                    guard let self, let enemy, enemy.parent != nil else { return }
+                    let pos = enemy.position
+                    let points = enemy.obstacleKind?.points ?? 1
+                    enemy.removeAllActions()
+                    self.untrack(enemy, from: &self.liveEnemies)
+                    self.obstaclePool.recycle(enemy)
+                    self.spawnExplosion(at: pos, image: "mini_explosion", scale: 0.92, playSound: index == 0)
+                    self.addScore(points)
+                    if index % 3 == 0 {
+                        HapticManager.enemyDestroyed()
+                    }
+                }
+            ]))
+        }
+    }
+
     // MARK: - Contacts
 
     func didBegin(_ contact: SKPhysicsContact) {
@@ -1477,6 +1759,12 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             let enemyNode = maskA == GameConstants.PhysicsCategory.enemy ? contact.bodyA.node : contact.bodyB.node
             if let pooled = enemyNode as? PooledSprite, pooled.obstacleKind == .boss {
                 spawnExplosion(at: pooled.position, image: "mini_explosion", scale: 0.95)
+                lostALife(fromContact: true)
+                return
+            }
+            if let pooled = enemyNode as? PooledSprite, pooled.obstacleKind == .clearMine {
+                let point = pooled.position
+                detonateClearMine(pooled, at: point)
                 lostALife(fromContact: true)
                 return
             }
