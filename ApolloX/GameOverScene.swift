@@ -12,6 +12,8 @@ final class GameOverScene: SKScene {
     private let card = SKSpriteNode()
     private let titleLabel = SKLabelNode()
     private let scoreLabel = SKLabelNode()
+    private let earnedLabel = SKLabelNode()
+    private let walletLabel = SKLabelNode()
     private let bestLabel = SKLabelNode()
     private var restartButton: MenuButtonNode?
     private var menuButton: MenuButtonNode?
@@ -21,6 +23,7 @@ final class GameOverScene: SKScene {
 
         let finalScore = ScoreStore.currentScore
         let best = ScoreStore.commitHighScoreIfNeeded()
+        let wallet = ScoreStore.commitWalletIfNeeded()
 
         dim.zPosition = GameConstants.Z.hud - 2
         addChild(dim)
@@ -45,6 +48,22 @@ final class GameOverScene: SKScene {
         scoreLabel.zPosition = GameConstants.Z.hud
         addChild(scoreLabel)
 
+        earnedLabel.fontName = GameFont.resolved(size: 40)
+        earnedLabel.text = "+\(finalScore) CREDITS"
+        earnedLabel.fontSize = 40
+        earnedLabel.fontColor = GameTheme.credit
+        earnedLabel.verticalAlignmentMode = .center
+        earnedLabel.zPosition = GameConstants.Z.hud
+        addChild(earnedLabel)
+
+        walletLabel.fontName = GameFont.resolved(size: 36)
+        walletLabel.text = "WALLET  \(wallet)"
+        walletLabel.fontSize = 36
+        walletLabel.fontColor = GameTheme.secondary
+        walletLabel.verticalAlignmentMode = .center
+        walletLabel.zPosition = GameConstants.Z.hud
+        addChild(walletLabel)
+
         bestLabel.fontName = GameFont.resolved(size: 44)
         bestLabel.text = "BEST  \(best)"
         bestLabel.fontSize = 44
@@ -64,15 +83,19 @@ final class GameOverScene: SKScene {
         card.alpha = 0
         titleLabel.alpha = 0
         scoreLabel.alpha = 0
+        earnedLabel.alpha = 0
+        walletLabel.alpha = 0
         bestLabel.alpha = 0
         restart.alpha = 0
         menu.alpha = 0
         card.run(.fadeIn(withDuration: 0.3))
         titleLabel.run(.sequence([.wait(forDuration: 0.05), .fadeIn(withDuration: 0.3)]))
         scoreLabel.run(.sequence([.wait(forDuration: 0.1), .fadeIn(withDuration: 0.3)]))
-        bestLabel.run(.sequence([.wait(forDuration: 0.14), .fadeIn(withDuration: 0.3)]))
-        restart.run(.sequence([.wait(forDuration: 0.18), .fadeIn(withDuration: 0.3)]))
-        menu.run(.sequence([.wait(forDuration: 0.22), .fadeIn(withDuration: 0.3)]))
+        earnedLabel.run(.sequence([.wait(forDuration: 0.12), .fadeIn(withDuration: 0.3)]))
+        walletLabel.run(.sequence([.wait(forDuration: 0.14), .fadeIn(withDuration: 0.3)]))
+        bestLabel.run(.sequence([.wait(forDuration: 0.16), .fadeIn(withDuration: 0.3)]))
+        restart.run(.sequence([.wait(forDuration: 0.2), .fadeIn(withDuration: 0.3)]))
+        menu.run(.sequence([.wait(forDuration: 0.24), .fadeIn(withDuration: 0.3)]))
 
         whenSafeAreaReady { [weak self] in
             self?.relayout()
@@ -85,7 +108,7 @@ final class GameOverScene: SKScene {
         dim.position = CGPoint(x: size.width * 0.5, y: size.height * 0.5)
 
         let cardWidth = min(safe.width, 980)
-        let cardHeight: CGFloat = 760
+        let cardHeight: CGFloat = 860
         card.size = CGSize(width: cardWidth, height: cardHeight)
         card.texture = ShapeTexture.roundedRect(
             size: card.size,
@@ -96,11 +119,13 @@ final class GameOverScene: SKScene {
         )
         card.position = CGPoint(x: safe.midX, y: safe.midY + 20)
 
-        titleLabel.position = CGPoint(x: safe.midX, y: card.position.y + 250)
-        scoreLabel.position = CGPoint(x: safe.midX, y: card.position.y + 90)
-        bestLabel.position = CGPoint(x: safe.midX, y: card.position.y - 10)
-        restartButton?.position = CGPoint(x: safe.midX, y: card.position.y - 170)
-        menuButton?.position = CGPoint(x: safe.midX, y: card.position.y - 300)
+        titleLabel.position = CGPoint(x: safe.midX, y: card.position.y + 290)
+        scoreLabel.position = CGPoint(x: safe.midX, y: card.position.y + 150)
+        earnedLabel.position = CGPoint(x: safe.midX, y: card.position.y + 82)
+        walletLabel.position = CGPoint(x: safe.midX, y: card.position.y + 28)
+        bestLabel.position = CGPoint(x: safe.midX, y: card.position.y - 40)
+        restartButton?.position = CGPoint(x: safe.midX, y: card.position.y - 180)
+        menuButton?.position = CGPoint(x: safe.midX, y: card.position.y - 310)
     }
 
     override func didChangeSize(_ oldSize: CGSize) {

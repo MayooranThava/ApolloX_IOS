@@ -16,7 +16,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     private let hud = HUDBarNode()
     private let bossHealthBar = BossHealthBarNode()
-    private let player = SKSpriteNode(texture: TextureCache.texture("playerShip"))
+    private let player = SKSpriteNode()
     private var engineEmitter: SKEmitterNode?
 
     private var lives = GameRules.startingLives
@@ -269,6 +269,11 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     private func configurePlayer() {
+        let ship = PlayerProgress.equippedShip()
+        player.texture = TextureCache.texture(ship.textureName)
+        if let texSize = player.texture?.size(), texSize.width > 0 {
+            player.size = texSize
+        }
         player.setScale(GameRules.playerScale)
         player.zPosition = GameConstants.Z.player
         let radius = min(player.size.width, player.size.height) * player.xScale * GameRules.playerHitboxFactor
@@ -283,6 +288,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         addChild(player)
 
         let engine = makeEngineEmitter()
+        engine.particleColor = ship.engineColor
         engine.position = CGPoint(x: 0, y: -player.size.height * 0.40)
         player.addChild(engine)
         engineEmitter = engine
@@ -689,6 +695,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         bossHealthBar.hideBar()
 
         ScoreStore.commitHighScoreIfNeeded()
+        ScoreStore.commitWalletIfNeeded()
         isPaused = false
         view?.isPaused = false
         run(.sequence([

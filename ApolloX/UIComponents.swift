@@ -16,6 +16,7 @@ enum GameTheme {
     static let buttonMuted = SKColor(white: 1, alpha: 0.14)
     static let buttonText = SKColor.white
     static let buttonTextShadow = SKColor(white: 0, alpha: 0.55)
+    static let credit = SKColor(red: 0.42, green: 0.94, blue: 0.72, alpha: 1)
 }
 
 enum GameFont {
@@ -305,25 +306,20 @@ final class MenuButtonNode: SKNode {
     private let background = SKSpriteNode()
     private let shadowLabel = SKLabelNode()
     private let label = SKLabelNode()
+    private var emphasized: Bool
+    private let buttonSize: CGSize
     private(set) var hitSize = CGSize.zero
 
     init(title: String, width: CGFloat, height: CGFloat, fontSize: CGFloat, emphasized: Bool = true) {
+        self.emphasized = emphasized
+        self.buttonSize = CGSize(width: width, height: height)
         super.init()
         zPosition = GameConstants.Z.hud
 
-        let fill = emphasized ? GameTheme.buttonFill : GameTheme.buttonMuted
-        background.size = CGSize(width: width, height: height)
-        background.texture = ShapeTexture.roundedRect(
-            size: background.size,
-            cornerRadius: height * 0.5,
-            fill: fill,
-            stroke: GameTheme.buttonStroke,
-            lineWidth: 2
-        )
+        background.size = buttonSize
         background.zPosition = 0
         addChild(background)
 
-        let textColor = emphasized ? GameTheme.buttonText : GameTheme.accent
         for textNode in [shadowLabel, label] {
             textNode.fontName = GameFont.resolved(size: fontSize)
             textNode.text = title
@@ -335,15 +331,11 @@ final class MenuButtonNode: SKNode {
         shadowLabel.fontColor = GameTheme.buttonTextShadow
         shadowLabel.position = CGPoint(x: 0, y: -2)
         shadowLabel.zPosition = 1
-        label.fontColor = textColor
         addChild(shadowLabel)
         addChild(label)
 
         hitSize = CGSize(width: width + 48, height: height + 40)
-        name = title
-        isAccessibilityElement = true
-        accessibilityLabel = title
-        accessibilityTraits = .button
+        applyChrome(title: title, emphasized: emphasized)
     }
 
     required init?(coder aDecoder: NSCoder) {
@@ -360,10 +352,33 @@ final class MenuButtonNode: SKNode {
         return rect.contains(point)
     }
 
+    func setTitle(_ title: String, emphasized: Bool? = nil) {
+        applyChrome(title: title, emphasized: emphasized ?? self.emphasized)
+    }
+
     func pulse() {
         run(.sequence([
             .scale(to: 0.96, duration: 0.06),
             .scale(to: 1.0, duration: 0.1)
         ]))
+    }
+
+    private func applyChrome(title: String, emphasized: Bool) {
+        self.emphasized = emphasized
+        let fill = emphasized ? GameTheme.buttonFill : GameTheme.buttonMuted
+        background.texture = ShapeTexture.roundedRect(
+            size: buttonSize,
+            cornerRadius: buttonSize.height * 0.5,
+            fill: fill,
+            stroke: GameTheme.buttonStroke,
+            lineWidth: 2
+        )
+        label.text = title
+        shadowLabel.text = title
+        label.fontColor = emphasized ? GameTheme.buttonText : GameTheme.accent
+        name = title
+        accessibilityLabel = title
+        accessibilityTraits = .button
+        isAccessibilityElement = true
     }
 }

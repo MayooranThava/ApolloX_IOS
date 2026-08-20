@@ -22,6 +22,9 @@
 		C1A7408229DA6EFC00A6F9AE /* GameTitle.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1A7408129DA6EFC00A6F9AE /* GameTitle.swift */; };
 		C1B10001208A000100BD3501 /* GameConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B10000208A000100BD3501 /* GameConstants.swift */; };
 		C1B10003208A000100BD3501 /* ScoreStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B10002208A000100BD3501 /* ScoreStore.swift */; };
+		C1B70001208A000100BD3501 /* PlayerProgress.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B70000208A000100BD3501 /* PlayerProgress.swift */; };
+		C1B70003208A000100BD3501 /* PlayerShipCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B70002208A000100BD3501 /* PlayerShipCatalog.swift */; };
+		C1B70005208A000100BD3501 /* StoreScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B70004208A000100BD3501 /* StoreScene.swift */; };
 		C1B10005208A000100BD3501 /* HapticManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B10004208A000100BD3501 /* HapticManager.swift */; };
 		C1B10007208A000100BD3501 /* SceneHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B10006208A000100BD3501 /* SceneHelpers.swift */; };
 		C1B50001208A000100BD3501 /* ScrollingBackgroundNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B50000208A000100BD3501 /* ScrollingBackgroundNode.swift */; };
@@ -43,6 +46,7 @@
 		C1B20001208A000100BD3501 /* GameRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B20000208A000100BD3501 /* GameRules.swift */; };
 		C1B20011208A000100BD3501 /* GameRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B20010208A000100BD3501 /* GameRulesTests.swift */; };
 		C1B40011208A000100BD3501 /* ScoreStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B40010208A000100BD3501 /* ScoreStoreTests.swift */; };
+		C1B70011208A000100BD3501 /* PlayerProgressTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B70010208A000100BD3501 /* PlayerProgressTests.swift */; };
 		C1B40021208A000100BD3501 /* LaunchSmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B40020208A000100BD3501 /* LaunchSmokeTests.swift */; };
 		C1B2001D208A000100BD3501 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C1B2001C208A000100BD3501 /* XCTest.framework */; };
 /* End PBXBuildFile section */
@@ -65,6 +69,9 @@
 		C1A7408129DA6EFC00A6F9AE /* GameTitle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameTitle.swift; sourceTree = "<group>"; };
 		C1B10000208A000100BD3501 /* GameConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameConstants.swift; sourceTree = "<group>"; };
 		C1B10002208A000100BD3501 /* ScoreStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScoreStore.swift; sourceTree = "<group>"; };
+		C1B70000208A000100BD3501 /* PlayerProgress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerProgress.swift; sourceTree = "<group>"; };
+		C1B70002208A000100BD3501 /* PlayerShipCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerShipCatalog.swift; sourceTree = "<group>"; };
+		C1B70004208A000100BD3501 /* StoreScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreScene.swift; sourceTree = "<group>"; };
 		C1B10004208A000100BD3501 /* HapticManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticManager.swift; sourceTree = "<group>"; };
 		C1B10006208A000100BD3501 /* SceneHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneHelpers.swift; sourceTree = "<group>"; };
 		C1B50000208A000100BD3501 /* ScrollingBackgroundNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScrollingBackgroundNode.swift; sourceTree = "<group>"; };
@@ -87,6 +94,7 @@
 		C1B20000208A000100BD3501 /* GameRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameRules.swift; sourceTree = "<group>"; };
 		C1B20010208A000100BD3501 /* GameRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameRulesTests.swift; sourceTree = "<group>"; };
 		C1B40010208A000100BD3501 /* ScoreStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScoreStoreTests.swift; sourceTree = "<group>"; };
+		C1B70010208A000100BD3501 /* PlayerProgressTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerProgressTests.swift; sourceTree = "<group>"; };
 		C1B40020208A000100BD3501 /* LaunchSmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchSmokeTests.swift; sourceTree = "<group>"; };
 		C1B40022208A000100BD3501 /* ApolloXUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ApolloXUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C1B20012208A000100BD3501 /* ApolloXTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ApolloXTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -151,6 +159,7 @@
 			children = (
 				C1B20010208A000100BD3501 /* GameRulesTests.swift */,
 				C1B40010208A000100BD3501 /* ScoreStoreTests.swift */,
+				C1B70010208A000100BD3501 /* PlayerProgressTests.swift */,
 			);
 			path = ApolloXTests;
 			sourceTree = "<group>";
@@ -193,6 +202,8 @@
 				C1B10000208A000100BD3501 /* GameConstants.swift */,
 				C1B20000208A000100BD3501 /* GameRules.swift */,
 				C1B10002208A000100BD3501 /* ScoreStore.swift */,
+				C1B70000208A000100BD3501 /* PlayerProgress.swift */,
+				C1B70002208A000100BD3501 /* PlayerShipCatalog.swift */,
 				C1B10004208A000100BD3501 /* HapticManager.swift */,
 				C1B10012208A000100BD3501 /* AudioManager.swift */,
 				C1B30000208A000100BD3501 /* FramePacing.swift */,
@@ -206,6 +217,7 @@
 				C1B10010208A000100BD3501 /* UIComponents.swift */,
 				C18A0A7128B4334100B2965A /* GameScene.swift */,
 				C1A7408129DA6EFC00A6F9AE /* GameTitle.swift */,
+				C1B70004208A000100BD3501 /* StoreScene.swift */,
 				C15432AF28C645C5000611A5 /* GameOverScene.swift */,
 				C18A0A7328B4334100B2965A /* GameViewController.swift */,
 				C18A0A7528B4334100B2965A /* Main.storyboard */,
@@ -362,6 +374,8 @@
 				C1B10001208A000100BD3501 /* GameConstants.swift in Sources */,
 				C1B20001208A000100BD3501 /* GameRules.swift in Sources */,
 				C1B10003208A000100BD3501 /* ScoreStore.swift in Sources */,
+				C1B70001208A000100BD3501 /* PlayerProgress.swift in Sources */,
+				C1B70003208A000100BD3501 /* PlayerShipCatalog.swift in Sources */,
 				C1B10005208A000100BD3501 /* HapticManager.swift in Sources */,
 				C1B10007208A000100BD3501 /* SceneHelpers.swift in Sources */,
 				C1B50001208A000100BD3501 /* ScrollingBackgroundNode.swift in Sources */,
@@ -374,6 +388,7 @@
 				C1B10013208A000100BD3501 /* AudioManager.swift in Sources */,
 				C1B30001208A000100BD3501 /* FramePacing.swift in Sources */,
 				C1A7408229DA6EFC00A6F9AE /* GameTitle.swift in Sources */,
+				C1B70005208A000100BD3501 /* StoreScene.swift in Sources */,
 				C18A0A7228B4334100B2965A /* GameScene.swift in Sources */,
 				C18A0A7428B4334100B2965A /* GameViewController.swift in Sources */,
 				C15432B028C645C5000611A5 /* GameOverScene.swift in Sources */,
@@ -387,6 +402,7 @@
 			files = (
 				C1B20011208A000100BD3501 /* GameRulesTests.swift in Sources */,
 				C1B40011208A000100BD3501 /* ScoreStoreTests.swift in Sources */,
+				C1B70011208A000100BD3501 /* PlayerProgressTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
