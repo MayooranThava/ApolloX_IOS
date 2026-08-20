@@ -59,18 +59,22 @@ enum GameRules {
     static let fireballSpeed: CGFloat = 520
     static let fireballScale: CGFloat = 0.72
 
-    /// Falling rockets use a tall procedural sprite; scale targets ~45% of player height.
-    static let rocketScale: CGFloat = 0.65
+    /// Falling rockets use a tall procedural sprite; scale targets ~55% of player height.
+    static let rocketScale: CGFloat = 0.78
     static let rocketSpeed: CGFloat = 780
     static let rocketHitboxFactor: CGFloat = 0.30
+    /// Jetpack Joyride-style: rockets aim where the player was this many seconds ago.
+    static let rocketTargetLookback: TimeInterval = 2.0
     /// Width of the semi-transparent red danger column shown during the warning.
     static let rocketWarningStripeWidth: CGFloat = 88
     /// Seconds the lane warning flashes before the rocket drops.
     static let rocketWarningDuration: TimeInterval = 1.25
     static let rocketWarningFlashInterval: TimeInterval = 0.08
     static let rocketFirstSpawnDelay: TimeInterval = 18.0
-    static let rocketSpawnMinInterval: TimeInterval = 9.0
-    static let rocketSpawnMaxInterval: TimeInterval = 15.0
+    static let rocketSpawnMinInterval: TimeInterval = 7.0
+    static let rocketSpawnMaxInterval: TimeInterval = 13.0
+    static let rocketWaveStagger: TimeInterval = 0.38
+    static let maxConcurrentRockets = 8
 
     /// Legacy alias — first boss HP.
     static let bossMaxHP = 15
@@ -395,8 +399,19 @@ enum GameRules {
     /// Seconds until the next falling-rocket attempt; tightens slightly as tiers advance.
     static func rocketSpawnInterval(elapsed: TimeInterval) -> TimeInterval {
         let tier = spawnTier(elapsed: elapsed)
-        let reduction = min(4.0, Double(tier) * 0.6)
-        let maxGap = max(rocketSpawnMinInterval + 2.0, rocketSpawnMaxInterval - reduction)
+        let reduction = min(5.0, Double(tier) * 0.75)
+        let maxGap = max(rocketSpawnMinInterval + 1.5, rocketSpawnMaxInterval - reduction)
         return Double.random(in: rocketSpawnMinInterval...(maxGap))
+    }
+
+    /// How many lane warnings / rockets to queue in one wave; ramps with time tier.
+    static func rocketsPerWave(elapsed: TimeInterval) -> Int {
+        let tier = spawnTier(elapsed: elapsed)
+        switch tier {
+        case 0: return 1
+        case 1: return Int.random(in: 1...2)
+        case 2: return Int.random(in: 2...3)
+        default: return min(4, 2 + tier / 2)
+        }
     }
 }

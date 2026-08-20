@@ -390,8 +390,18 @@ final class GameRulesTests: XCTestCase {
     func testRocketScaleTargetsVisibleHeight() {
         let playerHeight = 480.0 * Double(GameRules.playerScale)
         let rocketHeight = Double(GameplayTextures.fallingRocketPixelSize.height) * Double(GameRules.rocketScale)
-        XCTAssertGreaterThan(rocketHeight, playerHeight * 0.35)
-        XCTAssertLessThan(rocketHeight, playerHeight * 0.55)
+        XCTAssertGreaterThan(rocketHeight, playerHeight * 0.45)
+        XCTAssertLessThan(rocketHeight, playerHeight * 0.65)
+    }
+
+    func testRocketTargetLookbackIsTwoSeconds() {
+        XCTAssertEqual(GameRules.rocketTargetLookback, 2.0, accuracy: 0.001)
+    }
+
+    func testRocketsPerWaveScalesWithTier() {
+        XCTAssertEqual(GameRules.rocketsPerWave(elapsed: 10), 1)
+        let tier2 = (0..<20).map { GameRules.rocketsPerWave(elapsed: 65) }
+        XCTAssertTrue(tier2.contains(where: { $0 >= 2 }))
     }
 
     func testRocketsWaitUntilAfterOpeningGrace() {

@@ -47,8 +47,16 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private var visibleMaxY: CGFloat = 0
     /// Touch X target applied once per frame in `update(_:)` for smoother steering.
     private var steeringTouchX: CGFloat?
-    /// Horizontal lane where the player starts; falling rockets aim here.
-    private var playerSpawnX: CGFloat?
+
+    private struct PlayerXSample {
+        let time: TimeInterval
+        let x: CGFloat
+    }
+
+    /// Rolling history so rockets can target where the player was ~2s ago.
+    private var playerXHistory: [PlayerXSample] = []
+    private var rocketSequenceCounter = 0
+    private var pendingRocketAudio = false
 
     private var pauseOverlay: SKNode?
     private var resumeButton: MenuButtonNode?
@@ -75,7 +83,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private lazy var fireballPool = NodePool(prewarm: 6, maxIdle: 10) {
         PooledSprite(texture: TextureCache.texture(GameConstants.fireballImage))
     }
-    private lazy var rocketPool = NodePool(prewarm: 4, maxIdle: 8) {
+    private lazy var rocketPool = NodePool(prewarm: 6, maxIdle: 12) {
         PooledSprite(texture: TextureCache.texture(GameConstants.rocketImage))
     }
 
@@ -147,6 +155,50 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
         updateBossVulnerability()
         applyPlayerSteering()
+        recordPlayerXHistory()
+    }
+
+    private func recordPlayerXHistory() {
+        guard currentState == .playing, player.parent != nil else { return }
+        let sample = PlayerXSample(time: runElapsed, x: player.position.x)
+        playerXHistory.append(sample)
+        let cutoff = runElapsed - (GameRules.rocketTargetLookback + 1.0)
+        while let first = playerXHistory.first, first.time < cutoff {
+            playerXHistory.removeFirst()
+        }
+    }
+
+    private func playerX(atLookback lookback: TimeInterval) -> CGFloat {
+        let targetTime = runElapsed - lookback
+        guard !playerXHistory.isEmpty else { return player.position.x }
+
+        if targetTime <= playerXHistory[0].time {
+            return playerXHistory[0].x
+        }
+        if let last = playerXHistory.last, targetTime >= last.time {
+            return last.x
+        }
+
+        for index in 1..<playerXHistory.count {
+            let previous = playerXHistory[index - 1]
+            let next = playerXHistory[index]
+            guard previous.time <= targetTime, next.time >= targetTime else { continue }
+            let span = next.time - previous.time
+            guard span > 0.0001 else { return previous.x }
+            let blend = (targetTime - previous.time) / span
+            return previous.x + CGFloat(blend) * (next.x - previous.x)
+        }
+        return player.position.x
+    }
+
+    private func clampedRocketLaneX(_ x: CGFloat) -> CGFloat {
+        let laneHalf = player.size.width * player.xScale * 0.45
+        return GameRules.clampPlayerX(
+            x: x,
+            playMinX: playArea.minX,
+            playMaxX: playArea.maxX,
+            halfWidth: laneHalf
+        )
     }
 
     private func applyPlayerSteering() {
@@ -204,9 +256,6 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
                 halfWidth: player.size.width * player.xScale * 0.45
             )
             player.position.y = playArea.minY + player.size.height * player.yScale * 0.42 + 16
-            if playerSpawnX == nil {
-                playerSpawnX = player.position.x
-            }
         }
 
         if let overlay = pauseOverlay {
@@ -409,32 +458,48 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
                     self.scheduleNextRocket()
                     return
                 }
-                self.beginRocketSequence()
+                self.beginRocketWave()
                 self.scheduleNextRocket()
             }
         ]), withKey: "spawningRockets")
     }
 
-    private func beginRocketSequence() {
-        guard currentState == .playing, !bossActive, let spawnX = playerSpawnX else { return }
-        guard liveRockets.count < 3 else { return }
+    private func beginRocketWave() {
+        guard currentState == .playing, !bossActive else { return }
+        let waveSize = GameRules.rocketsPerWave(elapsed: runElapsed)
+        let headroom = GameRules.maxConcurrentRockets - liveRockets.count
+        guard headroom > 0 else { return }
+        let count = min(waveSize, headroom)
 
-        let laneHalf = player.size.width * player.xScale * 0.45
-        let targetX = GameRules.clampPlayerX(
-            x: spawnX,
-            playMinX: playArea.minX,
-            playMaxX: playArea.maxX,
-            halfWidth: laneHalf
-        )
+        for index in 0..<count {
+            let delay = Double(index) * GameRules.rocketWaveStagger
+            run(.sequence([
+                .wait(forDuration: delay),
+                .run { [weak self] in
+                    guard let self, self.currentState == .playing, !self.bossActive else { return }
+                    guard self.liveRockets.count < GameRules.maxConcurrentRockets else { return }
+                    self.beginRocketSequence()
+                }
+            ]))
+        }
+    }
+
+    private func beginRocketSequence() {
+        guard currentState == .playing, !bossActive else { return }
+        guard liveRockets.count < GameRules.maxConcurrentRockets else { return }
+
+        let targetX = clampedRocketLaneX(playerX(atLookback: GameRules.rocketTargetLookback))
 
         showRocketWarning(at: targetX)
+        rocketSequenceCounter += 1
+        let sequenceKey = "rocketSequence-\(rocketSequenceCounter)"
         run(.sequence([
             .wait(forDuration: GameRules.rocketWarningDuration),
             .run { [weak self] in
-                guard let self, self.currentState == .playing, !self.bossActive else { return }
+                guard let self, self.currentState == .playing else { return }
                 self.spawnFallingRocket(at: targetX)
             }
-        ]), withKey: "rocketSequence")
+        ]), withKey: sequenceKey)
     }
 
     private func showRocketWarning(at columnX: CGFloat) {
@@ -444,7 +509,14 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             duration: GameRules.rocketWarningDuration,
             interval: GameRules.rocketWarningFlashInterval
         )
-        AudioManager.play(.rocketWarning)
+        if !pendingRocketAudio {
+            pendingRocketAudio = true
+            AudioManager.play(.rocketWarning)
+            run(.sequence([
+                .wait(forDuration: 0.12),
+                .run { [weak self] in self?.pendingRocketAudio = false }
+            ]))
+        }
         HapticManager.fire()
     }
 
@@ -486,7 +558,6 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     private func clearRockets() {
-        removeAction(forKey: "rocketSequence")
         let rockets = liveRockets
         for rocket in rockets {
             rocket.removeAllActions()
@@ -901,8 +972,6 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         removeAction(forKey: "spawningEnemies")
         removeAction(forKey: "spawningPowerUp")
         removeAction(forKey: "spawningRockets")
-        clearRegularObstacles()
-        clearRockets()
         bossActive = true
         bossVulnerable = false
         bossSpawnedAt = runElapsed

@@ -102,8 +102,16 @@ def main() -> int:
     check("showBoostBanner" in SCENE and "BOOST!" in SCENE, "boost banner feedback missing")
     check("scheduleNextRocket" in SCENE and "RocketWarningNode" in SCENE, "falling rocket warning system missing")
     check("rocketScale" in RULES and "rocketWarningDuration" in RULES, "rocket tuning constants missing")
+    check("rocketTargetLookback" in RULES and "rocketsPerWave" in RULES, "rocket lookback / wave helpers missing")
     check("rocketWarning" in (ROOT / "ApolloX" / "AudioManager.swift").read_text(), "rocket warning audio cue missing")
     check((ROOT / "ApolloX" / "rocketWarning.wav").exists(), "rocketWarning.wav missing")
+    boss_start = SCENE.find("private func spawnBoss()")
+    boss_end = SCENE.find("private func clearRegularObstacles()", boss_start)
+    if boss_end == -1:
+        boss_end = SCENE.find("private func fireBossVolley()", boss_start)
+    boss_spawn_block = SCENE[boss_start:boss_end]
+    check("clearRegularObstacles" not in boss_spawn_block, "boss spawn should not clear on-screen obstacles")
+    check("clearRockets" not in boss_spawn_block, "boss spawn should not clear in-flight rockets")
 
     # Asteroid full-body hits + health pickup
     check(swift_number(RULES, "asteroidHitboxFactor") >= 0.95, "asteroid hitbox should cover the full sprite")

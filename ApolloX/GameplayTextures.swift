@@ -168,10 +168,8 @@ final class RocketWarningNode: SKNode {
         stripe.zPosition = 0
         addChild(stripe)
 
-        let onLeft = columnX < playArea.midX
-        let edgeX = onLeft ? playArea.minX + 72 : playArea.maxX - 72
         badge.setScale(badgeScale)
-        badge.position = CGPoint(x: edgeX, y: playArea.maxY - 118)
+        badge.position = CGPoint(x: columnX, y: playArea.maxY - 118)
         badge.zPosition = 1
         addChild(badge)
     }
