@@ -217,6 +217,23 @@ enum GameRules {
         return overlaps(closest)
     }
 
+    /// Conservative AABB gate before the full swept circle test.
+    static func segmentMayHitTarget(
+        start: CGPoint,
+        end: CGPoint,
+        projectileRadius: CGFloat,
+        target: CGPoint,
+        targetRadius: CGFloat
+    ) -> Bool {
+        let combined = projectileRadius + targetRadius
+        guard combined > 0 else { return false }
+        let minX = min(start.x, end.x) - combined
+        let maxX = max(start.x, end.x) + combined
+        let minY = min(start.y, end.y) - combined
+        let maxY = max(start.y, end.y) + combined
+        return target.x >= minX && target.x <= maxX && target.y >= minY && target.y <= maxY
+    }
+
     static func nextHealthPickupDelay() -> TimeInterval {
         Double.random(in: healthPickupMinInterval...healthPickupMaxInterval)
     }

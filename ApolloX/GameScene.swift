@@ -44,6 +44,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private var scrollingBackground: ScrollingBackgroundNode?
     /// Cached so swept tests do not rebuild `PlayfieldLayout` every pair.
     private var visibleMaxY: CGFloat = 0
+    /// Touch X target applied once per frame in `update(_:)` for smoother steering.
+    private var steeringTouchX: CGFloat?
 
     private var pauseOverlay: SKNode?
     private var resumeButton: MenuButtonNode?
@@ -101,7 +103,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         startSpawning()
         registerLifecycleObservers()
         updateHUD()
-        applyPerformanceQuality()
+        refreshParticleRates()
     }
 
     override func didChangeSize(_ oldSize: CGSize) {
@@ -131,6 +133,18 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         }
 
         updateBossVulnerability()
+        applyPlayerSteering()
+    }
+
+    private func applyPlayerSteering() {
+        guard let targetX = steeringTouchX else { return }
+        let halfWidth = player.size.width * player.xScale * 0.45
+        player.position.x = GameRules.clampPlayerX(
+            x: targetX,
+            playMinX: playArea.minX,
+            playMaxX: playArea.maxX,
+            halfWidth: halfWidth
+        )
     }
 
     private func updateBossVulnerability() {
@@ -245,9 +259,14 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     @objc private func handlePerformanceChange() {
-        applyPerformanceQuality()
-        guard currentState == .playing else { return }
-        engineEmitter?.particleBirthRate = FramePacing.currentQuality.engineBirthRate
+        refreshParticleRates()
+    }
+
+    private func refreshParticleRates() {
+        let quality = FramePacing.currentQuality
+        engineEmitter?.particleBirthRate = FramePacing.scaledBirthRate(quality.engineBirthRate)
+        let dustRate = bossActive ? 0 : FramePacing.scaledBirthRate(quality.starDustBirthRate)
+        applyPerformanceQuality(starDustRate: dustRate)
     }
 
     @objc private func appWillResignActive() {
@@ -458,6 +477,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     private func enterPause(showOverlay: Bool, fromSystem: Bool = false) {
         guard currentState == .playing || currentState == .paused else { return }
+        steeringTouchX = nil
         currentState = .paused
         freezeGameplay()
         if showOverlay {
@@ -822,6 +842,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         )
         showStatusBanner(text: profile.name.uppercased(), color: banner)
         AudioManager.play(.mine)
+        refreshParticleRates()
     }
 
     private func fireBossVolley() {
@@ -899,6 +920,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         updateHUD()
         scheduleNextObstacle()
         schedulePowerUps()
+        refreshParticleRates()
     }
 
     private func spawnExplosion(at position: CGPoint, image: String, scale: CGFloat = 1) {
@@ -1158,9 +1180,16 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard currentState == .playing, !isPausedBySystem else { return }
         for touch in touches {
-            player.position.x += touch.location(in: self).x - touch.previousLocation(in: self).x
-            clampPlayer()
+            steeringTouchX = touch.location(in: self).x
         }
+    }
+
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        steeringTouchX = nil
+    }
+
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+        steeringTouchX = nil
     }
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -1186,18 +1215,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             return
         }
 
-        player.position.x = point.x
-        clampPlayer()
-    }
-
-    private func clampPlayer() {
-        let halfWidth = player.size.width * player.xScale * 0.45
-        player.position.x = GameRules.clampPlayerX(
-            x: player.position.x,
-            playMinX: playArea.minX,
-            playMaxX: playArea.maxX,
-            halfWidth: halfWidth
-        )
+        steeringTouchX = point.x
     }
 
     // MARK: - Swept projectile hits
@@ -1281,14 +1299,30 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     private func applySweptHit(bullet: PooledSprite, start: CGPoint, end: CGPoint) -> Bool {
+        let projectileRadius = GameRules.bulletHitRadius
+        let dx = end.x - start.x
+        let dy = end.y - start.y
+        let moveSquared = dx * dx + dy * dy
+        let usePointOnly = moveSquared < 0.25
+
         for enemy in liveEnemies {
             guard enemy.parent != nil else { continue }
             let radius = colliderRadius(forEnemy: enemy)
             guard isColliderOnscreen(enemy, radius: radius) else { continue }
+            if !usePointOnly,
+               !GameRules.segmentMayHitTarget(
+                   start: start,
+                   end: end,
+                   projectileRadius: projectileRadius,
+                   target: enemy.position,
+                   targetRadius: radius
+               ) {
+                continue
+            }
             if GameRules.projectileHitsTarget(
-                start: start,
+                start: usePointOnly ? end : start,
                 end: end,
-                projectileRadius: GameRules.bulletHitRadius,
+                projectileRadius: projectileRadius,
                 target: enemy.position,
                 targetRadius: radius
             ) {
@@ -1301,10 +1335,20 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         for pickup in livePickups {
             guard pickup.parent != nil else { continue }
             let radius = colliderRadius(forPickup: pickup)
+            if !usePointOnly,
+               !GameRules.segmentMayHitTarget(
+                   start: start,
+                   end: end,
+                   projectileRadius: projectileRadius,
+                   target: pickup.position,
+                   targetRadius: radius
+               ) {
+                continue
+            }
             if GameRules.projectileHitsTarget(
-                start: start,
+                start: usePointOnly ? end : start,
                 end: end,
-                projectileRadius: GameRules.bulletHitRadius,
+                projectileRadius: projectileRadius,
                 target: pickup.position,
                 targetRadius: radius
             ) {

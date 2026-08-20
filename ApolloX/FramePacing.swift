@@ -130,4 +130,11 @@ enum FramePacing {
         skView?.preferredFramesPerSecond = fps
         NotificationCenter.default.post(name: .apolloXPerformanceDidChange, object: nil)
     }
+
+    /// Keeps particle density stable when ProMotion runs above 60 Hz.
+    static func scaledBirthRate(_ baseRate: CGFloat) -> CGFloat {
+        guard baseRate > 0 else { return 0 }
+        let fps = CGFloat(max(currentFramesPerSecond, 30))
+        return baseRate * (60.0 / fps)
+    }
 }

@@ -198,6 +198,53 @@ final class GameRulesTests: XCTestCase {
         XCTAssertFalse(cleanMiss)
     }
 
+    func testSegmentMayHitTargetMatchesProjectileGate() {
+        let start = CGPoint(x: 0, y: 0)
+        let end = CGPoint(x: 0, y: 100)
+        let target = CGPoint(x: 25, y: 50)
+        let projectileRadius: CGFloat = 10
+        let targetRadius: CGFloat = 20
+
+        XCTAssertTrue(
+            GameRules.segmentMayHitTarget(
+                start: start,
+                end: end,
+                projectileRadius: projectileRadius,
+                target: target,
+                targetRadius: targetRadius
+            )
+        )
+        XCTAssertTrue(
+            GameRules.projectileHitsTarget(
+                start: start,
+                end: end,
+                projectileRadius: projectileRadius,
+                target: target,
+                targetRadius: targetRadius
+            )
+        )
+
+        let farTarget = CGPoint(x: 200, y: 50)
+        XCTAssertFalse(
+            GameRules.segmentMayHitTarget(
+                start: start,
+                end: end,
+                projectileRadius: projectileRadius,
+                target: farTarget,
+                targetRadius: targetRadius
+            )
+        )
+        XCTAssertFalse(
+            GameRules.projectileHitsTarget(
+                start: start,
+                end: end,
+                projectileRadius: projectileRadius,
+                target: farTarget,
+                targetRadius: targetRadius
+            )
+        )
+    }
+
     func testHealthPickupGrantsLifeUpToCap() {
         XCTAssertEqual(GameRules.livesAfterHealthPickup(current: 2), 3)
         XCTAssertEqual(GameRules.livesAfterHealthPickup(current: GameRules.maxLives), GameRules.maxLives)
@@ -248,6 +295,17 @@ final class GameRulesTests: XCTestCase {
         XCTAssertEqual(FramePacing.effectsQuality(thermalState: .nominal, lowPowerMode: true), .conservative)
         XCTAssertGreaterThan(EffectsQuality.high.engineBirthRate, EffectsQuality.conservative.engineBirthRate)
         XCTAssertEqual(EffectsQuality.conservative.starDustBirthRate, 0)
+    }
+
+    func testScaledBirthRateHalvesAt120Hz() {
+        FramePacing.apply()
+        let base: CGFloat = 30
+        let scaled = FramePacing.scaledBirthRate(base)
+        if FramePacing.currentFramesPerSecond >= 120 {
+            XCTAssertEqual(scaled, base * 0.5, accuracy: 0.01)
+        } else {
+            XCTAssertEqual(scaled, base, accuracy: 0.01)
+        }
     }
 
     func testNodePoolReusesSpritesAndCapsIdle() {
