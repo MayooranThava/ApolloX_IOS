@@ -76,10 +76,12 @@ def main() -> int:
         if tier == 1:
             if roll < 55: return "asteroid"
             if roll < 80: return "asteroidAlt"
-            return "mine"
-        if roll < 35: return "asteroid"
-        if roll < 60: return "asteroidAlt"
-        return "mine"
+            if roll < 95: return "mine"
+            return "clearMine"
+        if roll < 33: return "asteroid"
+        if roll < 58: return "asteroidAlt"
+        if roll < 92: return "mine"
+        return "clearMine"
 
     for roll in range(100):
         kind = obstacle_kind(5.0, roll)
@@ -97,6 +99,11 @@ def main() -> int:
     check("freezeGameplay" in SCENE and "unfreezeGameplay" in SCENE, "manual pause should not freeze SKView touches")
     check("bossProfiles" in RULES and "maxBossCount" in RULES, "multi-boss roster expected")
     check("starPickupSpawnInterval" in RULES and "shouldSpawnStar" in RULES, "star spawn rarity helpers expected")
+    check("clearMine" in CONSTANTS and "yellowClearMine" in (ROOT / "ApolloX" / "GameplayTextures.swift").read_text(),
+          "yellow clear mine type expected")
+    check("detonateClearMine" in SCENE and "CHAIN CLEAR!" in SCENE, "clear mine detonation missing")
+    check("obstacleSpawnPausedUntil" in SCENE, "clear mine should pause obstacle spawns after detonation")
+    check("scheduleNextClearMine" in SCENE, "clear mine scheduler missing")
 
     # Boost feedback
     check("showBoostBanner" in SCENE and "BOOST!" in SCENE, "boost banner feedback missing")

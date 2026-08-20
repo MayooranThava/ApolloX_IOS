@@ -76,6 +76,14 @@ enum GameRules {
     static let rocketWaveStagger: TimeInterval = 0.38
     static let maxConcurrentRockets = 8
 
+    /// Yellow chain mine: one shot clears the screen (10 HP vs boss during boss fights).
+    static let clearMineBossDamage = 10
+    static let clearMineSpawnPauseDuration: TimeInterval = 2.0
+    static let clearMineSpawnMinInterval: TimeInterval = 22.0
+    static let clearMineSpawnMaxInterval: TimeInterval = 32.0
+    static let clearMineBossSpawnInterval: TimeInterval = 18.0
+    static let clearMinePoints = 8
+
     /// Legacy alias — first boss HP.
     static let bossMaxHP = 15
     static let bossPoints = 25
@@ -218,7 +226,7 @@ enum GameRules {
     /// Texture polygons miss thin rims and tunnel under fast shots; asteroids use a circle instead.
     static func usesTextureHitbox(_ kind: GameConstants.ObstacleKind) -> Bool {
         switch kind {
-        case .asteroid, .asteroidAlt, .mine, .boss:
+        case .asteroid, .asteroidAlt, .mine, .clearMine, .boss:
             return false
         }
     }
@@ -285,6 +293,7 @@ enum GameRules {
         switch kind {
         case .asteroid, .asteroidAlt: return 1.18
         case .mine: return 1.02
+        case .clearMine: return 1.08
         case .boss: return bossScale
         }
     }
@@ -350,16 +359,35 @@ enum GameRules {
         return GameConstants.randomObstacle(for: spawnTier(elapsed: elapsed), roll: clamped)
     }
 
-    /// Seconds between star boost pickup spawn attempts (~1/5 of the old 5.2s cadence, scaling up with tier).
+    /// Seconds between star boost pickup spawn attempts (restored ~5.2s cadence).
     static func starPickupSpawnInterval(elapsed: TimeInterval) -> TimeInterval {
-        let tier = spawnTier(elapsed: elapsed)
-        return 26.0 + Double(tier) * 10.0
+        GameConstants.powerUpSpawnInterval
     }
 
-    /// Roll in 0...99. Lower chance later in the run.
+    /// Roll in 0...99. Stars appear reliably but taper slightly in late tiers.
     static func shouldSpawnStar(elapsed: TimeInterval, roll: Int) -> Bool {
         let tier = spawnTier(elapsed: elapsed)
-        let threshold = max(5, 20 - tier * 4)
+        let threshold = max(55, 85 - tier * 5)
+        return roll < threshold
+    }
+
+    /// Seconds until the next yellow clear-mine spawn attempt.
+    static func clearMineSpawnInterval(elapsed: TimeInterval, bossActive: Bool) -> TimeInterval {
+        if bossActive {
+            return clearMineBossSpawnInterval
+        }
+        let tier = spawnTier(elapsed: elapsed)
+        let reduction = min(4.0, Double(tier) * 0.5)
+        let maxGap = max(clearMineSpawnMinInterval + 2.0, clearMineSpawnMaxInterval - reduction)
+        return Double.random(in: clearMineSpawnMinInterval...maxGap)
+    }
+
+    /// Roll in 0...99. Clear mines are uncommon but appear throughout a run.
+    static func shouldSpawnClearMine(elapsed: TimeInterval, bossActive: Bool, roll: Int) -> Bool {
+        if isInOpeningGrace(elapsed: elapsed) { return false }
+        if bossActive { return roll < 35 }
+        let tier = spawnTier(elapsed: elapsed)
+        let threshold = min(18, 8 + tier * 2)
         return roll < threshold
     }
 

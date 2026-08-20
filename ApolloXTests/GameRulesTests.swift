@@ -103,20 +103,27 @@ final class GameRulesTests: XCTestCase {
         XCTAssertEqual(GameRules.bossProfile(at: 2).attackPattern, .acidHydra)
     }
 
-    func testStarPickupIsMuchRarer() {
-        XCTAssertGreaterThanOrEqual(GameRules.starPickupSpawnInterval(elapsed: 0), 26)
-        XCTAssertGreaterThan(
-            GameRules.starPickupSpawnInterval(elapsed: 60),
-            GameRules.starPickupSpawnInterval(elapsed: 0)
-        )
+    func testStarPickupUsesRegularCadence() {
+        XCTAssertEqual(GameRules.starPickupSpawnInterval(elapsed: 0), GameConstants.powerUpSpawnInterval)
+        XCTAssertEqual(GameRules.starPickupSpawnInterval(elapsed: 60), GameConstants.powerUpSpawnInterval)
         var earlySpawns = 0
         var lateSpawns = 0
         for roll in 0..<100 {
             if GameRules.shouldSpawnStar(elapsed: 10, roll: roll) { earlySpawns += 1 }
             if GameRules.shouldSpawnStar(elapsed: 120, roll: roll) { lateSpawns += 1 }
         }
-        XCTAssertEqual(earlySpawns, 20)
-        XCTAssertEqual(lateSpawns, 5)
+        XCTAssertEqual(earlySpawns, 85)
+        XCTAssertEqual(lateSpawns, 55)
+    }
+
+    func testClearMineRules() {
+        XCTAssertEqual(GameRules.clearMineBossDamage, 10)
+        XCTAssertEqual(GameRules.clearMineSpawnPauseDuration, 2.0, accuracy: 0.001)
+        XCTAssertFalse(GameRules.shouldSpawnClearMine(elapsed: 5, bossActive: false, roll: 0))
+        XCTAssertTrue(GameRules.shouldSpawnClearMine(elapsed: 35, bossActive: true, roll: 20))
+        XCTAssertFalse(GameRules.shouldSpawnClearMine(elapsed: 35, bossActive: true, roll: 40))
+        XCTAssertEqual(GameConstants.ObstacleKind.clearMine.hitsToDestroy, 1)
+        XCTAssertEqual(GameConstants.ObstacleKind.clearMine.points, GameRules.clearMinePoints)
     }
 
     func testSpriteScalesWereIncreased() {
