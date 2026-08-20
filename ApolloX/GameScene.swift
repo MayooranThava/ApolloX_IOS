@@ -1103,7 +1103,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
         switch mode {
         case 0:
-            for spread in [-70, 0, 70] {
+            let spreads: [CGFloat] = [-70, 0, 70]
+            for spread in spreads {
                 spawnBossProjectile(
                     textureName: BossAttackTextures.acidBall,
                     scale: 0.78,
