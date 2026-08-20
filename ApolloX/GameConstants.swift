@@ -29,6 +29,7 @@ enum GameConstants {
     static let healthImage = "health_plus"
 
     static let fireballImage = "comet"
+    static let rocketImage = "comet"
 
     enum PowerUpKind: String {
         case star
@@ -87,6 +88,8 @@ enum GameConstants {
         static let enemy = "Enemy"
         static let boss = "Boss"
         static let fireball = "Fireball"
+        static let rocket = "Rocket"
+        static let rocketWarning = "RocketWarning"
         static let powerUp = "PowerUp"
         static let healthPickup = "HealthPickup"
         static let background = "Background"
