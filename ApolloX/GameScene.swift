@@ -438,7 +438,6 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     private func showRocketWarning(at columnX: CGFloat) {
-        GameplayTextures.registerProceduralTextures()
         let warning = RocketWarningNode(columnX: columnX, playArea: playArea)
         addChild(warning)
         warning.playFlash(
@@ -450,7 +449,6 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     private func spawnFallingRocket(at columnX: CGFloat) {
-        GameplayTextures.registerProceduralTextures()
         let rocket = rocketPool.checkout()
         rocket.texture = TextureCache.texture(GameConstants.rocketImage)
         rocket.setScale(GameRules.rocketScale)
@@ -494,7 +492,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             rocket.removeAllActions()
             recycleRocket(rocket)
         }
-        enumerateChildNodes(withName: "//\(GameConstants.NodeName.rocketWarning)") { node, _ in
+        for node in children where node.name == GameConstants.NodeName.rocketWarning {
             node.removeAllActions()
             node.removeFromParent()
         }

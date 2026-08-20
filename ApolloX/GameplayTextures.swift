@@ -16,6 +16,7 @@ enum GameplayTextures {
     static let fallingRocketPixelSize = CGSize(width: 96, height: 240)
 
     static func registerProceduralTextures() {
+        guard TextureCache.optional(fallingRocketName) == nil else { return }
         TextureCache.store(fallingRocketName, texture: makeFallingRocket())
         TextureCache.store(warningBadgeName, texture: makeWarningBadge())
     }
