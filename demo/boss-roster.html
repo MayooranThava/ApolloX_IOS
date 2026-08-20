@@ -50,7 +50,6 @@
     width: 88px;
     height: 88px;
     object-fit: contain;
-    image-rendering: auto;
   }
   .name { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
   .spawn { color: var(--accent); font-size: 13px; letter-spacing: 0.04em; margin-bottom: 8px; }
@@ -60,66 +59,54 @@
 </head>
 <body>
   <h1>Void Runner — Boss Roster</h1>
-  <p class="lead">Six space monsters spawn every 30 seconds (30s → 180s). Each uses a distinct sprite tint at roughly the same on-screen size as the original boss. HP and fire rate scale up each fight.</p>
+  <p class="lead">Six distinct cartoon space monsters. One every 30 seconds (0:30 → 3:00). HP and fire rate scale up each fight.</p>
   <div class="grid">
     <article class="card">
-      <div class="preview" style="background: rgba(255,80,140,0.12)">
-        <img src="../ApolloX/Assets.xcassets/enemyShip.imageset/enemyShip.png" alt="Hive Mothership" style="filter: hue-rotate(-10deg) saturate(1.2)" />
-      </div>
+      <div class="preview"><img src="../ApolloX/Assets.xcassets/bossNebula.imageset/bossNebula.png" alt="Nebula Cyclops" /></div>
       <div>
-        <div class="name">1. Hive Mothership</div>
+        <div class="name">1. Nebula Cyclops</div>
         <div class="spawn">Spawns at 0:30</div>
-        <div class="stats"><strong>HP:</strong> 15 · <strong>Points:</strong> 25 · <strong>Fire:</strong> every 2.1s<br><strong>Sprite:</strong> enemyShip · pink plasma tint</div>
+        <div class="stats"><strong>HP:</strong> 15 · <strong>Points:</strong> 25 · <strong>Fire:</strong> 2.1s</div>
       </div>
     </article>
     <article class="card">
-      <div class="preview" style="background: rgba(255,40,30,0.12)">
-        <img src="../ApolloX/Assets.xcassets/enemyShip.imageset/enemyShip.png" alt="Crimson Swarm Lord" style="filter: hue-rotate(330deg) saturate(1.8) brightness(1.05)" />
-      </div>
+      <div class="preview"><img src="../ApolloX/Assets.xcassets/bossCrimson.imageset/bossCrimson.png" alt="Crimson Clawfiend" /></div>
       <div>
-        <div class="name">2. Crimson Swarm Lord</div>
+        <div class="name">2. Crimson Clawfiend</div>
         <div class="spawn">Spawns at 1:00</div>
-        <div class="stats"><strong>HP:</strong> 22 · <strong>Points:</strong> 32 · <strong>Fire:</strong> every 1.95s<br><strong>Sprite:</strong> enemyShip · crimson overload</div>
+        <div class="stats"><strong>HP:</strong> 22 · <strong>Points:</strong> 32 · <strong>Fire:</strong> 1.95s</div>
       </div>
     </article>
     <article class="card">
-      <div class="preview" style="background: rgba(255,140,20,0.12)">
-        <img src="../ApolloX/Assets.xcassets/comet.imageset/comet.png" alt="Void Serpent" style="transform: rotate(90deg) scale(1.15)" />
-      </div>
+      <div class="preview"><img src="../ApolloX/Assets.xcassets/bossAcid.imageset/bossAcid.png" alt="Acid Hydra" /></div>
       <div>
-        <div class="name">3. Void Serpent</div>
+        <div class="name">3. Acid Hydra</div>
         <div class="spawn">Spawns at 1:30</div>
-        <div class="stats"><strong>HP:</strong> 30 · <strong>Points:</strong> 40 · <strong>Fire:</strong> every 1.85s<br><strong>Sprite:</strong> comet · ember wyrm (rotated)</div>
+        <div class="stats"><strong>HP:</strong> 30 · <strong>Points:</strong> 40 · <strong>Fire:</strong> 1.85s</div>
       </div>
     </article>
     <article class="card">
-      <div class="preview" style="background: rgba(140,80,255,0.12)">
-        <img src="../ApolloX/Assets.xcassets/asteroid2.imageset/asteroid2.png" alt="Crystal Leviathan" style="filter: hue-rotate(220deg) saturate(1.4)" />
-      </div>
+      <div class="preview"><img src="../ApolloX/Assets.xcassets/bossFrost.imageset/bossFrost.png" alt="Frost Maw" /></div>
       <div>
-        <div class="name">4. Crystal Leviathan</div>
+        <div class="name">4. Frost Maw</div>
         <div class="spawn">Spawns at 2:00</div>
-        <div class="stats"><strong>HP:</strong> 40 · <strong>Points:</strong> 50 · <strong>Fire:</strong> every 1.7s<br><strong>Sprite:</strong> asteroid2 · violet crystal mass</div>
+        <div class="stats"><strong>HP:</strong> 40 · <strong>Points:</strong> 50 · <strong>Fire:</strong> 1.7s</div>
       </div>
     </article>
     <article class="card">
-      <div class="preview" style="background: rgba(60,200,255,0.12)">
-        <img src="../ApolloX/Assets.xcassets/asteroid.imageset/asteroid.png" alt="Frozen Colossus" style="filter: hue-rotate(180deg) saturate(0.9) brightness(1.1)" />
-      </div>
+      <div class="preview"><img src="../ApolloX/Assets.xcassets/bossMagma.imageset/bossMagma.png" alt="Magma Behemoth" /></div>
       <div>
-        <div class="name">5. Frozen Colossus</div>
+        <div class="name">5. Magma Behemoth</div>
         <div class="spawn">Spawns at 2:30</div>
-        <div class="stats"><strong>HP:</strong> 52 · <strong>Points:</strong> 62 · <strong>Fire:</strong> every 1.55s<br><strong>Sprite:</strong> asteroid · icy titan shell</div>
+        <div class="stats"><strong>HP:</strong> 52 · <strong>Points:</strong> 62 · <strong>Fire:</strong> 1.55s</div>
       </div>
     </article>
     <article class="card">
-      <div class="preview" style="background: rgba(120,20,200,0.16)">
-        <img src="../ApolloX/Assets.xcassets/enemyShip.imageset/enemyShip.png" alt="Void Emperor" style="filter: hue-rotate(260deg) saturate(1.5) brightness(0.85)" />
-      </div>
+      <div class="preview"><img src="../ApolloX/Assets.xcassets/bossEmperor.imageset/bossEmperor.png" alt="Void Emperor" /></div>
       <div>
         <div class="name">6. Void Emperor</div>
         <div class="spawn">Spawns at 3:00</div>
-        <div class="stats"><strong>HP:</strong> 65 · <strong>Points:</strong> 80 · <strong>Fire:</strong> every 1.4s<br><strong>Sprite:</strong> enemyShip · void-purple crown</div>
+        <div class="stats"><strong>HP:</strong> 65 · <strong>Points:</strong> 80 · <strong>Fire:</strong> 1.4s</div>
       </div>
     </article>
   </div>

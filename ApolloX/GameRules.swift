@@ -65,77 +65,82 @@ enum GameRules {
     static let bossFireInterval: TimeInterval = 2.1
 
     /// Space monsters that appear every 30s (up to six per run).
-    struct BossProfile: Equatable {
+    struct BossProfile {
         let name: String
         let sprite: String
         let maxHP: Int
         let points: Int
-        let tint: (red: CGFloat, green: CGFloat, blue: CGFloat, blend: CGFloat)
+        let tintRed: CGFloat
+        let tintGreen: CGFloat
+        let tintBlue: CGFloat
+        let tintBlend: CGFloat
         let fireInterval: TimeInterval
         let scale: CGFloat
-        let bannerColor: (red: CGFloat, green: CGFloat, blue: CGFloat)
+        let bannerRed: CGFloat
+        let bannerGreen: CGFloat
+        let bannerBlue: CGFloat
     }
 
     static let bossProfiles: [BossProfile] = [
         BossProfile(
-            name: "Hive Mothership",
-            sprite: "enemyShip",
+            name: "Nebula Cyclops",
+            sprite: "bossNebula",
             maxHP: 15,
             points: 25,
-            tint: (0.85, 0.22, 0.55, 0.35),
+            tintRed: 1, tintGreen: 1, tintBlue: 1, tintBlend: 0,
             fireInterval: 2.1,
             scale: 2.35,
-            bannerColor: (1.0, 0.45, 0.35)
+            bannerRed: 0.85, bannerGreen: 0.35, bannerBlue: 1.0
         ),
         BossProfile(
-            name: "Crimson Swarm Lord",
-            sprite: "enemyShip",
+            name: "Crimson Clawfiend",
+            sprite: "bossCrimson",
             maxHP: 22,
             points: 32,
-            tint: (0.95, 0.12, 0.08, 0.55),
+            tintRed: 1, tintGreen: 1, tintBlue: 1, tintBlend: 0,
             fireInterval: 1.95,
             scale: 2.35,
-            bannerColor: (1.0, 0.25, 0.2)
+            bannerRed: 1.0, bannerGreen: 0.25, bannerBlue: 0.2
         ),
         BossProfile(
-            name: "Void Serpent",
-            sprite: "comet",
+            name: "Acid Hydra",
+            sprite: "bossAcid",
             maxHP: 30,
             points: 40,
-            tint: (1.0, 0.55, 0.12, 0.45),
+            tintRed: 1, tintGreen: 1, tintBlue: 1, tintBlend: 0,
             fireInterval: 1.85,
-            scale: 2.55,
-            bannerColor: (1.0, 0.6, 0.15)
+            scale: 2.40,
+            bannerRed: 0.45, bannerGreen: 1.0, bannerBlue: 0.25
         ),
         BossProfile(
-            name: "Crystal Leviathan",
-            sprite: "asteroid2",
+            name: "Frost Maw",
+            sprite: "bossFrost",
             maxHP: 40,
             points: 50,
-            tint: (0.55, 0.25, 0.95, 0.42),
+            tintRed: 1, tintGreen: 1, tintBlue: 1, tintBlend: 0,
             fireInterval: 1.7,
-            scale: 2.45,
-            bannerColor: (0.7, 0.45, 1.0)
+            scale: 2.40,
+            bannerRed: 0.45, bannerGreen: 0.85, bannerBlue: 1.0
         ),
         BossProfile(
-            name: "Frozen Colossus",
-            sprite: "asteroid",
+            name: "Magma Behemoth",
+            sprite: "bossMagma",
             maxHP: 52,
             points: 62,
-            tint: (0.35, 0.82, 0.95, 0.38),
+            tintRed: 1, tintGreen: 1, tintBlue: 1, tintBlend: 0,
             fireInterval: 1.55,
-            scale: 2.50,
-            bannerColor: (0.45, 0.85, 1.0)
+            scale: 2.45,
+            bannerRed: 1.0, bannerGreen: 0.55, bannerBlue: 0.15
         ),
         BossProfile(
             name: "Void Emperor",
-            sprite: "enemyShip",
+            sprite: "bossEmperor",
             maxHP: 65,
             points: 80,
-            tint: (0.45, 0.08, 0.72, 0.62),
+            tintRed: 1, tintGreen: 1, tintBlue: 1, tintBlend: 0,
             fireInterval: 1.4,
             scale: 2.35,
-            bannerColor: (0.75, 0.2, 1.0)
+            bannerRed: 0.75, bannerGreen: 0.2, bannerBlue: 1.0
         )
     ]
 

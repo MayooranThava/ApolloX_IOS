@@ -153,7 +153,7 @@ final class GameRulesTests: XCTestCase {
     }
 
     func testBossHasFifteenHP() {
-        XCTAssertEqual(GameConstants.ObstacleKind.boss.hitsToDestroy, 15)
+        XCTAssertEqual(GameRules.bossProfile(at: 0).maxHP, 15)
         XCTAssertEqual(GameRules.bossMaxHP, 15)
     }
 

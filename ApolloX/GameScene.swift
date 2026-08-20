@@ -768,14 +768,14 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         node.position = CGPoint(x: playArea.midX, y: playArea.maxY + 180)
         node.zPosition = GameConstants.Z.enemy + 1
         node.alpha = 1
-        node.zRotation = profile.sprite == "comet" ? .pi * 0.5 : .pi
+        node.zRotation = 0
         node.color = SKColor(
-            red: profile.tint.red,
-            green: profile.tint.green,
-            blue: profile.tint.blue,
+            red: profile.tintRed,
+            green: profile.tintGreen,
+            blue: profile.tintBlue,
             alpha: 1
         )
-        node.colorBlendFactor = profile.tint.blend
+        node.colorBlendFactor = profile.tintBlend
         let radius = GameRules.obstacleHitRadius(for: kind, spriteSize: node.size, scale: node.xScale)
         node.obstacleKind = kind
         node.obstacleHP = profile.maxHP
@@ -815,9 +815,9 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         ])), withKey: "bossFire")
 
         let banner = SKColor(
-            red: profile.bannerColor.red,
-            green: profile.bannerColor.green,
-            blue: profile.bannerColor.blue,
+            red: profile.bannerRed,
+            green: profile.bannerGreen,
+            blue: profile.bannerBlue,
             alpha: 1
         )
         showStatusBanner(text: profile.name.uppercased(), color: banner)
