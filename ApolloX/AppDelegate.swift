@@ -19,10 +19,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func applicationWillResignActive(_ application: UIApplication) {
+        // GameScene manages its own pause/resume lifecycle.
+        if activeSKView()?.scene is GameScene { return }
         activeSKView()?.isPaused = true
     }
 
     func applicationDidEnterBackground(_ application: UIApplication) {
+        if activeSKView()?.scene is GameScene { return }
         activeSKView()?.isPaused = true
     }
 

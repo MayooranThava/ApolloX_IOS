@@ -94,6 +94,9 @@ def main() -> int:
     check("Paused" in SCENE, "pause overlay copy missing")
     check("didEnterBackgroundNotification" in SCENE, "background pause should use didEnterBackground")
     check("requiresManualResume" in SCENE, "track manual resume after true backgrounding")
+    check("freezeGameplay" in SCENE and "unfreezeGameplay" in SCENE, "manual pause should not freeze SKView touches")
+    check("bossProfiles" in RULES and "maxBossCount" in RULES, "multi-boss roster expected")
+    check("starPickupSpawnInterval" in RULES and "shouldSpawnStar" in RULES, "star spawn rarity helpers expected")
 
     # Boost feedback
     check("showBoostBanner" in SCENE and "BOOST!" in SCENE, "boost banner feedback missing")

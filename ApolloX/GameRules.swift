@@ -50,16 +50,94 @@ enum GameRules {
     /// Every 30 seconds the spawn rate steps up (after opening grace).
     static let spawnRampInterval: TimeInterval = 30.0
 
-    static let bossSpawnTime: TimeInterval = 40.0
-    static let bossMaxHP = 15
-    static let bossPoints = 25
+    static let bossSpawnInterval: TimeInterval = 30.0
+    static let maxBossCount = 6
     static let bossScale: CGFloat = 2.35
     static let bossDescentDuration: TimeInterval = 22.0
     /// Boss ignores player shots until fully on-screen and at least this long has passed.
     static let bossVulnerableDelay: TimeInterval = 5.0
-    static let bossFireInterval: TimeInterval = 2.1
     static let fireballSpeed: CGFloat = 520
     static let fireballScale: CGFloat = 0.72
+
+    /// Legacy alias — first boss HP.
+    static let bossMaxHP = 15
+    static let bossPoints = 25
+    static let bossFireInterval: TimeInterval = 2.1
+
+    /// Space monsters that appear every 30s (up to six per run).
+    struct BossProfile: Equatable {
+        let name: String
+        let sprite: String
+        let maxHP: Int
+        let points: Int
+        let tint: (red: CGFloat, green: CGFloat, blue: CGFloat, blend: CGFloat)
+        let fireInterval: TimeInterval
+        let scale: CGFloat
+        let bannerColor: (red: CGFloat, green: CGFloat, blue: CGFloat)
+    }
+
+    static let bossProfiles: [BossProfile] = [
+        BossProfile(
+            name: "Hive Mothership",
+            sprite: "enemyShip",
+            maxHP: 15,
+            points: 25,
+            tint: (0.85, 0.22, 0.55, 0.35),
+            fireInterval: 2.1,
+            scale: 2.35,
+            bannerColor: (1.0, 0.45, 0.35)
+        ),
+        BossProfile(
+            name: "Crimson Swarm Lord",
+            sprite: "enemyShip",
+            maxHP: 22,
+            points: 32,
+            tint: (0.95, 0.12, 0.08, 0.55),
+            fireInterval: 1.95,
+            scale: 2.35,
+            bannerColor: (1.0, 0.25, 0.2)
+        ),
+        BossProfile(
+            name: "Void Serpent",
+            sprite: "comet",
+            maxHP: 30,
+            points: 40,
+            tint: (1.0, 0.55, 0.12, 0.45),
+            fireInterval: 1.85,
+            scale: 2.55,
+            bannerColor: (1.0, 0.6, 0.15)
+        ),
+        BossProfile(
+            name: "Crystal Leviathan",
+            sprite: "asteroid2",
+            maxHP: 40,
+            points: 50,
+            tint: (0.55, 0.25, 0.95, 0.42),
+            fireInterval: 1.7,
+            scale: 2.45,
+            bannerColor: (0.7, 0.45, 1.0)
+        ),
+        BossProfile(
+            name: "Frozen Colossus",
+            sprite: "asteroid",
+            maxHP: 52,
+            points: 62,
+            tint: (0.35, 0.82, 0.95, 0.38),
+            fireInterval: 1.55,
+            scale: 2.50,
+            bannerColor: (0.45, 0.85, 1.0)
+        ),
+        BossProfile(
+            name: "Void Emperor",
+            sprite: "enemyShip",
+            maxHP: 65,
+            points: 80,
+            tint: (0.45, 0.08, 0.72, 0.62),
+            fireInterval: 1.4,
+            scale: 2.35,
+            bannerColor: (0.75, 0.2, 1.0)
+        )
+    ]
 
     static let levelScoreThresholds = [10, 25, 50, 80]
 
@@ -211,8 +289,30 @@ enum GameRules {
         return GameConstants.randomObstacle(for: spawnTier(elapsed: elapsed), roll: clamped)
     }
 
-    static func shouldSpawnBoss(elapsed: TimeInterval, bossSpawned: Bool, bossActive: Bool) -> Bool {
-        !bossSpawned && !bossActive && elapsed >= bossSpawnTime
+    /// Seconds between star boost pickup spawn attempts (~1/5 of the old 5.2s cadence, scaling up with tier).
+    static func starPickupSpawnInterval(elapsed: TimeInterval) -> TimeInterval {
+        let tier = spawnTier(elapsed: elapsed)
+        return 26.0 + Double(tier) * 10.0
+    }
+
+    /// Roll in 0...99. Lower chance later in the run.
+    static func shouldSpawnStar(elapsed: TimeInterval, roll: Int) -> Bool {
+        let tier = spawnTier(elapsed: elapsed)
+        let threshold = max(5, 20 - tier * 4)
+        return roll < threshold
+    }
+
+    static func bossSpawnTime(forIndex index: Int) -> TimeInterval {
+        Double(index + 1) * bossSpawnInterval
+    }
+
+    static func bossProfile(at index: Int) -> BossProfile {
+        bossProfiles[min(max(0, index), bossProfiles.count - 1)]
+    }
+
+    static func shouldSpawnBoss(elapsed: TimeInterval, bossesSpawned: Int, bossActive: Bool) -> Bool {
+        guard !bossActive, bossesSpawned < maxBossCount else { return false }
+        return elapsed >= bossSpawnTime(forIndex: bossesSpawned)
     }
 
     /// True when the entire boss sprite fits inside the play area vertically.

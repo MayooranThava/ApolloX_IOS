@@ -64,10 +64,38 @@ final class GameRulesTests: XCTestCase {
     }
 
     func testBossSpawnGate() {
-        XCTAssertFalse(GameRules.shouldSpawnBoss(elapsed: 39.9, bossSpawned: false, bossActive: false))
-        XCTAssertTrue(GameRules.shouldSpawnBoss(elapsed: 40, bossSpawned: false, bossActive: false))
-        XCTAssertFalse(GameRules.shouldSpawnBoss(elapsed: 50, bossSpawned: true, bossActive: false))
-        XCTAssertFalse(GameRules.shouldSpawnBoss(elapsed: 50, bossSpawned: false, bossActive: true))
+        XCTAssertFalse(GameRules.shouldSpawnBoss(elapsed: 29.9, bossesSpawned: 0, bossActive: false))
+        XCTAssertTrue(GameRules.shouldSpawnBoss(elapsed: 30, bossesSpawned: 0, bossActive: false))
+        XCTAssertFalse(GameRules.shouldSpawnBoss(elapsed: 50, bossesSpawned: 1, bossActive: false))
+        XCTAssertTrue(GameRules.shouldSpawnBoss(elapsed: 60, bossesSpawned: 1, bossActive: false))
+        XCTAssertFalse(GameRules.shouldSpawnBoss(elapsed: 50, bossesSpawned: 0, bossActive: true))
+        XCTAssertFalse(GameRules.shouldSpawnBoss(elapsed: 200, bossesSpawned: 6, bossActive: false))
+    }
+
+    func testBossRosterHasSixEntries() {
+        XCTAssertEqual(GameRules.bossProfiles.count, 6)
+        XCTAssertEqual(GameRules.maxBossCount, 6)
+        XCTAssertEqual(GameRules.bossSpawnTime(forIndex: 0), 30)
+        XCTAssertEqual(GameRules.bossSpawnTime(forIndex: 5), 180)
+        XCTAssertEqual(GameRules.bossProfile(at: 0).maxHP, 15)
+        XCTAssertEqual(GameRules.bossProfile(at: 5).maxHP, 65)
+        XCTAssertGreaterThan(GameRules.bossProfile(at: 5).points, GameRules.bossProfile(at: 0).points)
+    }
+
+    func testStarPickupIsMuchRarer() {
+        XCTAssertGreaterThanOrEqual(GameRules.starPickupSpawnInterval(elapsed: 0), 26)
+        XCTAssertGreaterThan(
+            GameRules.starPickupSpawnInterval(elapsed: 60),
+            GameRules.starPickupSpawnInterval(elapsed: 0)
+        )
+        var earlySpawns = 0
+        var lateSpawns = 0
+        for roll in 0..<100 {
+            if GameRules.shouldSpawnStar(elapsed: 10, roll: roll) { earlySpawns += 1 }
+            if GameRules.shouldSpawnStar(elapsed: 120, roll: roll) { lateSpawns += 1 }
+        }
+        XCTAssertEqual(earlySpawns, 20)
+        XCTAssertEqual(lateSpawns, 5)
     }
 
     func testSpriteScalesWereIncreased() {
