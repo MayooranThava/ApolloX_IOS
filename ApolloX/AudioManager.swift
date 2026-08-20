@@ -16,6 +16,7 @@ enum AudioCue: String, CaseIterable {
     case boost = "boostActivate"
     case lifeLost = "lifeLost"
     case mine = "minePulse"
+    case rocketWarning = "rocketWarning"
     case uiTap = "uiTap"
 
     var overlappingVoices: Int {

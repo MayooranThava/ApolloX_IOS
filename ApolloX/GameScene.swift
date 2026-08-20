@@ -98,6 +98,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         physicsWorld.gravity = .zero
 
         scrollingBackground = addProductionBackground()
+        GameplayTextures.registerProceduralTextures()
         addChild(hud)
         addChild(bossHealthBar)
         configurePlayer()
@@ -437,29 +438,13 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     private func showRocketWarning(at columnX: CGFloat) {
-        let warning = SKLabelNode(fontNamed: GameFont.resolved(size: 72))
-        warning.text = "!"
-        warning.fontSize = 72
-        warning.fontColor = SKColor(red: 1.0, green: 0.92, blue: 0.15, alpha: 1)
-        warning.verticalAlignmentMode = .center
-        warning.horizontalAlignmentMode = .center
-        warning.position = CGPoint(x: columnX, y: playArea.maxY - 72)
-        warning.zPosition = GameConstants.Z.overlay
-        warning.name = GameConstants.NodeName.rocketWarning
-        warning.alpha = 0
+        let warning = RocketWarningNode(columnX: columnX, playArea: playArea)
         addChild(warning)
-
-        let flash = GameRules.rocketWarningFlashInterval
-        warning.run(.sequence([
-            .fadeAlpha(to: 1.0, duration: flash),
-            .repeat(.sequence([
-                .fadeAlpha(to: 0.15, duration: flash),
-                .fadeAlpha(to: 1.0, duration: flash)
-            ]), count: Int(GameRules.rocketWarningDuration / (flash * 2))),
-            .fadeOut(withDuration: flash * 0.5),
-            .removeFromParent()
-        ]))
-
+        warning.playFlash(
+            duration: GameRules.rocketWarningDuration,
+            interval: GameRules.rocketWarningFlashInterval
+        )
+        AudioManager.play(.rocketWarning)
         HapticManager.fire()
     }
 
@@ -468,11 +453,10 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         rocket.texture = TextureCache.texture(GameConstants.rocketImage)
         rocket.setScale(GameRules.rocketScale)
         rocket.name = GameConstants.NodeName.rocket
-        rocket.position = CGPoint(x: columnX, y: playArea.maxY + 100)
-        rocket.zPosition = GameConstants.Z.enemyProjectile
-        rocket.zRotation = .pi * 0.5
-        rocket.color = SKColor(red: 1, green: 0.35, blue: 0.18, alpha: 1)
-        rocket.colorBlendFactor = 0.65
+        rocket.position = CGPoint(x: columnX, y: playArea.maxY + 120)
+        rocket.zPosition = GameConstants.Z.enemyProjectile + 1
+        rocket.zRotation = 0
+        rocket.colorBlendFactor = 0
         let radius = min(rocket.size.width, rocket.size.height) * rocket.xScale * GameRules.rocketHitboxFactor
         rocket.hitRadius = radius
         rocket.attachCirclePhysics(
@@ -508,7 +492,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             rocket.removeAllActions()
             recycleRocket(rocket)
         }
-        enumerateChildNodes(withName: "//\(GameConstants.NodeName.rocketWarning)") { node, _ in
+        for node in children where node.name == GameConstants.NodeName.rocketWarning {
             node.removeAllActions()
             node.removeFromParent()
         }

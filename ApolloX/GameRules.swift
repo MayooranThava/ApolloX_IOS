@@ -59,13 +59,15 @@ enum GameRules {
     static let fireballSpeed: CGFloat = 520
     static let fireballScale: CGFloat = 0.72
 
-    /// Small falling rockets (~⅓ player size) that drop on the spawn column after a warning flash.
-    static let rocketScale: CGFloat = playerScale / 3.0
-    static let rocketSpeed: CGFloat = 820
-    static let rocketHitboxFactor: CGFloat = 0.32
-    /// Seconds the "!" warning flashes at the top before the rocket drops.
-    static let rocketWarningDuration: TimeInterval = 1.15
-    static let rocketWarningFlashInterval: TimeInterval = 0.07
+    /// Falling rockets use a tall procedural sprite; scale targets ~45% of player height.
+    static let rocketScale: CGFloat = 0.65
+    static let rocketSpeed: CGFloat = 780
+    static let rocketHitboxFactor: CGFloat = 0.30
+    /// Width of the semi-transparent red danger column shown during the warning.
+    static let rocketWarningStripeWidth: CGFloat = 88
+    /// Seconds the lane warning flashes before the rocket drops.
+    static let rocketWarningDuration: TimeInterval = 1.25
+    static let rocketWarningFlashInterval: TimeInterval = 0.08
     static let rocketFirstSpawnDelay: TimeInterval = 18.0
     static let rocketSpawnMinInterval: TimeInterval = 9.0
     static let rocketSpawnMaxInterval: TimeInterval = 15.0
