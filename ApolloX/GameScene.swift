@@ -1565,9 +1565,6 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         addScore(points)
     }
 
-        ]))
-    }
-
     // MARK: - Yellow clear mine
 
     private func detonateClearMine(_ node: SKNode, at blastPoint: CGPoint) {
@@ -1696,8 +1693,14 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             .removeFromParent()
         ]))
 
-        for index in 0..<10 {
-            let angle = CGFloat(index) * (.pi * 2 / 10)
+        let burstCount: Int
+        switch FramePacing.currentQuality {
+        case .high: burstCount = 10
+        case .balanced: burstCount = 6
+        case .conservative: burstCount = 4
+        }
+        for index in 0..<burstCount {
+            let angle = CGFloat(index) * (.pi * 2 / CGFloat(burstCount))
             let offset = CGPoint(x: cos(angle) * 72, y: sin(angle) * 72)
             run(.sequence([
                 .wait(forDuration: 0.03 * Double(index)),
