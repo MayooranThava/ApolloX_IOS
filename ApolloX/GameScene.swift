@@ -27,6 +27,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private var bulletImageName = GameConstants.bulletImage
     private var currentState: State = .playing
     private var playArea = CGRect.zero
+    /// True after the app actually enters the background (home switch), not screenshot/Control Center.
+    private var requiresManualResume = false
     private var isPausedBySystem = false
     private var isInvulnerable = false
     private var runElapsed: TimeInterval = 0
@@ -222,6 +224,12 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         )
         NotificationCenter.default.addObserver(
             self,
+            selector: #selector(appDidEnterBackground),
+            name: UIApplication.didEnterBackgroundNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
             selector: #selector(appDidBecomeActive),
             name: UIApplication.didBecomeActiveNotification,
             object: nil
@@ -241,10 +249,17 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     @objc private func appWillResignActive() {
+        // Screenshot and Control Center only send resign-active/active — halt the loop briefly.
+        isPaused = true
+        view?.isPaused = true
+    }
+
+    @objc private func appDidEnterBackground() {
+        requiresManualResume = true
         isPausedBySystem = true
         if currentState == .playing {
             enterPause(showOverlay: true, fromSystem: true)
-        } else {
+        } else if currentState != .gameOver {
             isPaused = true
             view?.isPaused = true
         }
@@ -252,10 +267,17 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     @objc private func appDidBecomeActive() {
         isPausedBySystem = false
-        // Stay paused until the player taps Resume.
-        guard currentState == .paused else { return }
-        isPaused = true
-        view?.isPaused = true
+        if requiresManualResume {
+            if currentState == .paused {
+                isPaused = true
+                view?.isPaused = true
+            }
+            return
+        }
+        guard currentState == .playing else { return }
+        isPaused = false
+        view?.isPaused = false
+        lastUpdateTime = 0
     }
 
     // MARK: - Flow
@@ -434,6 +456,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     private func resumeFromPause() {
         guard currentState == .paused else { return }
+        requiresManualResume = false
         dismissPauseOverlay()
         currentState = .playing
         isPaused = false

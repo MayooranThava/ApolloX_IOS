@@ -92,6 +92,8 @@ def main() -> int:
     check("pauseButton" in HUD or "PauseButton" in HUD, "HUD should include pause control")
     check("enterPause" in SCENE and "resumeFromPause" in SCENE, "GameScene needs pause/resume")
     check("Paused" in SCENE, "pause overlay copy missing")
+    check("didEnterBackgroundNotification" in SCENE, "background pause should use didEnterBackground")
+    check("requiresManualResume" in SCENE, "track manual resume after true backgrounding")
 
     # Boost feedback
     check("showBoostBanner" in SCENE and "BOOST!" in SCENE, "boost banner feedback missing")
