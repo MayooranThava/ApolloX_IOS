@@ -413,7 +413,7 @@ final class GameRulesTests: XCTestCase {
 
     func testRocketsPerWaveScalesWithTier() {
         XCTAssertEqual(GameRules.rocketsPerWave(elapsed: 10), 1)
-        let tier2 = (0..<20).map { GameRules.rocketsPerWave(elapsed: 65) }
+        let tier2 = (0..<20).map { _ in GameRules.rocketsPerWave(elapsed: 65) }
         XCTAssertTrue(tier2.contains(where: { $0 >= 2 }))
     }
 
