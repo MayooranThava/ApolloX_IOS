@@ -47,6 +47,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private var visibleMaxY: CGFloat = 0
     /// Touch X target applied once per frame in `update(_:)` for smoother steering.
     private var steeringTouchX: CGFloat?
+    /// Horizontal lane where the player starts; falling rockets aim here.
+    private var playerSpawnX: CGFloat?
 
     private var pauseOverlay: SKNode?
     private var resumeButton: MenuButtonNode?
@@ -56,6 +58,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private var liveEnemies: [PooledSprite] = []
     private var livePickups: [PooledSprite] = []
     private var liveFireballs: [PooledSprite] = []
+    private var liveRockets: [PooledSprite] = []
 
     private lazy var bulletPool = NodePool(prewarm: 18, maxIdle: 24) {
         PooledSprite(texture: TextureCache.texture(GameConstants.bulletImage))
@@ -71,6 +74,9 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     private lazy var fireballPool = NodePool(prewarm: 6, maxIdle: 10) {
         PooledSprite(texture: TextureCache.texture(GameConstants.fireballImage))
+    }
+    private lazy var rocketPool = NodePool(prewarm: 4, maxIdle: 8) {
+        PooledSprite(texture: TextureCache.texture(GameConstants.rocketImage))
     }
 
     override init(size: CGSize) {
@@ -197,6 +203,9 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
                 halfWidth: player.size.width * player.xScale * 0.45
             )
             player.position.y = playArea.minY + player.size.height * player.yScale * 0.42 + 16
+            if playerSpawnX == nil {
+                playerSpawnX = player.position.x
+            }
         }
 
         if let overlay = pauseOverlay {
@@ -319,6 +328,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         scheduleNextObstacle()
         schedulePowerUps()
         scheduleHealthPickups()
+        scheduleNextRocket()
     }
 
     private func scheduleNextObstacle() {
@@ -377,6 +387,131 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
                 self.scheduleNextHealthPickup(after: GameRules.nextHealthPickupDelay())
             }
         ]), withKey: "spawningHealth")
+    }
+
+    private func scheduleNextRocket() {
+        removeAction(forKey: "spawningRockets")
+        guard currentState == .playing, !bossActive else { return }
+
+        let delay: TimeInterval
+        if !GameRules.shouldSpawnRockets(elapsed: runElapsed, bossActive: false) {
+            delay = max(0.5, GameRules.rocketFirstSpawnDelay - runElapsed)
+        } else {
+            delay = GameRules.rocketSpawnInterval(elapsed: runElapsed)
+        }
+
+        run(.sequence([
+            .wait(forDuration: delay),
+            .run { [weak self] in
+                guard let self, self.currentState == .playing, !self.bossActive else { return }
+                guard GameRules.shouldSpawnRockets(elapsed: self.runElapsed, bossActive: false) else {
+                    self.scheduleNextRocket()
+                    return
+                }
+                self.beginRocketSequence()
+                self.scheduleNextRocket()
+            }
+        ]), withKey: "spawningRockets")
+    }
+
+    private func beginRocketSequence() {
+        guard currentState == .playing, !bossActive, let spawnX = playerSpawnX else { return }
+        guard liveRockets.count < 3 else { return }
+
+        let laneHalf = player.size.width * player.xScale * 0.45
+        let targetX = GameRules.clampPlayerX(
+            x: spawnX,
+            playMinX: playArea.minX,
+            playMaxX: playArea.maxX,
+            halfWidth: laneHalf
+        )
+
+        showRocketWarning(at: targetX)
+        run(.sequence([
+            .wait(forDuration: GameRules.rocketWarningDuration),
+            .run { [weak self] in
+                guard let self, self.currentState == .playing, !self.bossActive else { return }
+                self.spawnFallingRocket(at: targetX)
+            }
+        ]), withKey: "rocketSequence")
+    }
+
+    private func showRocketWarning(at columnX: CGFloat) {
+        let warning = SKLabelNode(fontNamed: GameFont.resolved(size: 72))
+        warning.text = "!"
+        warning.fontSize = 72
+        warning.fontColor = SKColor(red: 1.0, green: 0.92, blue: 0.15, alpha: 1)
+        warning.verticalAlignmentMode = .center
+        warning.horizontalAlignmentMode = .center
+        warning.position = CGPoint(x: columnX, y: playArea.maxY - 72)
+        warning.zPosition = GameConstants.Z.overlay
+        warning.name = GameConstants.NodeName.rocketWarning
+        warning.alpha = 0
+        addChild(warning)
+
+        let flash = GameRules.rocketWarningFlashInterval
+        warning.run(.sequence([
+            .fadeAlpha(to: 1.0, duration: flash),
+            .repeat(.sequence([
+                .fadeAlpha(to: 0.15, duration: flash),
+                .fadeAlpha(to: 1.0, duration: flash)
+            ]), count: Int(GameRules.rocketWarningDuration / (flash * 2))),
+            .fadeOut(withDuration: flash * 0.5),
+            .removeFromParent()
+        ]))
+
+        HapticManager.fire()
+    }
+
+    private func spawnFallingRocket(at columnX: CGFloat) {
+        let rocket = rocketPool.checkout()
+        rocket.texture = TextureCache.texture(GameConstants.rocketImage)
+        rocket.setScale(GameRules.rocketScale)
+        rocket.name = GameConstants.NodeName.rocket
+        rocket.position = CGPoint(x: columnX, y: playArea.maxY + 100)
+        rocket.zPosition = GameConstants.Z.enemyProjectile
+        rocket.zRotation = .pi * 0.5
+        rocket.color = SKColor(red: 1, green: 0.35, blue: 0.18, alpha: 1)
+        rocket.colorBlendFactor = 0.65
+        let radius = min(rocket.size.width, rocket.size.height) * rocket.xScale * GameRules.rocketHitboxFactor
+        rocket.hitRadius = radius
+        rocket.attachCirclePhysics(
+            radius: radius,
+            category: GameConstants.PhysicsCategory.enemyProjectile,
+            contact: GameConstants.PhysicsCategory.player
+        )
+        addChild(rocket)
+        liveRockets.append(rocket)
+
+        let end = CGPoint(x: columnX, y: playArea.minY - 80)
+        let distance = hypot(end.x - rocket.position.x, end.y - rocket.position.y)
+        let duration = TimeInterval(distance / GameRules.rocketSpeed)
+
+        rocket.run(.sequence([
+            .move(to: end, duration: duration),
+            .run { [weak self, weak rocket] in
+                guard let self, let rocket else { return }
+                self.recycleRocket(rocket)
+            }
+        ]))
+    }
+
+    private func recycleRocket(_ node: PooledSprite) {
+        untrack(node, from: &liveRockets)
+        rocketPool.recycle(node)
+    }
+
+    private func clearRockets() {
+        removeAction(forKey: "rocketSequence")
+        let rockets = liveRockets
+        for rocket in rockets {
+            rocket.removeAllActions()
+            recycleRocket(rocket)
+        }
+        enumerateChildNodes(withName: "//\(GameConstants.NodeName.rocketWarning)") { node, _ in
+            node.removeAllActions()
+            node.removeFromParent()
+        }
     }
 
     private func restartFiring() {
@@ -461,7 +596,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         engineEmitter?.particleBirthRate = 0
 
         removeAllActions()
-        for sprite in liveBullets + liveEnemies + livePickups + liveFireballs {
+        for sprite in liveBullets + liveEnemies + livePickups + liveFireballs + liveRockets {
             sprite.removeAllActions()
         }
         bossNode?.removeAllActions()
@@ -512,10 +647,11 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         removeAction(forKey: "spawningEnemies")
         removeAction(forKey: "spawningPowerUp")
         removeAction(forKey: "spawningHealth")
+        removeAction(forKey: "spawningRockets")
         removeAction(forKey: "fireBullets")
         player.isPaused = true
         engineEmitter?.isPaused = true
-        for node in liveBullets + liveEnemies + livePickups + liveFireballs {
+        for node in liveBullets + liveEnemies + livePickups + liveFireballs + liveRockets {
             node.isPaused = true
         }
         bossNode?.isPaused = true
@@ -526,7 +662,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         gameplayFrozen = false
         player.isPaused = false
         engineEmitter?.isPaused = false
-        for node in liveBullets + liveEnemies + livePickups + liveFireballs {
+        for node in liveBullets + liveEnemies + livePickups + liveFireballs + liveRockets {
             node.isPaused = false
         }
         bossNode?.isPaused = false
@@ -535,6 +671,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             scheduleNextObstacle()
             schedulePowerUps()
             scheduleHealthPickups()
+            scheduleNextRocket()
         }
         restartFiring()
     }
@@ -779,7 +916,9 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
         removeAction(forKey: "spawningEnemies")
         removeAction(forKey: "spawningPowerUp")
+        removeAction(forKey: "spawningRockets")
         clearRegularObstacles()
+        clearRockets()
         bossActive = true
         bossVulnerable = false
         bossSpawnedAt = runElapsed
@@ -927,6 +1066,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         updateHUD()
         scheduleNextObstacle()
         schedulePowerUps()
+        scheduleNextRocket()
         refreshParticleRates()
     }
 
@@ -1148,7 +1288,11 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
                 spawnExplosion(at: position, image: "mini_explosion", scale: 0.85)
             }
             if let fireball = fireballNode as? PooledSprite {
-                recycleFireball(fireball)
+                if fireball.name == GameConstants.NodeName.rocket {
+                    recycleRocket(fireball)
+                } else {
+                    recycleFireball(fireball)
+                }
             } else {
                 fireballNode?.removeFromParent()
             }

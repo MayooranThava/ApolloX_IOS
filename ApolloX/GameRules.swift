@@ -59,6 +59,17 @@ enum GameRules {
     static let fireballSpeed: CGFloat = 520
     static let fireballScale: CGFloat = 0.72
 
+    /// Small falling rockets (~⅓ player size) that drop on the spawn column after a warning flash.
+    static let rocketScale: CGFloat = playerScale / 3.0
+    static let rocketSpeed: CGFloat = 820
+    static let rocketHitboxFactor: CGFloat = 0.32
+    /// Seconds the "!" warning flashes at the top before the rocket drops.
+    static let rocketWarningDuration: TimeInterval = 1.15
+    static let rocketWarningFlashInterval: TimeInterval = 0.07
+    static let rocketFirstSpawnDelay: TimeInterval = 18.0
+    static let rocketSpawnMinInterval: TimeInterval = 9.0
+    static let rocketSpawnMaxInterval: TimeInterval = 15.0
+
     /// Legacy alias — first boss HP.
     static let bossMaxHP = 15
     static let bossPoints = 25
@@ -371,5 +382,19 @@ enum GameRules {
 
     static func clampPlayerX(x: CGFloat, playMinX: CGFloat, playMaxX: CGFloat, halfWidth: CGFloat) -> CGFloat {
         min(max(x, playMinX + halfWidth), playMaxX - halfWidth)
+    }
+
+    // MARK: - Falling rockets
+
+    static func shouldSpawnRockets(elapsed: TimeInterval, bossActive: Bool) -> Bool {
+        !bossActive && elapsed >= rocketFirstSpawnDelay
+    }
+
+    /// Seconds until the next falling-rocket attempt; tightens slightly as tiers advance.
+    static func rocketSpawnInterval(elapsed: TimeInterval) -> TimeInterval {
+        let tier = spawnTier(elapsed: elapsed)
+        let reduction = min(4.0, Double(tier) * 0.6)
+        let maxGap = max(rocketSpawnMinInterval + 2.0, rocketSpawnMaxInterval - reduction)
+        return Double.random(in: rocketSpawnMinInterval...(maxGap))
     }
 }

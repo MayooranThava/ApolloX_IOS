@@ -100,6 +100,8 @@ def main() -> int:
 
     # Boost feedback
     check("showBoostBanner" in SCENE and "BOOST!" in SCENE, "boost banner feedback missing")
+    check("scheduleNextRocket" in SCENE and "showRocketWarning" in SCENE, "falling rocket warning system missing")
+    check("rocketScale" in RULES and "rocketWarningDuration" in RULES, "rocket tuning constants missing")
 
     # Asteroid full-body hits + health pickup
     check(swift_number(RULES, "asteroidHitboxFactor") >= 0.95, "asteroid hitbox should cover the full sprite")

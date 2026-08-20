@@ -386,4 +386,23 @@ final class GameRulesTests: XCTestCase {
             XCTAssertGreaterThanOrEqual(hits, 0)
         }
     }
+
+    func testRocketScaleIsOneThirdOfPlayer() {
+        XCTAssertEqual(GameRules.rocketScale, GameRules.playerScale / 3.0, accuracy: 0.001)
+    }
+
+    func testRocketsWaitUntilAfterOpeningGrace() {
+        XCTAssertFalse(GameRules.shouldSpawnRockets(elapsed: 0, bossActive: false))
+        XCTAssertFalse(GameRules.shouldSpawnRockets(elapsed: 17.9, bossActive: false))
+        XCTAssertTrue(GameRules.shouldSpawnRockets(elapsed: 18.0, bossActive: false))
+        XCTAssertFalse(GameRules.shouldSpawnRockets(elapsed: 30, bossActive: true))
+    }
+
+    func testRocketSpawnIntervalWithinBounds() {
+        for _ in 0..<20 {
+            let interval = GameRules.rocketSpawnInterval(elapsed: 45)
+            XCTAssertGreaterThanOrEqual(interval, GameRules.rocketSpawnMinInterval)
+            XCTAssertLessThanOrEqual(interval, GameRules.rocketSpawnMaxInterval)
+        }
+    }
 }
