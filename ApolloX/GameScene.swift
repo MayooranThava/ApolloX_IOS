@@ -41,14 +41,24 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private var bossSpawnedAt: TimeInterval = 0
     private var nextBossSpawnAt: TimeInterval = GameRules.firstBossSpawnTime()
     private var bossNode: PooledSprite?
+    private var activeBossProfile: GameRules.BossProfile?
+    private var bossVolleyIndex = 0
     private var backgroundTier = -1
     private var scrollingBackground: ScrollingBackgroundNode?
     /// Cached so swept tests do not rebuild `PlayfieldLayout` every pair.
     private var visibleMaxY: CGFloat = 0
     /// Touch X target applied once per frame in `update(_:)` for smoother steering.
     private var steeringTouchX: CGFloat?
-    /// Horizontal lane where the player starts; falling rockets aim here.
-    private var playerSpawnX: CGFloat?
+
+    private struct PlayerXSample {
+        let time: TimeInterval
+        let x: CGFloat
+    }
+
+    /// Rolling history so rockets can target where the player was ~2s ago.
+    private var playerXHistory: [PlayerXSample] = []
+    private var rocketSequenceCounter = 0
+    private var pendingRocketAudio = false
 
     private var pauseOverlay: SKNode?
     private var resumeButton: MenuButtonNode?
@@ -72,10 +82,10 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private lazy var pickupPool = NodePool(prewarm: 2, maxIdle: 6) {
         PooledSprite(texture: TextureCache.texture(GameConstants.starImage))
     }
-    private lazy var fireballPool = NodePool(prewarm: 6, maxIdle: 10) {
+    private lazy var fireballPool = NodePool(prewarm: 10, maxIdle: 18) {
         PooledSprite(texture: TextureCache.texture(GameConstants.fireballImage))
     }
-    private lazy var rocketPool = NodePool(prewarm: 4, maxIdle: 8) {
+    private lazy var rocketPool = NodePool(prewarm: 6, maxIdle: 12) {
         PooledSprite(texture: TextureCache.texture(GameConstants.rocketImage))
     }
 
@@ -147,6 +157,50 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
         updateBossVulnerability()
         applyPlayerSteering()
+        recordPlayerXHistory()
+    }
+
+    private func recordPlayerXHistory() {
+        guard currentState == .playing, player.parent != nil else { return }
+        let sample = PlayerXSample(time: runElapsed, x: player.position.x)
+        playerXHistory.append(sample)
+        let cutoff = runElapsed - (GameRules.rocketTargetLookback + 1.0)
+        while let first = playerXHistory.first, first.time < cutoff {
+            playerXHistory.removeFirst()
+        }
+    }
+
+    private func playerX(atLookback lookback: TimeInterval) -> CGFloat {
+        let targetTime = runElapsed - lookback
+        guard !playerXHistory.isEmpty else { return player.position.x }
+
+        if targetTime <= playerXHistory[0].time {
+            return playerXHistory[0].x
+        }
+        if let last = playerXHistory.last, targetTime >= last.time {
+            return last.x
+        }
+
+        for index in 1..<playerXHistory.count {
+            let previous = playerXHistory[index - 1]
+            let next = playerXHistory[index]
+            guard previous.time <= targetTime, next.time >= targetTime else { continue }
+            let span = next.time - previous.time
+            guard span > 0.0001 else { return previous.x }
+            let blend = (targetTime - previous.time) / span
+            return previous.x + CGFloat(blend) * (next.x - previous.x)
+        }
+        return player.position.x
+    }
+
+    private func clampedRocketLaneX(_ x: CGFloat) -> CGFloat {
+        let laneHalf = player.size.width * player.xScale * 0.45
+        return GameRules.clampPlayerX(
+            x: x,
+            playMinX: playArea.minX,
+            playMaxX: playArea.maxX,
+            halfWidth: laneHalf
+        )
     }
 
     private func applyPlayerSteering() {
@@ -204,9 +258,6 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
                 halfWidth: player.size.width * player.xScale * 0.45
             )
             player.position.y = playArea.minY + player.size.height * player.yScale * 0.42 + 16
-            if playerSpawnX == nil {
-                playerSpawnX = player.position.x
-            }
         }
 
         if let overlay = pauseOverlay {
@@ -409,32 +460,48 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
                     self.scheduleNextRocket()
                     return
                 }
-                self.beginRocketSequence()
+                self.beginRocketWave()
                 self.scheduleNextRocket()
             }
         ]), withKey: "spawningRockets")
     }
 
-    private func beginRocketSequence() {
-        guard currentState == .playing, !bossActive, let spawnX = playerSpawnX else { return }
-        guard liveRockets.count < 3 else { return }
+    private func beginRocketWave() {
+        guard currentState == .playing, !bossActive else { return }
+        let waveSize = GameRules.rocketsPerWave(elapsed: runElapsed)
+        let headroom = GameRules.maxConcurrentRockets - liveRockets.count
+        guard headroom > 0 else { return }
+        let count = min(waveSize, headroom)
 
-        let laneHalf = player.size.width * player.xScale * 0.45
-        let targetX = GameRules.clampPlayerX(
-            x: spawnX,
-            playMinX: playArea.minX,
-            playMaxX: playArea.maxX,
-            halfWidth: laneHalf
-        )
+        for index in 0..<count {
+            let delay = Double(index) * GameRules.rocketWaveStagger
+            run(.sequence([
+                .wait(forDuration: delay),
+                .run { [weak self] in
+                    guard let self, self.currentState == .playing, !self.bossActive else { return }
+                    guard self.liveRockets.count < GameRules.maxConcurrentRockets else { return }
+                    self.beginRocketSequence()
+                }
+            ]))
+        }
+    }
+
+    private func beginRocketSequence() {
+        guard currentState == .playing, !bossActive else { return }
+        guard liveRockets.count < GameRules.maxConcurrentRockets else { return }
+
+        let targetX = clampedRocketLaneX(playerX(atLookback: GameRules.rocketTargetLookback))
 
         showRocketWarning(at: targetX)
+        rocketSequenceCounter += 1
+        let sequenceKey = "rocketSequence-\(rocketSequenceCounter)"
         run(.sequence([
             .wait(forDuration: GameRules.rocketWarningDuration),
             .run { [weak self] in
-                guard let self, self.currentState == .playing, !self.bossActive else { return }
+                guard let self, self.currentState == .playing else { return }
                 self.spawnFallingRocket(at: targetX)
             }
-        ]), withKey: "rocketSequence")
+        ]), withKey: sequenceKey)
     }
 
     private func showRocketWarning(at columnX: CGFloat) {
@@ -444,7 +511,14 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             duration: GameRules.rocketWarningDuration,
             interval: GameRules.rocketWarningFlashInterval
         )
-        AudioManager.play(.rocketWarning)
+        if !pendingRocketAudio {
+            pendingRocketAudio = true
+            AudioManager.play(.rocketWarning)
+            run(.sequence([
+                .wait(forDuration: 0.12),
+                .run { [weak self] in self?.pendingRocketAudio = false }
+            ]))
+        }
         HapticManager.fire()
     }
 
@@ -486,7 +560,6 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     private func clearRockets() {
-        removeAction(forKey: "rocketSequence")
         let rockets = liveRockets
         for rocket in rockets {
             rocket.removeAllActions()
@@ -901,8 +974,6 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         removeAction(forKey: "spawningEnemies")
         removeAction(forKey: "spawningPowerUp")
         removeAction(forKey: "spawningRockets")
-        clearRegularObstacles()
-        clearRockets()
         bossActive = true
         bossVulnerable = false
         bossSpawnedAt = runElapsed
@@ -937,6 +1008,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         addChild(node)
         liveEnemies.append(node)
         bossNode = node
+        activeBossProfile = profile
+        bossVolleyIndex = 0
 
         bossHealthBar.show(maxHP: profile.maxHP, title: profile.name)
         hud.setStatus("Boss \(bossesSpawnedCount)/\(GameRules.maxBossCount)")
@@ -975,35 +1048,186 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     private func fireBossVolley() {
-        guard bossActive, bossVulnerable, let boss = bossNode, boss.parent != nil, currentState == .playing else { return }
-        guard liveFireballs.count < 8 else { return }
+        guard bossActive, bossVulnerable, let boss = bossNode, boss.parent != nil,
+              let profile = activeBossProfile, currentState == .playing else { return }
+        guard liveFireballs.count < 14 else { return }
 
-        let shots = Bool.random() ? 1 : 2
-        for i in 0..<shots {
-            let spread = CGFloat(i) * 44 - CGFloat(shots - 1) * 22
-            fireBossFireball(from: boss.position, targetX: player.position.x + spread)
+        let origin = boss.position
+        switch profile.attackPattern {
+        case .nebulaCyclops:
+            fireNebulaVolley(from: origin)
+        case .crimsonClawfiend:
+            fireClawVolley(from: origin)
+        case .acidHydra:
+            fireAcidHydraVolley(from: origin)
+        case .frostMaw:
+            fireFrostVolley(from: origin)
+        case .magmaBehemoth:
+            fireMagmaVolley(from: origin)
+        case .voidEmperor:
+            fireVoidVolley(from: origin)
         }
     }
 
-    private func fireBossFireball(from origin: CGPoint, targetX: CGFloat) {
-        let fireball = fireballPool.checkout()
-        fireball.texture = TextureCache.texture(GameConstants.fireballImage)
-        fireball.setScale(GameRules.fireballScale)
-        fireball.name = GameConstants.NodeName.fireball
-        fireball.position = CGPoint(x: origin.x, y: origin.y - 60)
-        fireball.zPosition = GameConstants.Z.enemyProjectile
-        fireball.zRotation = .pi * 0.5
-        fireball.color = SKColor(red: 1, green: 0.55, blue: 0.12, alpha: 1)
-        fireball.colorBlendFactor = 0.55
-        let radius = fireball.size.width * fireball.xScale * 0.34
-        fireball.hitRadius = radius
-        fireball.attachCirclePhysics(
+    // MARK: - Boss attack patterns
+
+    private func fireNebulaVolley(from origin: CGPoint) {
+        spawnBossProjectile(
+            textureName: BossAttackTextures.cosmicBolt,
+            scale: 0.95,
+            speed: 460,
+            hitboxFactor: 0.38,
+            from: origin,
+            targetX: player.position.x,
+            wobble: true
+        )
+    }
+
+    private func fireClawVolley(from origin: CGPoint) {
+        let spreads: [CGFloat] = [-95, 0, 95]
+        for spread in spreads {
+            spawnBossProjectile(
+                textureName: BossAttackTextures.clawShard,
+                scale: 0.82,
+                speed: 680,
+                hitboxFactor: 0.32,
+                from: origin,
+                targetX: player.position.x + spread
+            )
+        }
+    }
+
+    private func fireAcidHydraVolley(from origin: CGPoint) {
+        let mode = bossVolleyIndex % 3
+        bossVolleyIndex += 1
+
+        switch mode {
+        case 0:
+            for spread in [-70, 0, 70] {
+                spawnBossProjectile(
+                    textureName: BossAttackTextures.acidBall,
+                    scale: 0.78,
+                    speed: 540,
+                    hitboxFactor: 0.36,
+                    from: origin,
+                    targetX: player.position.x + spread,
+                    wobble: true
+                )
+            }
+        case 1:
+            let baseX = player.position.x
+            for index in 0..<6 {
+                let dripDelay = Double(index) * 0.09
+                let spread = CGFloat.random(in: -55...55)
+                run(.sequence([
+                    .wait(forDuration: dripDelay),
+                    .run { [weak self] in
+                        guard let self, self.bossActive, self.bossVulnerable else { return }
+                        self.spawnBossProjectile(
+                            textureName: BossAttackTextures.acidDrip,
+                            scale: 0.62,
+                            speed: 720,
+                            hitboxFactor: 0.34,
+                            from: origin,
+                            targetX: baseX + spread
+                        )
+                    }
+                ]))
+            }
+        default:
+            spawnBossProjectile(
+                textureName: BossAttackTextures.acidSplat,
+                scale: 1.05,
+                speed: 380,
+                hitboxFactor: 0.42,
+                from: origin,
+                targetX: player.position.x,
+                wobble: true
+            )
+        }
+    }
+
+    private func fireFrostVolley(from origin: CGPoint) {
+        let spreads: [CGFloat] = [-120, -40, 40, 120]
+        for spread in spreads {
+            spawnBossProjectile(
+                textureName: BossAttackTextures.iceShard,
+                scale: 0.76,
+                speed: 430,
+                hitboxFactor: 0.30,
+                from: origin,
+                targetX: player.position.x + spread
+            )
+        }
+    }
+
+    private func fireMagmaVolley(from origin: CGPoint) {
+        let shots = Bool.random() ? 1 : 2
+        for index in 0..<shots {
+            let spread = CGFloat(index) * 80 - CGFloat(shots - 1) * 40
+            spawnBossProjectile(
+                textureName: BossAttackTextures.magmaBoulder,
+                scale: 1.08,
+                speed: 340,
+                hitboxFactor: 0.44,
+                from: origin,
+                targetX: player.position.x + spread,
+                wobble: true
+            )
+        }
+    }
+
+    private func fireVoidVolley(from origin: CGPoint) {
+        let spreads: [CGFloat] = [-110, 0, 110]
+        for spread in spreads {
+            spawnBossProjectile(
+                textureName: BossAttackTextures.voidOrb,
+                scale: 0.88,
+                speed: 500,
+                hitboxFactor: 0.36,
+                from: origin,
+                targetX: player.position.x + spread,
+                wobble: true
+            )
+        }
+    }
+
+    private func spawnBossProjectile(
+        textureName: String,
+        scale: CGFloat,
+        speed: CGFloat,
+        hitboxFactor: CGFloat,
+        from origin: CGPoint,
+        targetX: CGFloat,
+        wobble: Bool = false
+    ) {
+        guard currentState == .playing, liveFireballs.count < 14 else { return }
+
+        let projectile = fireballPool.checkout()
+        projectile.texture = TextureCache.texture(textureName)
+        projectile.setScale(scale)
+        projectile.name = GameConstants.NodeName.fireball
+        projectile.position = CGPoint(x: origin.x, y: origin.y - 60)
+        projectile.zPosition = GameConstants.Z.enemyProjectile
+        projectile.zRotation = 0
+        projectile.colorBlendFactor = 0
+        projectile.alpha = 1
+        let radius = min(projectile.size.width, projectile.size.height) * projectile.xScale * hitboxFactor
+        projectile.hitRadius = radius
+        projectile.attachCirclePhysics(
             radius: radius,
             category: GameConstants.PhysicsCategory.enemyProjectile,
             contact: GameConstants.PhysicsCategory.player
         )
-        addChild(fireball)
-        liveFireballs.append(fireball)
+        addChild(projectile)
+        liveFireballs.append(projectile)
+
+        if wobble {
+            projectile.run(.repeatForever(.sequence([
+                .scale(to: scale * 1.07, duration: 0.18),
+                .scale(to: scale, duration: 0.18)
+            ])))
+        }
 
         let clampedTargetX = GameRules.clampPlayerX(
             x: targetX,
@@ -1012,19 +1236,20 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             halfWidth: radius
         )
         let end = CGPoint(x: clampedTargetX, y: playArea.minY - 80)
-        let distance = hypot(end.x - fireball.position.x, end.y - fireball.position.y)
-        let duration = TimeInterval(distance / GameRules.fireballSpeed)
+        let distance = hypot(end.x - projectile.position.x, end.y - projectile.position.y)
+        let duration = TimeInterval(distance / speed)
 
-        fireball.run(.sequence([
+        projectile.run(.sequence([
             .move(to: end, duration: duration),
-            .run { [weak self, weak fireball] in
-                guard let self, let fireball else { return }
-                self.recycleFireball(fireball)
+            .run { [weak self, weak projectile] in
+                guard let self, let projectile else { return }
+                self.recycleFireball(projectile)
             }
         ]))
     }
 
     private func recycleFireball(_ node: PooledSprite) {
+        node.removeAllActions()
         untrack(node, from: &liveFireballs)
         fireballPool.recycle(node)
     }
@@ -1041,6 +1266,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         bossActive = false
         bossVulnerable = false
         bossNode = nil
+        activeBossProfile = nil
+        bossVolleyIndex = 0
         bossHealthBar.hideBar()
         clearFireballs()
         nextBossSpawnAt = GameRules.nextBossSpawnTime(afterDefeatAt: runElapsed)

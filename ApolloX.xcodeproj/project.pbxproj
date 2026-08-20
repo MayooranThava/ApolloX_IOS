@@ -39,6 +39,7 @@
 		C1B1001D208A000100BD3501 /* uiTap.wav in Resources */ = {isa = PBXBuildFile; fileRef = C1B1001C208A000100BD3501 /* uiTap.wav */; };
 		C1B60001208A000100BD3501 /* GameplayTextures.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B60000208A000100BD3501 /* GameplayTextures.swift */; };
 		C1B60003208A000100BD3501 /* rocketWarning.wav in Resources */ = {isa = PBXBuildFile; fileRef = C1B60002208A000100BD3501 /* rocketWarning.wav */; };
+		C1B60005208A000100BD3501 /* BossAttackTextures.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B60004208A000100BD3501 /* BossAttackTextures.swift */; };
 		C1B20001208A000100BD3501 /* GameRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B20000208A000100BD3501 /* GameRules.swift */; };
 		C1B20011208A000100BD3501 /* GameRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B20010208A000100BD3501 /* GameRulesTests.swift */; };
 		C1B40011208A000100BD3501 /* ScoreStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B40010208A000100BD3501 /* ScoreStoreTests.swift */; };
@@ -82,6 +83,7 @@
 		C1B1001C208A000100BD3501 /* uiTap.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = uiTap.wav; sourceTree = "<group>"; };
 		C1B60000208A000100BD3501 /* GameplayTextures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameplayTextures.swift; sourceTree = "<group>"; };
 		C1B60002208A000100BD3501 /* rocketWarning.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = rocketWarning.wav; sourceTree = "<group>"; };
+		C1B60004208A000100BD3501 /* BossAttackTextures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BossAttackTextures.swift; sourceTree = "<group>"; };
 		C1B20000208A000100BD3501 /* GameRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameRules.swift; sourceTree = "<group>"; };
 		C1B20010208A000100BD3501 /* GameRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameRulesTests.swift; sourceTree = "<group>"; };
 		C1B40010208A000100BD3501 /* ScoreStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScoreStoreTests.swift; sourceTree = "<group>"; };
@@ -199,6 +201,7 @@
 				C1B1000A208A000100BD3501 /* PlayfieldLayout.swift */,
 				C1B1000C208A000100BD3501 /* TextureCache.swift */,
 				C1B60000208A000100BD3501 /* GameplayTextures.swift */,
+				C1B60004208A000100BD3501 /* BossAttackTextures.swift */,
 				C1B1000E208A000100BD3501 /* NodePool.swift */,
 				C1B10010208A000100BD3501 /* UIComponents.swift */,
 				C18A0A7128B4334100B2965A /* GameScene.swift */,
@@ -365,6 +368,7 @@
 				C1B1000B208A000100BD3501 /* PlayfieldLayout.swift in Sources */,
 				C1B1000D208A000100BD3501 /* TextureCache.swift in Sources */,
 				C1B60001208A000100BD3501 /* GameplayTextures.swift in Sources */,
+				C1B60005208A000100BD3501 /* BossAttackTextures.swift in Sources */,
 				C1B1000F208A000100BD3501 /* NodePool.swift in Sources */,
 				C1B10011208A000100BD3501 /* UIComponents.swift in Sources */,
 				C1B10013208A000100BD3501 /* AudioManager.swift in Sources */,
