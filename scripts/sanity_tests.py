@@ -63,7 +63,7 @@ def main() -> int:
     check(swift_number(RULES, "openingSpawnInterval") > 1.7, "opening spawn should be slower than tier 0")
     check("isInOpeningGrace" in SCENE, "GameScene should honor opening grace")
     check("spawnBoss" in SCENE and "BossHealthBarNode" in HUD, "boss fight plumbing missing")
-    check("bossSpawnTime" in RULES or "bossSpawnTime" in CONSTANTS, "boss spawn time constant missing")
+    check("firstBossSpawnTime" in RULES or "bossSpawnInterval" in RULES, "boss spawn time constant missing")
 
     # Simulate grace obstacle picker (mirrors GameRules.obstacleKind)
     def obstacle_kind(elapsed: float, roll: int) -> str:
