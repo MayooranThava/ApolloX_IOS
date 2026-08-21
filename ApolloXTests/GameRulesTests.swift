@@ -109,12 +109,17 @@ final class GameRulesTests: XCTestCase {
         XCTAssertEqual(GameRules.starPickupSpawnInterval(elapsed: 0), GameConstants.powerUpSpawnInterval)
         XCTAssertEqual(GameRules.starPickupSpawnInterval(elapsed: 60), GameConstants.powerUpSpawnInterval)
         var earlySpawns = 0
+        var midSpawns = 0
         var lateSpawns = 0
         for roll in 0..<100 {
             if GameRules.shouldSpawnStar(elapsed: 10, roll: roll) { earlySpawns += 1 }
-            if GameRules.shouldSpawnStar(elapsed: 120, roll: roll) { lateSpawns += 1 }
+            // tier 4 at 120s → threshold max(55, 85 - 20) = 65
+            if GameRules.shouldSpawnStar(elapsed: 120, roll: roll) { midSpawns += 1 }
+            // tier 6 at 180s → threshold floors at 55
+            if GameRules.shouldSpawnStar(elapsed: 180, roll: roll) { lateSpawns += 1 }
         }
         XCTAssertEqual(earlySpawns, 85)
+        XCTAssertEqual(midSpawns, 65)
         XCTAssertEqual(lateSpawns, 55)
     }
 
