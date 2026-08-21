@@ -79,6 +79,7 @@ enum ShapeTexture {
 final class HUDBarNode: SKNode {
     private let panel = SKSpriteNode()
     private let scoreLabel = SKLabelNode()
+    private let highScoreLabel = SKLabelNode()
     private let livesLabel = SKLabelNode()
     private let statusLabel = SKLabelNode()
     private let pauseButton = SKSpriteNode()
@@ -95,9 +96,11 @@ final class HUDBarNode: SKNode {
         addChild(panel)
 
         style(scoreLabel, alignment: .left, color: .white)
+        style(highScoreLabel, alignment: .left, color: SKColor(white: 1, alpha: 0.38))
         style(livesLabel, alignment: .right, color: .white)
         style(statusLabel, alignment: .center, color: GameTheme.accent)
         addChild(scoreLabel)
+        addChild(highScoreLabel)
         addChild(livesLabel)
         addChild(statusLabel)
 
@@ -135,12 +138,16 @@ final class HUDBarNode: SKNode {
 
         let sidePad: CGFloat = 40
         scoreLabel.fontSize = 36
+        highScoreLabel.fontSize = 22
         livesLabel.fontSize = 36
         statusLabel.fontSize = 26
 
-        scoreLabel.position = CGPoint(x: -width * 0.5 + sidePad, y: 14)
+        // Top-left: current score bright, best score dimmed underneath so the player
+        // always sees the number they need to beat.
+        scoreLabel.position = CGPoint(x: -width * 0.5 + sidePad, y: 22)
+        highScoreLabel.position = CGPoint(x: -width * 0.5 + sidePad, y: -6)
         livesLabel.position = CGPoint(x: width * 0.5 - sidePad - 70, y: 14)
-        statusLabel.position = CGPoint(x: 0, y: -28)
+        statusLabel.position = CGPoint(x: 0, y: -34)
 
         let pauseSize: CGFloat = 56
         pauseButton.size = CGSize(width: pauseSize, height: pauseSize)
@@ -166,6 +173,10 @@ final class HUDBarNode: SKNode {
 
     func setScore(_ value: Int) {
         scoreLabel.text = "SCORE  \(value)"
+    }
+
+    func setHighScore(_ value: Int) {
+        highScoreLabel.text = "BEST  \(value)"
     }
 
     func setLives(_ value: Int) {

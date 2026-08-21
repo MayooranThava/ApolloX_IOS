@@ -121,6 +121,12 @@ def main() -> int:
     check("clearRockets" not in boss_spawn_block, "boss spawn should not clear in-flight rockets")
     check("BossAttackPattern" in RULES and "fireAcidHydraVolley" in SCENE, "per-boss attack patterns expected")
     check("BossAttackTextures" in (ROOT / "ApolloX" / "BossAttackTextures.swift").read_text(), "boss projectile textures missing")
+    check("fireRingWithGap" in SCENE and "nebulaFlame" in (ROOT / "ApolloX" / "BossAttackTextures.swift").read_text(),
+          "Nebula ring-of-fire dodge attack expected")
+    check("fireDescendingWallWithGap" in SCENE, "boss wall-with-gap signature attacks expected")
+    check("setHighScore" in HUD and "BEST" in HUD, "in-game HUD should show dimmed high score")
+    check("hud.setHighScore" in SCENE, "GameScene should push high score into the HUD")
+    check("maxBossProjectiles" in RULES, "boss projectile soft-cap constant missing")
 
     # Asteroid full-body hits + health pickup
     check(swift_number(RULES, "asteroidHitboxFactor") >= 0.95, "asteroid hitbox should cover the full sprite")

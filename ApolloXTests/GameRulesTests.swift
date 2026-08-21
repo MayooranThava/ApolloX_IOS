@@ -100,7 +100,9 @@ final class GameRulesTests: XCTestCase {
     func testEachBossHasUniqueAttackPattern() {
         let patterns = GameRules.bossProfiles.map(\.attackPattern)
         XCTAssertEqual(Set(patterns).count, patterns.count)
+        XCTAssertEqual(GameRules.bossProfile(at: 0).attackPattern, .nebulaCyclops)
         XCTAssertEqual(GameRules.bossProfile(at: 2).attackPattern, .acidHydra)
+        XCTAssertGreaterThanOrEqual(GameRules.maxBossProjectiles, 16)
     }
 
     func testStarPickupUsesRegularCadence() {
