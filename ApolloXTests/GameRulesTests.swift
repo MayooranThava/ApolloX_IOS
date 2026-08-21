@@ -330,6 +330,9 @@ final class GameRulesTests: XCTestCase {
         XCTAssertEqual(FramePacing.effectsQuality(thermalState: .nominal, lowPowerMode: true), .conservative)
         XCTAssertGreaterThan(EffectsQuality.high.engineBirthRate, EffectsQuality.conservative.engineBirthRate)
         XCTAssertEqual(EffectsQuality.conservative.starDustBirthRate, 0)
+        XCTAssertEqual(EffectsQuality.balanced.engineBirthRate, 0)
+        XCTAssertGreaterThan(EffectsQuality.high.engineFlameLayers, EffectsQuality.conservative.engineFlameLayers)
+        XCTAssertGreaterThan(EffectsQuality.high.parallaxStarCount, EffectsQuality.conservative.parallaxStarCount)
     }
 
     func testScaledBirthRateHalvesAt120Hz() {

@@ -25,6 +25,9 @@ final class ScrollingBackgroundNode: SKNode {
     private var visibleSize = CGSize.zero
     private var plateHeight: CGFloat = 0
     private var currentTier = 0
+    private var cachedScrollSpeed: CGFloat = 24
+    private var cachedStarSpeed: CGFloat = 46
+    private var highestPlateY: CGFloat = 0
 
     override init() {
         super.init()
@@ -54,6 +57,7 @@ final class ScrollingBackgroundNode: SKNode {
             addChild(plate)
             plates.append(plate)
         }
+        highestPlateY = plates.map(\.position.y).max() ?? 0
 
         tintOverlay.texture = solidTexture()
         tintOverlay.size = CGSize(width: plateWidth, height: plateHeight * 2.05)
@@ -69,7 +73,7 @@ final class ScrollingBackgroundNode: SKNode {
         vignette.zPosition = 2
         addChild(vignette)
 
-        seedParallaxStars(count: 28)
+        seedParallaxStars(count: FramePacing.currentQuality.parallaxStarCount)
         applyTier(0, animated: false)
     }
 
@@ -81,16 +85,17 @@ final class ScrollingBackgroundNode: SKNode {
 
     func tick(deltaTime: TimeInterval) {
         guard deltaTime > 0, plateHeight > 0 else { return }
-        let palette = palette(for: currentTier)
-        let dy = palette.scrollSpeed * CGFloat(deltaTime)
+        let dy = cachedScrollSpeed * CGFloat(deltaTime)
 
         for plate in plates {
             plate.position.y -= dy
         }
         wrapPlates()
 
+        guard !parallaxStars.isEmpty else { return }
+        let starDy = cachedStarSpeed * CGFloat(deltaTime)
         for (index, star) in parallaxStars.enumerated() {
-            star.position.y -= palette.starSpeed * CGFloat(deltaTime)
+            star.position.y -= starDy
             if star.position.y < -plateHeight * 0.55 {
                 star.position.y += plateHeight * 1.1
                 star.position.x = pseudoRandomX(seed: index)
@@ -105,6 +110,16 @@ final class ScrollingBackgroundNode: SKNode {
         applyTier(currentTier, animated: animated)
     }
 
+    func applyEffectsQuality(_ quality: EffectsQuality) {
+        let desired = quality.parallaxStarCount
+        if parallaxStars.count == desired { return }
+        for star in parallaxStars {
+            star.removeFromParent()
+        }
+        parallaxStars.removeAll(keepingCapacity: true)
+        seedParallaxStars(count: desired)
+    }
+
     func dustPalette(for tier: Int) -> (color: SKColor, speed: CGFloat) {
         let palette = palette(for: max(0, tier))
         return (palette.dustColor, palette.dustSpeed)
@@ -114,8 +129,8 @@ final class ScrollingBackgroundNode: SKNode {
 
     private func wrapPlates() {
         for plate in plates where plate.position.y <= -plateHeight {
-            let highest = plates.map(\.position.y).max() ?? 0
-            plate.position.y = highest + plateHeight
+            plate.position.y = highestPlateY + plateHeight
+            highestPlateY = plate.position.y
         }
     }
 
@@ -145,6 +160,8 @@ final class ScrollingBackgroundNode: SKNode {
 
     private func applyTier(_ tier: Int, animated: Bool) {
         let palette = palette(for: tier)
+        cachedScrollSpeed = palette.scrollSpeed
+        cachedStarSpeed = palette.starSpeed
         tintOverlay.removeAction(forKey: "tierTint")
         vignette.removeAction(forKey: "tierVignette")
 

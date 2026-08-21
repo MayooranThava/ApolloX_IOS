@@ -119,6 +119,14 @@ def main() -> int:
     boss_spawn_block = SCENE[boss_start:boss_end]
     check("clearRegularObstacles" not in boss_spawn_block, "boss spawn should not clear on-screen obstacles")
     check("clearRockets" not in boss_spawn_block, "boss spawn should not clear in-flight rockets")
+    check("spawnShockwaveRing" in SCENE and "SKShapeNode(circleOfRadius" not in SCENE,
+          "clear-mine shockwaves should use sprite rings, not SKShapeNode")
+    check("cachedScrollSpeed" in (ROOT / "ApolloX" / "ScrollingBackgroundNode.swift").read_text(),
+          "background scroll should cache tier speeds")
+    check("engineFlameLayers" in (ROOT / "ApolloX" / "FramePacing.swift").read_text(),
+          "effects quality should scale engine flame layers")
+    check("firstIndex(where:" in SCENE and "removeFirst(" in SCENE,
+          "player X history should batch-trim instead of per-sample removeFirst")
     check("makeEngineFlameNode" in (ROOT / "ApolloX" / "SceneHelpers.swift").read_text(),
           "animated engine flame node missing")
     check("engineFlame" in SCENE, "GameScene should attach animated engine flames")

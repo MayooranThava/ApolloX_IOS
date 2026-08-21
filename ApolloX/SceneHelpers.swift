@@ -156,70 +156,82 @@ extension SKScene {
     func makeEngineFlameNode(tint: SKColor) -> SKNode {
         let root = SKNode()
         root.name = GameConstants.NodeName.engineFlame
+        let layers = FramePacing.currentQuality.engineFlameLayers
 
-        let outer = SKSpriteNode(texture: engineFlameTexture(kind: .outer))
-        outer.size = CGSize(width: 54, height: 78)
-        outer.anchorPoint = CGPoint(x: 0.5, y: 1.0)
-        outer.position = .zero
-        outer.zPosition = -1
-        outer.blendMode = .add
-        outer.color = tint
-        outer.colorBlendFactor = 0.35
-        root.addChild(outer)
+        if layers >= 3 {
+            let outer = SKSpriteNode(texture: engineFlameTexture(kind: .outer))
+            outer.name = "flameOuter"
+            outer.size = CGSize(width: 54, height: 78)
+            outer.anchorPoint = CGPoint(x: 0.5, y: 1.0)
+            outer.position = .zero
+            outer.zPosition = -1
+            outer.blendMode = .add
+            outer.color = tint
+            outer.colorBlendFactor = 0.35
+            root.addChild(outer)
+            startFlameFlicker(on: outer, scaleXRange: 0.88...1.14, scaleYRange: 0.78...1.28, alphaRange: 0.65...1.0, period: 0.06)
+        }
 
-        let mid = SKSpriteNode(texture: engineFlameTexture(kind: .mid))
-        mid.size = CGSize(width: 34, height: 62)
-        mid.anchorPoint = CGPoint(x: 0.5, y: 1.0)
-        mid.position = CGPoint(x: 0, y: -2)
-        mid.zPosition = 0
-        mid.blendMode = .add
-        mid.color = SKColor(red: 1.0, green: 0.78, blue: 0.28, alpha: 1)
-        mid.colorBlendFactor = 0.25
-        root.addChild(mid)
+        if layers >= 2 {
+            let mid = SKSpriteNode(texture: engineFlameTexture(kind: .mid))
+            mid.name = "flameMid"
+            mid.size = CGSize(width: 34, height: 62)
+            mid.anchorPoint = CGPoint(x: 0.5, y: 1.0)
+            mid.position = CGPoint(x: 0, y: -2)
+            mid.zPosition = 0
+            mid.blendMode = .add
+            mid.color = SKColor(red: 1.0, green: 0.78, blue: 0.28, alpha: 1)
+            mid.colorBlendFactor = 0.25
+            root.addChild(mid)
+            startFlameFlicker(on: mid, scaleXRange: 0.90...1.10, scaleYRange: 0.80...1.24, alphaRange: 0.75...1.0, period: 0.05)
+        }
 
         let core = SKSpriteNode(texture: engineFlameTexture(kind: .core))
+        core.name = "flameCore"
         core.size = CGSize(width: 18, height: 42)
         core.anchorPoint = CGPoint(x: 0.5, y: 1.0)
         core.position = CGPoint(x: 0, y: -1)
         core.zPosition = 1
         core.blendMode = .add
         root.addChild(core)
-
-        // Side thruster tips (reads as a 3-nozzle rocket when the sprite has them).
-        for side in [-1.0, 1.0] as [CGFloat] {
-            let tip = SKSpriteNode(texture: engineFlameTexture(kind: .mid))
-            tip.size = CGSize(width: 18, height: 40)
-            tip.anchorPoint = CGPoint(x: 0.5, y: 1.0)
-            tip.position = CGPoint(x: side * 18, y: 4)
-            tip.zPosition = -0.5
-            tip.blendMode = .add
-            tip.alpha = 0.85
-            tip.color = tint
-            tip.colorBlendFactor = 0.4
-            root.addChild(tip)
-            startFlameFlicker(
-                on: tip,
-                scaleXRange: 0.82...1.12,
-                scaleYRange: 0.72...1.22,
-                alphaRange: 0.55...0.95,
-                period: 0.07
-            )
-        }
-
-        startFlameFlicker(on: outer, scaleXRange: 0.88...1.14, scaleYRange: 0.78...1.28, alphaRange: 0.65...1.0, period: 0.06)
-        startFlameFlicker(on: mid, scaleXRange: 0.90...1.10, scaleYRange: 0.80...1.24, alphaRange: 0.75...1.0, period: 0.05)
         startFlameFlicker(on: core, scaleXRange: 0.92...1.08, scaleYRange: 0.85...1.20, alphaRange: 0.80...1.0, period: 0.04)
 
-        // Gentle left/right sway so the plume feels alive.
-        root.run(.repeatForever(.sequence([
-            .moveBy(x: 2.5, y: 0, duration: 0.11),
-            .moveBy(x: -4.5, y: 0, duration: 0.13),
-            .moveBy(x: 2.0, y: 0, duration: 0.10)
-        ])))
+        // Side thruster tips only on high quality (3-nozzle look).
+        if layers >= 5 {
+            for side in [-1.0, 1.0] as [CGFloat] {
+                let tip = SKSpriteNode(texture: engineFlameTexture(kind: .mid))
+                tip.name = "flameTip"
+                tip.size = CGSize(width: 18, height: 40)
+                tip.anchorPoint = CGPoint(x: 0.5, y: 1.0)
+                tip.position = CGPoint(x: side * 18, y: 4)
+                tip.zPosition = -0.5
+                tip.blendMode = .add
+                tip.alpha = 0.85
+                tip.color = tint
+                tip.colorBlendFactor = 0.4
+                root.addChild(tip)
+                startFlameFlicker(
+                    on: tip,
+                    scaleXRange: 0.82...1.12,
+                    scaleYRange: 0.72...1.22,
+                    alphaRange: 0.55...0.95,
+                    period: 0.07
+                )
+            }
+        }
+
+        if FramePacing.currentQuality != .conservative {
+            root.run(.repeatForever(.sequence([
+                .moveBy(x: 2.5, y: 0, duration: 0.11),
+                .moveBy(x: -4.5, y: 0, duration: 0.13),
+                .moveBy(x: 2.0, y: 0, duration: 0.10)
+            ])), withKey: "flameSway")
+        }
 
         return root
     }
 
+    /// One looping action graph — no per-beat allocation of nested scale/fade groups.
     private func startFlameFlicker(
         on node: SKNode,
         scaleXRange: ClosedRange<CGFloat>,
@@ -227,19 +239,22 @@ extension SKScene {
         alphaRange: ClosedRange<CGFloat>,
         period: TimeInterval
     ) {
-        // Re-roll targets every beat so the plume never loops the same three frames.
-        let beat = SKAction.sequence([
-            .run { [weak node] in
-                guard let node else { return }
-                node.run(.group([
-                    .scaleX(to: CGFloat.random(in: scaleXRange), duration: period),
-                    .scaleY(to: CGFloat.random(in: scaleYRange), duration: period),
-                    .fadeAlpha(to: CGFloat.random(in: alphaRange), duration: period)
-                ]))
-            },
-            .wait(forDuration: period)
+        let up = SKAction.group([
+            .scaleX(to: scaleXRange.upperBound, duration: period),
+            .scaleY(to: scaleYRange.upperBound, duration: period),
+            .fadeAlpha(to: alphaRange.upperBound, duration: period)
         ])
-        node.run(.repeatForever(beat), withKey: "flameFlicker")
+        let down = SKAction.group([
+            .scaleX(to: scaleXRange.lowerBound, duration: period * 1.12),
+            .scaleY(to: scaleYRange.lowerBound, duration: period * 0.88),
+            .fadeAlpha(to: alphaRange.lowerBound, duration: period * 1.05)
+        ])
+        let mid = SKAction.group([
+            .scaleX(to: (scaleXRange.lowerBound + scaleXRange.upperBound) * 0.5, duration: period * 0.9),
+            .scaleY(to: (scaleYRange.lowerBound + scaleYRange.upperBound) * 0.55, duration: period * 0.9),
+            .fadeAlpha(to: (alphaRange.lowerBound + alphaRange.upperBound) * 0.5, duration: period * 0.9)
+        ])
+        node.run(.repeatForever(.sequence([up, down, mid])), withKey: "flameFlicker")
     }
 
     private enum EngineFlameKind {

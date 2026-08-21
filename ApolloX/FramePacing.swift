@@ -19,19 +19,37 @@ enum EffectsQuality: Equatable {
     case conservative
 
     /// Particles/sec. Birth rate is time-based; per-frame sim cost still scales with FPS.
+    /// Engine particles are an additive trail on top of sprite flames — keep them light.
     var engineBirthRate: CGFloat {
         switch self {
-        case .high: return 48
-        case .balanced: return 32
-        case .conservative: return 14
+        case .high: return 22
+        case .balanced: return 0
+        case .conservative: return 0
         }
     }
 
     var starDustBirthRate: CGFloat {
         switch self {
-        case .high: return 8
-        case .balanced: return 4
+        case .high: return 6
+        case .balanced: return 3
         case .conservative: return 0
+        }
+    }
+
+    var parallaxStarCount: Int {
+        switch self {
+        case .high: return 18
+        case .balanced: return 10
+        case .conservative: return 0
+        }
+    }
+
+    /// How many flame tongue sprites to keep active (tips → mid → core).
+    var engineFlameLayers: Int {
+        switch self {
+        case .high: return 5
+        case .balanced: return 3
+        case .conservative: return 1
         }
     }
 }
