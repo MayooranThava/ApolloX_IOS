@@ -15,8 +15,11 @@ enum GameRules {
     static let starsNeededForUpgrade = 1
     static let poweredShotCount = 28
 
-    /// Was 0.42 — bumped so the face-rocket reads clearly on device.
-    static let playerScale: CGFloat = 0.72
+    /// ~10% under the prior 0.72 so the starter ship sits smaller on playfield.
+    static let playerScale: CGFloat = 0.65
+    /// Hull center above playfield bottom: keep thruster flames fully visible.
+    static let playerBottomHeightFactor: CGFloat = 0.38
+    static let playerBottomPadding: CGFloat = 8
     static let starScale: CGFloat = 0.58
     static let starPulseScale: CGFloat = 0.66
 
@@ -59,15 +62,21 @@ enum GameRules {
     static let fireballSpeed: CGFloat = 520
     static let fireballScale: CGFloat = 0.72
 
-    /// Falling rockets use a tall procedural sprite; scale targets ~55% of player height.
+    /// Falling cannons use a tall procedural sprite; scale targets ~55% of player height.
     static let rocketScale: CGFloat = 0.78
+    /// Base fall speed; scales up with score (see `rocketSpeed(forScore:)`).
     static let rocketSpeed: CGFloat = 780
+    /// +10% fall speed every this many points — readable ramp without time-tier coupling.
+    static let rocketSpeedScoreStep = 100
+    static let rocketSpeedStepMultiplier: CGFloat = 1.10
+    /// Cap so late-game cannons stay reactable (~2.5× ≈ score 1000+).
+    static let rocketSpeedMaxMultiplier: CGFloat = 2.5
     static let rocketHitboxFactor: CGFloat = 0.30
-    /// Jetpack Joyride-style: rockets aim where the player was this many seconds ago.
+    /// Jetpack Joyride-style: cannons aim where the player was this many seconds ago.
     static let rocketTargetLookback: TimeInterval = 2.0
     /// Width of the semi-transparent red danger column shown during the warning.
     static let rocketWarningStripeWidth: CGFloat = 88
-    /// Seconds the lane warning flashes before the rocket drops.
+    /// Seconds the lane warning flashes before the cannon drops.
     static let rocketWarningDuration: TimeInterval = 1.25
     static let rocketWarningFlashInterval: TimeInterval = 0.08
     static let rocketFirstSpawnDelay: TimeInterval = 18.0
@@ -442,10 +451,28 @@ enum GameRules {
         min(max(x, playMinX + halfWidth), playMaxX - halfWidth)
     }
 
-    // MARK: - Falling rockets
+    /// Player hull center Y — slightly above the playfield floor so flames stay on-screen.
+    static func playerBaselineY(playMinY: CGFloat, scaledHeight: CGFloat) -> CGFloat {
+        playMinY + scaledHeight * playerBottomHeightFactor + playerBottomPadding
+    }
+
+    // MARK: - Falling cannons
 
     static func shouldSpawnRockets(elapsed: TimeInterval, bossActive: Bool) -> Bool {
         !bossActive && elapsed >= rocketFirstSpawnDelay
+    }
+
+    /// Fall speed ramps +10% every 100 points, soft-capped for fairness.
+    static func rocketSpeed(forScore score: Int) -> CGFloat {
+        let steps = max(0, score / rocketSpeedScoreStep)
+        var multiplier: CGFloat = 1
+        if steps > 0 {
+            multiplier = min(
+                rocketSpeedMaxMultiplier,
+                pow(rocketSpeedStepMultiplier, CGFloat(steps))
+            )
+        }
+        return rocketSpeed * multiplier
     }
 
     /// Seconds until the next falling-rocket attempt; tightens slightly as tiers advance.

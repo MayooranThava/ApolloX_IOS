@@ -2,7 +2,7 @@
 //  GameplayTextures.swift
 //  ApolloX
 //
-//  Procedural sprites for falling rockets and their lane warnings.
+//  Procedural sprites for falling lane cannons and their warnings.
 //
 
 import SpriteKit
@@ -13,7 +13,7 @@ enum GameplayTextures {
     static let warningBadgeName = "rocketWarningBadge"
     static let yellowClearMineName = "yellowClearMine"
 
-    /// Tall blue rocket drawn nose-down (matches Jetpack Joyride-style missiles).
+    /// Tall gunmetal cannon drawn muzzle-down (lane hazard after the ! warning).
     static let fallingRocketPixelSize = CGSize(width: 96, height: 240)
     static let yellowClearMinePixelSize = CGSize(width: 128, height: 128)
 
@@ -37,76 +37,103 @@ enum GameplayTextures {
             let w = size.width
             let h = size.height
 
-            // Exhaust flame at the top (rocket falls downward; flame trails above).
-            let flameTop = UIBezierPath()
-            flameTop.move(to: CGPoint(x: w * 0.5, y: h * 0.02))
-            flameTop.addLine(to: CGPoint(x: w * 0.28, y: h * 0.22))
-            flameTop.addLine(to: CGPoint(x: w * 0.72, y: h * 0.22))
-            flameTop.close()
-            SKColor(red: 1.0, green: 0.78, blue: 0.12, alpha: 1).setFill()
-            flameTop.fill()
+            // Soft smoke puff at the breech (top) — particles add the live trail.
+            cg.saveGState()
+            cg.setFillColor(UIColor(white: 0.78, alpha: 0.35).cgColor)
+            cg.fillEllipse(in: CGRect(x: w * 0.22, y: h * 0.01, width: w * 0.56, height: h * 0.14))
+            cg.setFillColor(UIColor(white: 0.88, alpha: 0.28).cgColor)
+            cg.fillEllipse(in: CGRect(x: w * 0.30, y: h * 0.00, width: w * 0.28, height: h * 0.09))
+            cg.restoreGState()
 
-            let flameInner = UIBezierPath()
-            flameInner.move(to: CGPoint(x: w * 0.5, y: h * 0.06))
-            flameInner.addLine(to: CGPoint(x: w * 0.36, y: h * 0.19))
-            flameInner.addLine(to: CGPoint(x: w * 0.64, y: h * 0.19))
-            flameInner.close()
-            SKColor(red: 1.0, green: 0.42, blue: 0.08, alpha: 1).setFill()
-            flameInner.fill()
+            // Breech block (rear of cannon).
+            let breech = UIBezierPath(
+                roundedRect: CGRect(x: w * 0.22, y: h * 0.12, width: w * 0.56, height: h * 0.16),
+                cornerRadius: w * 0.06
+            )
+            SKColor(red: 0.22, green: 0.24, blue: 0.28, alpha: 1).setFill()
+            breech.fill()
+            SKColor(white: 0.08, alpha: 0.7).setStroke()
+            breech.lineWidth = 2.5
+            breech.stroke()
 
-            // Grey body.
-            let bodyRect = CGRect(x: w * 0.28, y: h * 0.20, width: w * 0.44, height: h * 0.52)
-            let body = UIBezierPath(roundedRect: bodyRect, cornerRadius: w * 0.06)
-            SKColor(red: 0.62, green: 0.66, blue: 0.72, alpha: 1).setFill()
-            body.fill()
-            SKColor(white: 0.18, alpha: 0.55).setStroke()
-            body.lineWidth = 2.5
-            body.stroke()
+            // Main barrel tube.
+            let barrel = UIBezierPath(
+                roundedRect: CGRect(x: w * 0.32, y: h * 0.24, width: w * 0.36, height: h * 0.52),
+                cornerRadius: w * 0.04
+            )
+            SKColor(red: 0.38, green: 0.40, blue: 0.44, alpha: 1).setFill()
+            barrel.fill()
 
-            // Side fins.
-            func fin(left: Bool) {
-                let path = UIBezierPath()
-                let cx = left ? w * 0.28 : w * 0.72
-                path.move(to: CGPoint(x: cx, y: h * 0.58))
-                path.addLine(to: CGPoint(x: left ? w * 0.08 : w * 0.92, y: h * 0.66))
-                path.addLine(to: CGPoint(x: cx, y: h * 0.72))
-                path.close()
-                SKColor(red: 0.18, green: 0.52, blue: 0.95, alpha: 1).setFill()
-                path.fill()
+            // Barrel highlight strip.
+            let highlight = UIBezierPath(
+                roundedRect: CGRect(x: w * 0.36, y: h * 0.28, width: w * 0.08, height: h * 0.42),
+                cornerRadius: 3
+            )
+            SKColor(white: 1, alpha: 0.18).setFill()
+            highlight.fill()
+
+            // Reinforcing rings.
+            SKColor(red: 0.18, green: 0.19, blue: 0.22, alpha: 1).setFill()
+            for frac in [0.30, 0.46, 0.62] as [CGFloat] {
+                let ring = UIBezierPath(
+                    roundedRect: CGRect(x: w * 0.28, y: h * frac, width: w * 0.44, height: h * 0.045),
+                    cornerRadius: 3
+                )
+                ring.fill()
             }
-            fin(left: true)
-            fin(left: false)
 
-            // Top / bottom fins.
-            let topFin = UIBezierPath()
-            topFin.move(to: CGPoint(x: w * 0.5, y: h * 0.24))
-            topFin.addLine(to: CGPoint(x: w * 0.34, y: h * 0.34))
-            topFin.addLine(to: CGPoint(x: w * 0.66, y: h * 0.34))
-            topFin.close()
-            SKColor(red: 0.18, green: 0.52, blue: 0.95, alpha: 1).setFill()
-            topFin.fill()
+            // Trunnion / carriage knobs so it reads as a cannon, not a missile.
+            func trunnion(left: Bool) {
+                let cx = left ? w * 0.22 : w * 0.78
+                let rect = CGRect(x: cx - w * 0.07, y: h * 0.40, width: w * 0.14, height: w * 0.14)
+                SKColor(red: 0.28, green: 0.30, blue: 0.34, alpha: 1).setFill()
+                UIBezierPath(ovalIn: rect).fill()
+                SKColor(white: 0.1, alpha: 0.65).setStroke()
+                let outline = UIBezierPath(ovalIn: rect)
+                outline.lineWidth = 2
+                outline.stroke()
+            }
+            trunnion(left: true)
+            trunnion(left: false)
 
-            // Blue nose cone pointing down.
-            let nose = UIBezierPath()
-            nose.move(to: CGPoint(x: w * 0.5, y: h * 0.98))
-            nose.addLine(to: CGPoint(x: w * 0.22, y: h * 0.72))
-            nose.addLine(to: CGPoint(x: w * 0.78, y: h * 0.72))
-            nose.close()
-            SKColor(red: 0.12, green: 0.48, blue: 0.98, alpha: 1).setFill()
-            nose.fill()
-            SKColor(white: 1, alpha: 0.35).setStroke()
-            nose.lineWidth = 2
-            nose.stroke()
+            // Hazard band near the muzzle.
+            let hazard = UIBezierPath(
+                roundedRect: CGRect(x: w * 0.30, y: h * 0.70, width: w * 0.40, height: h * 0.06),
+                cornerRadius: 2
+            )
+            SKColor(red: 0.95, green: 0.72, blue: 0.08, alpha: 1).setFill()
+            hazard.fill()
+            SKColor(red: 0.12, green: 0.10, blue: 0.04, alpha: 1).setFill()
+            for i in 0..<4 {
+                let x = w * 0.32 + CGFloat(i) * w * 0.09
+                UIBezierPath(rect: CGRect(x: x, y: h * 0.70, width: w * 0.045, height: h * 0.06)).fill()
+            }
 
-            // Window stripe on body.
-            let stripe = UIBezierPath(roundedRect: CGRect(x: w * 0.38, y: h * 0.34, width: w * 0.24, height: h * 0.16), cornerRadius: 4)
-            SKColor(red: 0.35, green: 0.78, blue: 1.0, alpha: 0.85).setFill()
-            stripe.fill()
+            // Muzzle flare / ring at the bottom.
+            let muzzleOuter = UIBezierPath(
+                roundedRect: CGRect(x: w * 0.26, y: h * 0.78, width: w * 0.48, height: h * 0.12),
+                cornerRadius: w * 0.05
+            )
+            SKColor(red: 0.20, green: 0.21, blue: 0.24, alpha: 1).setFill()
+            muzzleOuter.fill()
 
-            // Subtle white outline for contrast on dark nebula backgrounds.
-            cg.setStrokeColor(UIColor(white: 1, alpha: 0.25).cgColor)
-            cg.setLineWidth(2)
-            cg.strokeEllipse(in: CGRect(x: w * 0.12, y: h * 0.08, width: w * 0.76, height: h * 0.86))
+            // Dark bore opening.
+            let bore = UIBezierPath(ovalIn: CGRect(x: w * 0.36, y: h * 0.86, width: w * 0.28, height: h * 0.10))
+            SKColor(red: 0.05, green: 0.05, blue: 0.07, alpha: 1).setFill()
+            bore.fill()
+            SKColor(red: 0.55, green: 0.22, blue: 0.08, alpha: 0.75).setStroke()
+            let boreGlow = UIBezierPath(ovalIn: CGRect(x: w * 0.38, y: h * 0.875, width: w * 0.24, height: h * 0.07))
+            boreGlow.lineWidth = 2.5
+            boreGlow.stroke()
+
+            // Subtle outline for contrast on dark nebula backgrounds.
+            let outline = UIBezierPath(
+                roundedRect: CGRect(x: w * 0.20, y: h * 0.10, width: w * 0.60, height: h * 0.82),
+                cornerRadius: 10
+            )
+            SKColor(white: 1, alpha: 0.22).setStroke()
+            outline.lineWidth = 2
+            outline.stroke()
         }
         let texture = SKTexture(image: image)
         texture.filteringMode = .linear

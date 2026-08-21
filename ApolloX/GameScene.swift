@@ -264,7 +264,10 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
                 playMaxX: playArea.maxX,
                 halfWidth: player.size.width * player.xScale * 0.45
             )
-            player.position.y = playArea.minY + player.size.height * player.yScale * 0.42 + 16
+            player.position.y = GameRules.playerBaselineY(
+                playMinY: playArea.minY,
+                scaledHeight: player.size.height * player.yScale
+            )
         }
 
         if let overlay = pauseOverlay {
@@ -576,6 +579,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     private func spawnFallingRocket(at columnX: CGFloat) {
         let rocket = rocketPool.checkout()
+        rocket.childNode(withName: "cannonSmoke")?.removeFromParent()
         rocket.texture = TextureCache.texture(GameConstants.rocketImage)
         rocket.setScale(GameRules.rocketScale)
         rocket.name = GameConstants.NodeName.rocket
@@ -590,12 +594,21 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             category: GameConstants.PhysicsCategory.enemyProjectile,
             contact: GameConstants.PhysicsCategory.player
         )
+
+        let smoke = makeCannonSmokeEmitter()
+        smoke.name = "cannonSmoke"
+        // Trail behind the muzzle (texture is nose-down; breech/smoke sits toward the top).
+        smoke.position = CGPoint(x: 0, y: rocket.size.height * 0.42)
+        smoke.zPosition = -1
+        rocket.addChild(smoke)
+
         addChild(rocket)
         liveRockets.append(rocket)
 
         let end = CGPoint(x: columnX, y: playArea.minY - 80)
         let distance = hypot(end.x - rocket.position.x, end.y - rocket.position.y)
-        let duration = TimeInterval(distance / GameRules.rocketSpeed)
+        let speed = GameRules.rocketSpeed(forScore: ScoreStore.currentScore)
+        let duration = TimeInterval(distance / speed)
 
         rocket.run(.sequence([
             .move(to: end, duration: duration),
@@ -607,6 +620,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     private func recycleRocket(_ node: PooledSprite) {
+        node.childNode(withName: "cannonSmoke")?.removeFromParent()
         untrack(node, from: &liveRockets)
         rocketPool.recycle(node)
     }
