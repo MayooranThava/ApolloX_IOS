@@ -123,6 +123,9 @@ def main() -> int:
           "clear-mine shockwaves should use sprite rings, not SKShapeNode")
     check("cachedScrollSpeed" in (ROOT / "ApolloX" / "ScrollingBackgroundNode.swift").read_text(),
           "background scroll should cache tier speeds")
+    bg = (ROOT / "ApolloX" / "ScrollingBackgroundNode.swift").read_text()
+    check("highestPlateY" not in bg, "cached highestPlateY goes stale and opens background gaps")
+    check("plates.map(\\.position.y).max()" in bg, "plate wrap must use live max Y to stay seamless")
     check("engineFlameLayers" in (ROOT / "ApolloX" / "FramePacing.swift").read_text(),
           "effects quality should scale engine flame layers")
     check("firstIndex(where:" in SCENE and "removeFirst(" in SCENE,

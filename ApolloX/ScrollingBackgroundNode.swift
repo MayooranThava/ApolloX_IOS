@@ -27,7 +27,6 @@ final class ScrollingBackgroundNode: SKNode {
     private var currentTier = 0
     private var cachedScrollSpeed: CGFloat = 24
     private var cachedStarSpeed: CGFloat = 46
-    private var highestPlateY: CGFloat = 0
 
     override init() {
         super.init()
@@ -57,7 +56,6 @@ final class ScrollingBackgroundNode: SKNode {
             addChild(plate)
             plates.append(plate)
         }
-        highestPlateY = plates.map(\.position.y).max() ?? 0
 
         tintOverlay.texture = solidTexture()
         tintOverlay.size = CGSize(width: plateWidth, height: plateHeight * 2.05)
@@ -128,9 +126,11 @@ final class ScrollingBackgroundNode: SKNode {
     // MARK: - Private
 
     private func wrapPlates() {
-        for plate in plates where plate.position.y <= -plateHeight {
-            plate.position.y = highestPlateY + plateHeight
-            highestPlateY = plate.position.y
+        // Always read live max Y — a cached "highest" goes stale as plates scroll
+        // down and leaves a full-screen gap (missing background).
+        for plate in plates where plate.position.y <= -plateHeight * 0.5 {
+            let highest = plates.map(\.position.y).max() ?? 0
+            plate.position.y = highest + plateHeight
         }
     }
 
