@@ -126,9 +126,13 @@ final class ScrollingBackgroundNode: SKNode {
     // MARK: - Private
 
     private func wrapPlates() {
-        // Always read live max Y — a cached "highest" goes stale as plates scroll
-        // down and leaves a full-screen gap (missing background).
-        for plate in plates where plate.position.y <= -plateHeight * 0.5 {
+        // Plates are one viewport tall and center-anchored, spaced by plateHeight.
+        // Recycle only after a plate fully leaves the bottom (y <= -plateHeight).
+        // Wrapping earlier (e.g. -plateHeight/2) parks both plates above mid-screen
+        // and leaves a solid-color band under the nebula.
+        // Always read live max Y — a cached "highest" goes stale on hitch frames
+        // and can stack both plates off-screen.
+        for plate in plates where plate.position.y <= -plateHeight {
             let highest = plates.map(\.position.y).max() ?? 0
             plate.position.y = highest + plateHeight
         }

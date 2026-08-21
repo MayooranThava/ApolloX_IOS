@@ -131,6 +131,12 @@ def main() -> int:
     bg = (ROOT / "ApolloX" / "ScrollingBackgroundNode.swift").read_text()
     check("highestPlateY" not in bg, "cached highestPlateY goes stale and opens background gaps")
     check("plates.map(\\.position.y).max()" in bg, "plate wrap must use live max Y to stay seamless")
+    # Center-anchored full-height plates must wrap at -plateHeight, not -plateHeight/2.
+    wrap_fn = bg.split("private func wrapPlates")[1].split("private func seedParallaxStars")[0]
+    check(
+        "plate.position.y <= -plateHeight" in wrap_fn and "plateHeight * 0.5" not in wrap_fn,
+        "background plate wrap threshold must be -plateHeight (half-height wrap cuts the backdrop)",
+    )
     check("engineFlameLayers" in (ROOT / "ApolloX" / "FramePacing.swift").read_text(),
           "effects quality should scale engine flame layers")
     check("firstIndex(where:" in SCENE and "removeFirst(" in SCENE,
