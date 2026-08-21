@@ -131,23 +131,194 @@ extension SKScene {
         emitter.name = GameConstants.NodeName.engine
         emitter.particleTexture = softDotTexture()
         emitter.particleBirthRate = FramePacing.scaledBirthRate(FramePacing.currentQuality.engineBirthRate)
-        emitter.particleLifetime = 0.26
-        emitter.particleLifetimeRange = 0.08
-        emitter.particlePositionRange = CGVector(dx: 10, dy: 3)
-        emitter.particleSpeed = 80
-        emitter.particleSpeedRange = 35
+        emitter.particleLifetime = 0.34
+        emitter.particleLifetimeRange = 0.14
+        emitter.particlePositionRange = CGVector(dx: 16, dy: 4)
+        emitter.particleSpeed = 140
+        emitter.particleSpeedRange = 55
         emitter.emissionAngle = -.pi / 2
-        emitter.emissionAngleRange = 0.3
-        emitter.particleAlpha = 0.8
-        emitter.particleAlphaSpeed = -2.2
-        emitter.particleScale = 0.11
-        emitter.particleScaleRange = 0.05
-        emitter.particleScaleSpeed = -0.22
+        emitter.emissionAngleRange = 0.42
+        emitter.particleAlpha = 0.95
+        emitter.particleAlphaRange = 0.15
+        emitter.particleAlphaSpeed = -2.6
+        emitter.particleScale = 0.16
+        emitter.particleScaleRange = 0.08
+        emitter.particleScaleSpeed = -0.28
         emitter.particleColor = SKColor(red: 1.0, green: 0.62, blue: 0.25, alpha: 1)
         emitter.particleColorBlendFactor = 1
         emitter.particleBlendMode = .add
+        emitter.particleRotationRange = 0.4
         emitter.targetNode = self
         return emitter
+    }
+
+    /// Layered flame tongues that flicker under the ship for a readable rocket exhaust.
+    func makeEngineFlameNode(tint: SKColor) -> SKNode {
+        let root = SKNode()
+        root.name = GameConstants.NodeName.engineFlame
+
+        let outer = SKSpriteNode(texture: engineFlameTexture(kind: .outer))
+        outer.size = CGSize(width: 54, height: 78)
+        outer.anchorPoint = CGPoint(x: 0.5, y: 1.0)
+        outer.position = .zero
+        outer.zPosition = -1
+        outer.blendMode = .add
+        outer.color = tint
+        outer.colorBlendFactor = 0.35
+        root.addChild(outer)
+
+        let mid = SKSpriteNode(texture: engineFlameTexture(kind: .mid))
+        mid.size = CGSize(width: 34, height: 62)
+        mid.anchorPoint = CGPoint(x: 0.5, y: 1.0)
+        mid.position = CGPoint(x: 0, y: -2)
+        mid.zPosition = 0
+        mid.blendMode = .add
+        mid.color = SKColor(red: 1.0, green: 0.78, blue: 0.28, alpha: 1)
+        mid.colorBlendFactor = 0.25
+        root.addChild(mid)
+
+        let core = SKSpriteNode(texture: engineFlameTexture(kind: .core))
+        core.size = CGSize(width: 18, height: 42)
+        core.anchorPoint = CGPoint(x: 0.5, y: 1.0)
+        core.position = CGPoint(x: 0, y: -1)
+        core.zPosition = 1
+        core.blendMode = .add
+        root.addChild(core)
+
+        // Side thruster tips (reads as a 3-nozzle rocket when the sprite has them).
+        for side in [-1.0, 1.0] as [CGFloat] {
+            let tip = SKSpriteNode(texture: engineFlameTexture(kind: .mid))
+            tip.size = CGSize(width: 18, height: 40)
+            tip.anchorPoint = CGPoint(x: 0.5, y: 1.0)
+            tip.position = CGPoint(x: side * 18, y: 4)
+            tip.zPosition = -0.5
+            tip.blendMode = .add
+            tip.alpha = 0.85
+            tip.color = tint
+            tip.colorBlendFactor = 0.4
+            root.addChild(tip)
+            startFlameFlicker(
+                on: tip,
+                scaleXRange: 0.82...1.12,
+                scaleYRange: 0.72...1.22,
+                alphaRange: 0.55...0.95,
+                period: 0.07
+            )
+        }
+
+        startFlameFlicker(on: outer, scaleXRange: 0.88...1.14, scaleYRange: 0.78...1.28, alphaRange: 0.65...1.0, period: 0.06)
+        startFlameFlicker(on: mid, scaleXRange: 0.90...1.10, scaleYRange: 0.80...1.24, alphaRange: 0.75...1.0, period: 0.05)
+        startFlameFlicker(on: core, scaleXRange: 0.92...1.08, scaleYRange: 0.85...1.20, alphaRange: 0.80...1.0, period: 0.04)
+
+        // Gentle left/right sway so the plume feels alive.
+        root.run(.repeatForever(.sequence([
+            .moveBy(x: 2.5, y: 0, duration: 0.11),
+            .moveBy(x: -4.5, y: 0, duration: 0.13),
+            .moveBy(x: 2.0, y: 0, duration: 0.10)
+        ])))
+
+        return root
+    }
+
+    private func startFlameFlicker(
+        on node: SKNode,
+        scaleXRange: ClosedRange<CGFloat>,
+        scaleYRange: ClosedRange<CGFloat>,
+        alphaRange: ClosedRange<CGFloat>,
+        period: TimeInterval
+    ) {
+        // Re-roll targets every beat so the plume never loops the same three frames.
+        let beat = SKAction.sequence([
+            .run { [weak node] in
+                guard let node else { return }
+                node.run(.group([
+                    .scaleX(to: CGFloat.random(in: scaleXRange), duration: period),
+                    .scaleY(to: CGFloat.random(in: scaleYRange), duration: period),
+                    .fadeAlpha(to: CGFloat.random(in: alphaRange), duration: period)
+                ]))
+            },
+            .wait(forDuration: period)
+        ])
+        node.run(.repeatForever(beat), withKey: "flameFlicker")
+    }
+
+    private enum EngineFlameKind {
+        case outer
+        case mid
+        case core
+    }
+
+    private func engineFlameTexture(kind: EngineFlameKind) -> SKTexture {
+        let key: String
+        switch kind {
+        case .outer: key = "__engine_flame_outer"
+        case .mid: key = "__engine_flame_mid"
+        case .core: key = "__engine_flame_core"
+        }
+        if let cached = TextureCache.optional(key) {
+            return cached
+        }
+
+        let size = CGSize(width: 64, height: 96)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 2
+        format.opaque = false
+        let renderer = UIGraphicsImageRenderer(size: size, format: format)
+        let image = renderer.image { _ in
+            let w = size.width
+            let h = size.height
+            let path = UIBezierPath()
+            // Tip points down (negative Y in scene once anchored at top).
+            path.move(to: CGPoint(x: w * 0.5, y: h * 0.98))
+            switch kind {
+            case .outer:
+                path.addCurve(
+                    to: CGPoint(x: w * 0.08, y: h * 0.08),
+                    controlPoint1: CGPoint(x: w * 0.22, y: h * 0.72),
+                    controlPoint2: CGPoint(x: w * 0.02, y: h * 0.32)
+                )
+                path.addLine(to: CGPoint(x: w * 0.92, y: h * 0.08))
+                path.addCurve(
+                    to: CGPoint(x: w * 0.5, y: h * 0.98),
+                    controlPoint1: CGPoint(x: w * 0.98, y: h * 0.32),
+                    controlPoint2: CGPoint(x: w * 0.78, y: h * 0.72)
+                )
+                UIColor(red: 1.0, green: 0.42, blue: 0.08, alpha: 0.95).setFill()
+            case .mid:
+                path.addCurve(
+                    to: CGPoint(x: w * 0.18, y: h * 0.10),
+                    controlPoint1: CGPoint(x: w * 0.28, y: h * 0.68),
+                    controlPoint2: CGPoint(x: w * 0.12, y: h * 0.30)
+                )
+                path.addLine(to: CGPoint(x: w * 0.82, y: h * 0.10))
+                path.addCurve(
+                    to: CGPoint(x: w * 0.5, y: h * 0.98),
+                    controlPoint1: CGPoint(x: w * 0.88, y: h * 0.30),
+                    controlPoint2: CGPoint(x: w * 0.72, y: h * 0.68)
+                )
+                UIColor(red: 1.0, green: 0.72, blue: 0.18, alpha: 0.95).setFill()
+            case .core:
+                path.addCurve(
+                    to: CGPoint(x: w * 0.28, y: h * 0.12),
+                    controlPoint1: CGPoint(x: w * 0.34, y: h * 0.62),
+                    controlPoint2: CGPoint(x: w * 0.24, y: h * 0.28)
+                )
+                path.addLine(to: CGPoint(x: w * 0.72, y: h * 0.12))
+                path.addCurve(
+                    to: CGPoint(x: w * 0.5, y: h * 0.98),
+                    controlPoint1: CGPoint(x: w * 0.76, y: h * 0.28),
+                    controlPoint2: CGPoint(x: w * 0.66, y: h * 0.62)
+                )
+                UIColor(red: 1.0, green: 0.96, blue: 0.78, alpha: 1).setFill()
+            }
+            path.close()
+            path.fill()
+        }
+        let texture = SKTexture(image: image)
+        texture.filteringMode = .linear
+        texture.usesMipmaps = true
+        TextureCache.store(key, texture: texture)
+        return texture
     }
 
     func applyPerformanceQuality(starDustRate: CGFloat? = nil) {

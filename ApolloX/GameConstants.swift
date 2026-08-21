@@ -105,6 +105,7 @@ enum GameConstants {
         static let resumeButton = "Resume"
         static let starDust = "StarDust"
         static let engine = "Engine"
+        static let engineFlame = "EngineFlame"
     }
 
     /// Identifiers used by VoiceOver and the launch smoke UI test.

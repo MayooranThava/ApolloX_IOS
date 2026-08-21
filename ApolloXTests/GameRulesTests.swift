@@ -100,19 +100,26 @@ final class GameRulesTests: XCTestCase {
     func testEachBossHasUniqueAttackPattern() {
         let patterns = GameRules.bossProfiles.map(\.attackPattern)
         XCTAssertEqual(Set(patterns).count, patterns.count)
+        XCTAssertEqual(GameRules.bossProfile(at: 0).attackPattern, .nebulaCyclops)
         XCTAssertEqual(GameRules.bossProfile(at: 2).attackPattern, .acidHydra)
+        XCTAssertGreaterThanOrEqual(GameRules.maxBossProjectiles, 16)
     }
 
     func testStarPickupUsesRegularCadence() {
         XCTAssertEqual(GameRules.starPickupSpawnInterval(elapsed: 0), GameConstants.powerUpSpawnInterval)
         XCTAssertEqual(GameRules.starPickupSpawnInterval(elapsed: 60), GameConstants.powerUpSpawnInterval)
         var earlySpawns = 0
+        var midSpawns = 0
         var lateSpawns = 0
         for roll in 0..<100 {
             if GameRules.shouldSpawnStar(elapsed: 10, roll: roll) { earlySpawns += 1 }
-            if GameRules.shouldSpawnStar(elapsed: 120, roll: roll) { lateSpawns += 1 }
+            // tier 4 at 120s → threshold max(55, 85 - 20) = 65
+            if GameRules.shouldSpawnStar(elapsed: 120, roll: roll) { midSpawns += 1 }
+            // tier 6 at 180s → threshold floors at 55
+            if GameRules.shouldSpawnStar(elapsed: 180, roll: roll) { lateSpawns += 1 }
         }
         XCTAssertEqual(earlySpawns, 85)
+        XCTAssertEqual(midSpawns, 65)
         XCTAssertEqual(lateSpawns, 55)
     }
 

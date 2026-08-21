@@ -88,20 +88,22 @@ enum GameRules {
     static let bossMaxHP = 15
     static let bossPoints = 25
     static let bossFireInterval: TimeInterval = 2.1
+    /// Soft cap on simultaneous boss dodgeables (rings need more than a triple fan).
+    static let maxBossProjectiles = 22
 
     /// Space monsters that appear every 30s (up to six per run).
     enum BossAttackPattern: String, CaseIterable {
-        /// Single heavy cosmic plasma bolt aimed at the player.
+        /// Aimed plasma bolts + purple ring-of-fire with a dodge gap.
         case nebulaCyclops
-        /// Fast triple claw-shard fan.
+        /// Fast claw fans + descending claw wall with a safe lane.
         case crimsonClawfiend
-        /// Rotating green slime balls, drip stream, and big splats.
+        /// Slime volleys + acid curtain with one clear corridor.
         case acidHydra
-        /// Slow spreading ice crystal shards.
+        /// Ice shard spreads + closing frost gates with a drifting gap.
         case frostMaw
-        /// Large molten boulders that drop straight down.
+        /// Magma boulders + erupting pillar columns with a safe lane.
         case magmaBehemoth
-        /// Arc of dark void orbs.
+        /// Void orbs + collapsing ring with a dodge gap.
         case voidEmperor
     }
 

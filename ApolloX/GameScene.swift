@@ -18,6 +18,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private let bossHealthBar = BossHealthBarNode()
     private let player = SKSpriteNode()
     private var engineEmitter: SKEmitterNode?
+    private var engineFlame: SKNode?
 
     private var lives = GameRules.startingLives
     private var level = 0
@@ -84,7 +85,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private lazy var pickupPool = NodePool(prewarm: 2, maxIdle: 6) {
         PooledSprite(texture: TextureCache.texture(GameConstants.starImage))
     }
-    private lazy var fireballPool = NodePool(prewarm: 10, maxIdle: 18) {
+    private lazy var fireballPool = NodePool(prewarm: 16, maxIdle: 28) {
         PooledSprite(texture: TextureCache.texture(GameConstants.fireballImage))
     }
     private lazy var rocketPool = NodePool(prewarm: 6, maxIdle: 12) {
@@ -289,13 +290,21 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
         let engine = makeEngineEmitter()
         engine.particleColor = ship.engineColor
-        engine.position = CGPoint(x: 0, y: -player.size.height * 0.40)
+        engine.position = CGPoint(x: 0, y: -player.size.height * 0.42)
         player.addChild(engine)
         engineEmitter = engine
+
+        let flame = makeEngineFlameNode(tint: ship.engineColor)
+        // Just under the thrusters — additive flicker over the baked exhaust.
+        flame.position = CGPoint(x: 0, y: -player.size.height * 0.38)
+        flame.setScale(1.15)
+        player.addChild(flame)
+        engineFlame = flame
     }
 
     private func updateHUD() {
         hud.setScore(ScoreStore.currentScore)
+        hud.setHighScore(ScoreStore.highScore)
         hud.setLives(lives)
         if poweredShotsRemaining > 0 {
             hud.setStatus("Fire: Boost")
@@ -686,6 +695,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         dismissPauseOverlay()
         HapticManager.gameOver()
         engineEmitter?.particleBirthRate = 0
+        engineFlame?.isHidden = true
+        engineFlame?.removeAllActions()
 
         removeAllActions()
         for sprite in liveBullets + liveEnemies + livePickups + liveFireballs + liveRockets {
@@ -1151,7 +1162,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private func fireBossVolley() {
         guard bossActive, bossVulnerable, let boss = bossNode, boss.parent != nil,
               let profile = activeBossProfile, currentState == .playing else { return }
-        guard liveFireballs.count < 14 else { return }
+        guard liveFireballs.count < GameRules.maxBossProjectiles else { return }
 
         let origin = boss.position
         switch profile.attackPattern {
@@ -1173,33 +1184,64 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     // MARK: - Boss attack patterns
 
     private func fireNebulaVolley(from origin: CGPoint) {
-        spawnBossProjectile(
-            textureName: BossAttackTextures.cosmicBolt,
-            scale: 0.95,
-            speed: 460,
-            hitboxFactor: 0.38,
-            from: origin,
-            targetX: player.position.x,
-            wobble: true
-        )
+        // Signature every other volley: purple ring of fire with a dodge gap.
+        if bossVolleyIndex % 2 == 0 {
+            fireRingWithGap(
+                textureName: BossAttackTextures.nebulaFlame,
+                center: CGPoint(x: playArea.midX, y: origin.y - 90),
+                startRadius: 55,
+                endRadius: max(playArea.width, playArea.height) * 0.55,
+                segmentCount: 16,
+                gapSegments: 3,
+                travelDuration: 1.55,
+                scale: 0.78,
+                hitboxFactor: 0.36,
+                expandOutward: true
+            )
+        } else {
+            spawnBossProjectile(
+                textureName: BossAttackTextures.cosmicBolt,
+                scale: 1.02,
+                speed: 440,
+                hitboxFactor: 0.38,
+                from: origin,
+                targetX: player.position.x,
+                wobble: true
+            )
+        }
+        bossVolleyIndex += 1
     }
 
     private func fireClawVolley(from origin: CGPoint) {
-        let spreads: [CGFloat] = [-95, 0, 95]
-        for spread in spreads {
-            spawnBossProjectile(
+        if bossVolleyIndex % 2 == 0 {
+            // Descending claw wall — leave one safe lane for the player to slip through.
+            fireDescendingWallWithGap(
                 textureName: BossAttackTextures.clawShard,
-                scale: 0.82,
-                speed: 680,
-                hitboxFactor: 0.32,
-                from: origin,
-                targetX: player.position.x + spread
+                fromY: origin.y - 70,
+                count: 9,
+                gapSlots: 2,
+                speed: 620,
+                scale: 0.74,
+                hitboxFactor: 0.30
             )
+        } else {
+            let spreads: [CGFloat] = [-95, 0, 95]
+            for spread in spreads {
+                spawnBossProjectile(
+                    textureName: BossAttackTextures.clawShard,
+                    scale: 0.82,
+                    speed: 680,
+                    hitboxFactor: 0.32,
+                    from: origin,
+                    targetX: player.position.x + spread
+                )
+            }
         }
+        bossVolleyIndex += 1
     }
 
     private func fireAcidHydraVolley(from origin: CGPoint) {
-        let mode = bossVolleyIndex % 3
+        let mode = bossVolleyIndex % 4
         bossVolleyIndex += 1
 
         switch mode {
@@ -1236,6 +1278,18 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
                     }
                 ]))
             }
+        case 2:
+            // Acid curtain with one clear corridor.
+            fireDescendingWallWithGap(
+                textureName: BossAttackTextures.acidBall,
+                fromY: origin.y - 60,
+                count: 8,
+                gapSlots: 2,
+                speed: 480,
+                scale: 0.70,
+                hitboxFactor: 0.34,
+                wobble: true
+            )
         default:
             spawnBossProjectile(
                 textureName: BossAttackTextures.acidSplat,
@@ -1250,46 +1304,180 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     private func fireFrostVolley(from origin: CGPoint) {
-        let spreads: [CGFloat] = [-120, -40, 40, 120]
-        for spread in spreads {
-            spawnBossProjectile(
+        if bossVolleyIndex % 2 == 0 {
+            // Frost gates close from both sides, leaving a drifting center gap.
+            fireDescendingWallWithGap(
                 textureName: BossAttackTextures.iceShard,
-                scale: 0.76,
-                speed: 430,
-                hitboxFactor: 0.30,
-                from: origin,
-                targetX: player.position.x + spread
+                fromY: origin.y - 55,
+                count: 10,
+                gapSlots: 2,
+                speed: 400,
+                scale: 0.72,
+                hitboxFactor: 0.28
             )
+        } else {
+            let spreads: [CGFloat] = [-120, -40, 40, 120]
+            for spread in spreads {
+                spawnBossProjectile(
+                    textureName: BossAttackTextures.iceShard,
+                    scale: 0.76,
+                    speed: 430,
+                    hitboxFactor: 0.30,
+                    from: origin,
+                    targetX: player.position.x + spread
+                )
+            }
         }
+        bossVolleyIndex += 1
     }
 
     private func fireMagmaVolley(from origin: CGPoint) {
-        let shots = Bool.random() ? 1 : 2
-        for index in 0..<shots {
-            let spread = CGFloat(index) * 80 - CGFloat(shots - 1) * 40
-            spawnBossProjectile(
+        if bossVolleyIndex % 2 == 0 {
+            // Erupting magma pillars — three columns with one safe lane.
+            fireDescendingWallWithGap(
                 textureName: BossAttackTextures.magmaBoulder,
-                scale: 1.08,
-                speed: 340,
-                hitboxFactor: 0.44,
-                from: origin,
-                targetX: player.position.x + spread,
+                fromY: origin.y - 40,
+                count: 7,
+                gapSlots: 2,
+                speed: 320,
+                scale: 0.92,
+                hitboxFactor: 0.40,
                 wobble: true
+            )
+        } else {
+            let shots = Bool.random() ? 1 : 2
+            for index in 0..<shots {
+                let spread = CGFloat(index) * 80 - CGFloat(shots - 1) * 40
+                spawnBossProjectile(
+                    textureName: BossAttackTextures.magmaBoulder,
+                    scale: 1.08,
+                    speed: 340,
+                    hitboxFactor: 0.44,
+                    from: origin,
+                    targetX: player.position.x + spread,
+                    wobble: true
+                )
+            }
+        }
+        bossVolleyIndex += 1
+    }
+
+    private func fireVoidVolley(from origin: CGPoint) {
+        if bossVolleyIndex % 2 == 0 {
+            // Collapsing void ring — player must slip through the gap before it closes.
+            fireRingWithGap(
+                textureName: BossAttackTextures.voidOrb,
+                center: CGPoint(x: playArea.midX, y: max(player.position.y + 40, playArea.minY + 220)),
+                startRadius: max(playArea.width, playArea.height) * 0.48,
+                endRadius: 70,
+                segmentCount: 16,
+                gapSegments: 3,
+                travelDuration: 1.45,
+                scale: 0.80,
+                hitboxFactor: 0.34,
+                expandOutward: false
+            )
+        } else {
+            let spreads: [CGFloat] = [-110, 0, 110]
+            for spread in spreads {
+                spawnBossProjectile(
+                    textureName: BossAttackTextures.voidOrb,
+                    scale: 0.88,
+                    speed: 500,
+                    hitboxFactor: 0.36,
+                    from: origin,
+                    targetX: player.position.x + spread,
+                    wobble: true
+                )
+            }
+        }
+        bossVolleyIndex += 1
+    }
+
+    /// Expanding / collapsing ring of projectiles with a missing sector the player must fit through.
+    private func fireRingWithGap(
+        textureName: String,
+        center: CGPoint,
+        startRadius: CGFloat,
+        endRadius: CGFloat,
+        segmentCount: Int,
+        gapSegments: Int,
+        travelDuration: TimeInterval,
+        scale: CGFloat,
+        hitboxFactor: CGFloat,
+        expandOutward: Bool
+    ) {
+        guard currentState == .playing, segmentCount > gapSegments else { return }
+
+        // Aim the gap roughly toward the player, with a random nudge so they still have to move.
+        let dx = player.position.x - center.x
+        let dy = player.position.y - center.y
+        let playerAngle = atan2(dy, dx)
+        let gapWidth = (CGFloat.pi * 2 / CGFloat(segmentCount)) * CGFloat(gapSegments)
+        let gapCenter = playerAngle + CGFloat.random(in: -0.55...0.55)
+
+        for index in 0..<segmentCount {
+            let angle = (CGFloat.pi * 2 / CGFloat(segmentCount)) * CGFloat(index)
+            var delta = abs(angle - gapCenter)
+            if delta > .pi { delta = CGFloat.pi * 2 - delta }
+            if delta < gapWidth * 0.5 { continue }
+
+            let start = CGPoint(
+                x: center.x + cos(angle) * startRadius,
+                y: center.y + sin(angle) * startRadius
+            )
+            let end = CGPoint(
+                x: center.x + cos(angle) * endRadius,
+                y: center.y + sin(angle) * endRadius
+            )
+            spawnBossProjectileAt(
+                textureName: textureName,
+                scale: scale,
+                hitboxFactor: hitboxFactor,
+                start: start,
+                end: end,
+                duration: travelDuration,
+                wobble: expandOutward,
+                faceTravelDirection: true
             )
         }
     }
 
-    private func fireVoidVolley(from origin: CGPoint) {
-        let spreads: [CGFloat] = [-110, 0, 110]
-        for spread in spreads {
-            spawnBossProjectile(
-                textureName: BossAttackTextures.voidOrb,
-                scale: 0.88,
-                speed: 500,
-                hitboxFactor: 0.36,
-                from: origin,
-                targetX: player.position.x + spread,
-                wobble: true
+    /// Horizontal wall of projectiles descending with a safe lane gap.
+    private func fireDescendingWallWithGap(
+        textureName: String,
+        fromY: CGFloat,
+        count: Int,
+        gapSlots: Int,
+        speed: CGFloat,
+        scale: CGFloat,
+        hitboxFactor: CGFloat,
+        wobble: Bool = false
+    ) {
+        guard count > gapSlots, playArea.width > 80 else { return }
+
+        let margin: CGFloat = 36
+        let usable = playArea.width - margin * 2
+        let step = usable / CGFloat(max(1, count - 1))
+        let preferredSlot = Int(round((player.position.x - playArea.minX - margin) / step))
+        let gapStart = max(0, min(count - gapSlots, preferredSlot - gapSlots / 2 + Int.random(in: -1...1)))
+
+        for index in 0..<count {
+            if index >= gapStart && index < gapStart + gapSlots { continue }
+            let x = playArea.minX + margin + step * CGFloat(index)
+            let start = CGPoint(x: x, y: fromY)
+            let end = CGPoint(x: x, y: playArea.minY - 80)
+            let distance = abs(end.y - start.y)
+            let duration = TimeInterval(distance / speed)
+            spawnBossProjectileAt(
+                textureName: textureName,
+                scale: scale,
+                hitboxFactor: hitboxFactor,
+                start: start,
+                end: end,
+                duration: duration,
+                wobble: wobble,
+                faceTravelDirection: true
             )
         }
     }
@@ -1303,17 +1491,55 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         targetX: CGFloat,
         wobble: Bool = false
     ) {
-        guard currentState == .playing, liveFireballs.count < 14 else { return }
+        let start = CGPoint(x: origin.x, y: origin.y - 60)
+        let clampedTargetX = GameRules.clampPlayerX(
+            x: targetX,
+            playMinX: playArea.minX,
+            playMaxX: playArea.maxX,
+            halfWidth: 20
+        )
+        let end = CGPoint(x: clampedTargetX, y: playArea.minY - 80)
+        let distance = hypot(end.x - start.x, end.y - start.y)
+        let duration = TimeInterval(distance / max(speed, 1))
+        spawnBossProjectileAt(
+            textureName: textureName,
+            scale: scale,
+            hitboxFactor: hitboxFactor,
+            start: start,
+            end: end,
+            duration: duration,
+            wobble: wobble,
+            faceTravelDirection: false
+        )
+    }
+
+    private func spawnBossProjectileAt(
+        textureName: String,
+        scale: CGFloat,
+        hitboxFactor: CGFloat,
+        start: CGPoint,
+        end: CGPoint,
+        duration: TimeInterval,
+        wobble: Bool,
+        faceTravelDirection: Bool
+    ) {
+        guard currentState == .playing, liveFireballs.count < GameRules.maxBossProjectiles else { return }
 
         let projectile = fireballPool.checkout()
         projectile.texture = TextureCache.texture(textureName)
+        let texSize = projectile.texture?.size() ?? CGSize(width: 64, height: 64)
+        projectile.size = texSize
         projectile.setScale(scale)
         projectile.name = GameConstants.NodeName.fireball
-        projectile.position = CGPoint(x: origin.x, y: origin.y - 60)
+        projectile.position = start
         projectile.zPosition = GameConstants.Z.enemyProjectile
-        projectile.zRotation = 0
         projectile.colorBlendFactor = 0
         projectile.alpha = 1
+        if faceTravelDirection {
+            projectile.zRotation = atan2(end.y - start.y, end.x - start.x) - .pi / 2
+        } else {
+            projectile.zRotation = 0
+        }
         let radius = min(projectile.size.width, projectile.size.height) * projectile.xScale * hitboxFactor
         projectile.hitRadius = radius
         projectile.attachCirclePhysics(
@@ -1326,23 +1552,13 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
         if wobble {
             projectile.run(.repeatForever(.sequence([
-                .scale(to: scale * 1.07, duration: 0.18),
-                .scale(to: scale, duration: 0.18)
+                .scale(to: scale * 1.08, duration: 0.16),
+                .scale(to: scale, duration: 0.16)
             ])))
         }
 
-        let clampedTargetX = GameRules.clampPlayerX(
-            x: targetX,
-            playMinX: playArea.minX,
-            playMaxX: playArea.maxX,
-            halfWidth: radius
-        )
-        let end = CGPoint(x: clampedTargetX, y: playArea.minY - 80)
-        let distance = hypot(end.x - projectile.position.x, end.y - projectile.position.y)
-        let duration = TimeInterval(distance / speed)
-
         projectile.run(.sequence([
-            .move(to: end, duration: duration),
+            .move(to: end, duration: max(0.2, duration)),
             .run { [weak self, weak projectile] in
                 guard let self, let projectile else { return }
                 self.recycleFireball(projectile)
