@@ -54,6 +54,8 @@ final class PooledSprite: SKSpriteNode {
 /// Simple reuse pool to avoid constant alloc/dealloc of short-lived sprites.
 final class NodePool<Node: SKSpriteNode> {
     private var nodes: [Node] = []
+    /// O(1) membership so double-recycle stays safe without scanning `nodes`.
+    private var idleIDs: Set<ObjectIdentifier> = []
     private let makeNode: () -> Node
     private let maxIdle: Int
 
@@ -62,8 +64,11 @@ final class NodePool<Node: SKSpriteNode> {
         self.maxIdle = max(prewarm, maxIdle)
         if prewarm > 0 {
             nodes.reserveCapacity(prewarm)
+            idleIDs.reserveCapacity(prewarm)
             for _ in 0..<prewarm {
-                nodes.append(makeNode())
+                let node = makeNode()
+                nodes.append(node)
+                idleIDs.insert(ObjectIdentifier(node))
             }
         }
     }
@@ -72,6 +77,7 @@ final class NodePool<Node: SKSpriteNode> {
 
     func checkout() -> Node {
         let node = nodes.popLast() ?? makeNode()
+        idleIDs.remove(ObjectIdentifier(node))
         node.removeAllActions()
         node.alpha = 1
         node.zRotation = 0
@@ -96,8 +102,12 @@ final class NodePool<Node: SKSpriteNode> {
         } else {
             node.userData = nil
         }
-        // Callers never double-recycle the same live node; skip O(n) identity scan.
-        guard nodes.count < maxIdle else { return }
+        let id = ObjectIdentifier(node)
+        guard idleIDs.insert(id).inserted else { return }
+        guard nodes.count < maxIdle else {
+            idleIDs.remove(id)
+            return
+        }
         nodes.append(node)
     }
 }
