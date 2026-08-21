@@ -165,11 +165,15 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     private func recordPlayerXHistory() {
         guard currentState == .playing, player.parent != nil else { return }
-        let sample = PlayerXSample(time: runElapsed, x: player.position.x)
-        playerXHistory.append(sample)
+        playerXHistory.append(PlayerXSample(time: runElapsed, x: player.position.x))
         let cutoff = runElapsed - (GameRules.rocketTargetLookback + 1.0)
-        while let first = playerXHistory.first, first.time < cutoff {
-            playerXHistory.removeFirst()
+        // One range delete instead of repeated removeFirst shifts every frame.
+        if let keepFrom = playerXHistory.firstIndex(where: { $0.time >= cutoff }) {
+            if keepFrom > 0 {
+                playerXHistory.removeFirst(keepFrom)
+            }
+        } else if !playerXHistory.isEmpty {
+            playerXHistory.removeAll(keepingCapacity: true)
         }
     }
 
@@ -349,8 +353,10 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private func refreshParticleRates() {
         let quality = FramePacing.currentQuality
         engineEmitter?.particleBirthRate = FramePacing.scaledBirthRate(quality.engineBirthRate)
+        engineEmitter?.isHidden = quality.engineBirthRate <= 0
         let dustRate = bossActive ? 0 : FramePacing.scaledBirthRate(quality.starDustBirthRate)
         applyPerformanceQuality(starDustRate: dustRate)
+        scrollingBackground?.applyEffectsQuality(quality)
     }
 
     @objc private func appWillResignActive() {
@@ -1408,6 +1414,10 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         expandOutward: Bool
     ) {
         guard currentState == .playing, segmentCount > gapSegments else { return }
+        let needed = segmentCount - gapSegments
+        // Skip the whole signature if we can't fit a complete ring — a truncated ring
+        // leaves a broken dodge gap that feels unfair under load.
+        guard liveFireballs.count + needed <= GameRules.maxBossProjectiles else { return }
 
         // Aim the gap roughly toward the player, with a random nudge so they still have to move.
         let dx = player.position.x - center.x
@@ -1455,6 +1465,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         wobble: Bool = false
     ) {
         guard count > gapSlots, playArea.width > 80 else { return }
+        let needed = count - gapSlots
+        guard liveFireballs.count + needed <= GameRules.maxBossProjectiles else { return }
 
         let margin: CGFloat = 36
         let usable = playArea.width - margin * 2
@@ -1808,10 +1820,6 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             obstacleSpawnPausedUntil = runElapsed + GameRules.clearMineSpawnPauseDuration
             removeAction(forKey: "spawningEnemies")
             playClearMineScreenDetonation(at: blastPoint)
-            showStatusBanner(
-                text: "CHAIN CLEAR!",
-                color: SKColor(red: 1.0, green: 0.88, blue: 0.22, alpha: 1)
-            )
             scheduleNextObstacle()
         }
     }
@@ -1849,57 +1857,39 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     private func playClearMineBossBurst(at origin: CGPoint) {
         spawnExplosion(at: origin, image: "explosion", scale: 1.35)
-        let ring = SKShapeNode(circleOfRadius: 36)
-        ring.strokeColor = SKColor(red: 1, green: 0.82, blue: 0.15, alpha: 0.85)
-        ring.fillColor = .clear
-        ring.lineWidth = 7
-        ring.position = origin
-        ring.zPosition = GameConstants.Z.effect + 2
-        ring.setScale(0.25)
-        addChild(ring)
-        ring.run(.sequence([
-            .group([
-                .scale(to: 5.5, duration: 0.42),
-                .fadeOut(withDuration: 0.42)
-            ]),
-            .removeFromParent()
-        ]))
+        spawnShockwaveRing(
+            at: origin,
+            startScale: 0.25,
+            endScale: 5.5,
+            duration: 0.42,
+            color: SKColor(red: 1, green: 0.82, blue: 0.15, alpha: 0.85),
+            lineWidth: 7
+        )
     }
 
     private func playClearMineScreenDetonation(at origin: CGPoint) {
         spawnExplosion(at: origin, image: "explosion", scale: 1.85)
 
-        let ring = SKShapeNode(circleOfRadius: 44)
-        ring.strokeColor = SKColor(red: 1, green: 0.88, blue: 0.25, alpha: 0.95)
-        ring.fillColor = SKColor(red: 1, green: 0.72, blue: 0.08, alpha: 0.08)
-        ring.lineWidth = 10
-        ring.position = origin
-        ring.zPosition = GameConstants.Z.effect + 2
-        ring.setScale(0.15)
-        addChild(ring)
-        ring.run(.sequence([
-            .group([
-                .scale(to: 14, duration: 0.62),
-                .fadeOut(withDuration: 0.62)
-            ]),
-            .removeFromParent()
-        ]))
-
-        let innerRing = SKShapeNode(circleOfRadius: 28)
-        innerRing.strokeColor = SKColor(red: 1, green: 0.98, blue: 0.65, alpha: 0.9)
-        innerRing.fillColor = .clear
-        innerRing.lineWidth = 5
-        innerRing.position = origin
-        innerRing.zPosition = GameConstants.Z.effect + 1
-        innerRing.setScale(0.2)
-        addChild(innerRing)
-        innerRing.run(.sequence([
+        spawnShockwaveRing(
+            at: origin,
+            startScale: 0.15,
+            endScale: 14,
+            duration: 0.62,
+            color: SKColor(red: 1, green: 0.88, blue: 0.25, alpha: 0.95),
+            lineWidth: 10
+        )
+        run(.sequence([
             .wait(forDuration: 0.08),
-            .group([
-                .scale(to: 10, duration: 0.48),
-                .fadeOut(withDuration: 0.48)
-            ]),
-            .removeFromParent()
+            .run { [weak self] in
+                self?.spawnShockwaveRing(
+                    at: origin,
+                    startScale: 0.2,
+                    endScale: 10,
+                    duration: 0.48,
+                    color: SKColor(red: 1, green: 0.98, blue: 0.65, alpha: 0.9),
+                    lineWidth: 5
+                )
+            }
         ]))
 
         let flash = SKSpriteNode(
@@ -1938,7 +1928,59 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             ]))
         }
 
+        showStatusBanner(text: "CHAIN CLEAR!", color: SKColor(red: 1.0, green: 0.86, blue: 0.2, alpha: 1))
         clearObstaclesFromClearMine(origin: origin)
+    }
+
+    /// Sprite-batched expanding ring — avoids SKShapeNode tessellation hitches.
+    private func spawnShockwaveRing(
+        at origin: CGPoint,
+        startScale: CGFloat,
+        endScale: CGFloat,
+        duration: TimeInterval,
+        color: SKColor,
+        lineWidth: CGFloat
+    ) {
+        let ring = SKSpriteNode(texture: shockwaveRingTexture(lineWidth: lineWidth))
+        ring.size = CGSize(width: 88, height: 88)
+        ring.position = origin
+        ring.zPosition = GameConstants.Z.effect + 2
+        ring.setScale(startScale)
+        ring.color = color
+        ring.colorBlendFactor = 1
+        ring.blendMode = .add
+        addChild(ring)
+        ring.run(.sequence([
+            .group([
+                .scale(to: endScale, duration: duration),
+                .fadeOut(withDuration: duration)
+            ]),
+            .removeFromParent()
+        ]))
+    }
+
+    private func shockwaveRingTexture(lineWidth: CGFloat) -> SKTexture {
+        let key = String(format: "__shockwave_ring_%.0f", lineWidth)
+        if let cached = TextureCache.optional(key) {
+            return cached
+        }
+        let size = CGSize(width: 96, height: 96)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 2
+        format.opaque = false
+        let renderer = UIGraphicsImageRenderer(size: size, format: format)
+        let image = renderer.image { _ in
+            let inset = lineWidth * 0.5 + 1
+            let rect = CGRect(origin: .zero, size: size).insetBy(dx: inset, dy: inset)
+            let path = UIBezierPath(ovalIn: rect)
+            UIColor.white.setStroke()
+            path.lineWidth = lineWidth
+            path.stroke()
+        }
+        let texture = SKTexture(image: image)
+        texture.filteringMode = .linear
+        TextureCache.store(key, texture: texture)
+        return texture
     }
 
     private func clearObstaclesFromClearMine(origin: CGPoint) {

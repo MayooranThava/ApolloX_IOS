@@ -96,7 +96,7 @@ final class NodePool<Node: SKSpriteNode> {
         } else {
             node.userData = nil
         }
-        guard !nodes.contains(where: { $0 === node }) else { return }
+        // Callers never double-recycle the same live node; skip O(n) identity scan.
         guard nodes.count < maxIdle else { return }
         nodes.append(node)
     }
