@@ -21,9 +21,9 @@ enum EffectsQuality: Equatable {
     /// Particles/sec. Birth rate is time-based; per-frame sim cost still scales with FPS.
     var engineBirthRate: CGFloat {
         switch self {
-        case .high: return 30
-        case .balanced: return 20
-        case .conservative: return 8
+        case .high: return 48
+        case .balanced: return 32
+        case .conservative: return 14
         }
     }
 

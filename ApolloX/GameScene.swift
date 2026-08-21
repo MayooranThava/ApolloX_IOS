@@ -18,6 +18,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private let bossHealthBar = BossHealthBarNode()
     private let player = SKSpriteNode()
     private var engineEmitter: SKEmitterNode?
+    private var engineFlame: SKNode?
 
     private var lives = GameRules.startingLives
     private var level = 0
@@ -289,9 +290,16 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
         let engine = makeEngineEmitter()
         engine.particleColor = ship.engineColor
-        engine.position = CGPoint(x: 0, y: -player.size.height * 0.40)
+        engine.position = CGPoint(x: 0, y: -player.size.height * 0.42)
         player.addChild(engine)
         engineEmitter = engine
+
+        let flame = makeEngineFlameNode(tint: ship.engineColor)
+        // Just under the thrusters — additive flicker over the baked exhaust.
+        flame.position = CGPoint(x: 0, y: -player.size.height * 0.38)
+        flame.setScale(1.15)
+        player.addChild(flame)
+        engineFlame = flame
     }
 
     private func updateHUD() {
@@ -687,6 +695,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         dismissPauseOverlay()
         HapticManager.gameOver()
         engineEmitter?.particleBirthRate = 0
+        engineFlame?.isHidden = true
+        engineFlame?.removeAllActions()
 
         removeAllActions()
         for sprite in liveBullets + liveEnemies + livePickups + liveFireballs + liveRockets {

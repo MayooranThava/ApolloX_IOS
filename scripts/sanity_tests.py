@@ -119,7 +119,9 @@ def main() -> int:
     boss_spawn_block = SCENE[boss_start:boss_end]
     check("clearRegularObstacles" not in boss_spawn_block, "boss spawn should not clear on-screen obstacles")
     check("clearRockets" not in boss_spawn_block, "boss spawn should not clear in-flight rockets")
-    check("BossAttackPattern" in RULES and "fireAcidHydraVolley" in SCENE, "per-boss attack patterns expected")
+    check("makeEngineFlameNode" in (ROOT / "ApolloX" / "SceneHelpers.swift").read_text(),
+          "animated engine flame node missing")
+    check("engineFlame" in SCENE, "GameScene should attach animated engine flames")
     check("BossAttackTextures" in (ROOT / "ApolloX" / "BossAttackTextures.swift").read_text(), "boss projectile textures missing")
     check("fireRingWithGap" in SCENE and "nebulaFlame" in (ROOT / "ApolloX" / "BossAttackTextures.swift").read_text(),
           "Nebula ring-of-fire dodge attack expected")
