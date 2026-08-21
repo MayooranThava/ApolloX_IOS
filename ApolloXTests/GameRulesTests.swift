@@ -442,4 +442,22 @@ final class GameRulesTests: XCTestCase {
             XCTAssertLessThanOrEqual(interval, GameRules.rocketSpawnMaxInterval)
         }
     }
+
+    func testRocketSpeedRampsWithScore() {
+        XCTAssertEqual(GameRules.rocketSpeed(forScore: 0), GameRules.rocketSpeed, accuracy: 0.01)
+        XCTAssertEqual(GameRules.rocketSpeed(forScore: 99), GameRules.rocketSpeed, accuracy: 0.01)
+        let at100 = GameRules.rocketSpeed(forScore: 100)
+        XCTAssertEqual(at100, GameRules.rocketSpeed * 1.10, accuracy: 0.5)
+        let at200 = GameRules.rocketSpeed(forScore: 200)
+        XCTAssertEqual(at200, GameRules.rocketSpeed * 1.21, accuracy: 0.5)
+        let capped = GameRules.rocketSpeed(forScore: 5000)
+        XCTAssertEqual(capped, GameRules.rocketSpeed * GameRules.rocketSpeedMaxMultiplier, accuracy: 0.5)
+    }
+
+    func testPlayerBaselineKeepsShipNearBottom() {
+        let y = GameRules.playerBaselineY(playMinY: 100, scaledHeight: 200)
+        XCTAssertEqual(y, 100 + 200 * GameRules.playerBottomHeightFactor + GameRules.playerBottomPadding, accuracy: 0.01)
+        XCTAssertLessThan(GameRules.playerBottomHeightFactor, 0.42)
+        XCTAssertLessThan(GameRules.playerScale, 0.72)
+    }
 }

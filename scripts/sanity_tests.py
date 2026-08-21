@@ -54,7 +54,12 @@ def main() -> int:
     check("runGameOver()" not in contact_block, "contact must not instant game-over")
 
     # 3) Larger sprites
-    check(swift_number(RULES, "playerScale") >= 0.65, "playerScale should be bumped (~0.72)")
+    check(swift_number(RULES, "playerScale") >= 0.65, "playerScale should be bumped (~0.65)")
+    check("playerBaselineY" in RULES, "playerBaselineY helper should keep thrusters on-screen")
+    check("rocketSpeed(forScore" in RULES, "falling cannons should ramp speed with score")
+    check("makeCannonSmokeEmitter" in (ROOT / "ApolloX" / "SceneHelpers.swift").read_text(),
+          "falling cannons should emit smoke trails")
+    check("cannonSmoke" in SCENE, "GameScene should attach cannon smoke to falling hazards")
     check(swift_number(RULES, "bulletSize") >= 40, "bullet width should be larger")
     check("1.18" in RULES or "obstacleScale" in RULES, "obstacle scales should be increased via GameRules")
 
