@@ -156,77 +156,74 @@ extension SKScene {
     func makeEngineFlameNode(tint: SKColor) -> SKNode {
         let root = SKNode()
         root.name = GameConstants.NodeName.engineFlame
-        let layers = FramePacing.currentQuality.engineFlameLayers
+        // Draw in front of the hull so thruster flames aren't buried under opaque pixels
+        // when SKView.ignoresSiblingOrder is on.
+        root.zPosition = 1
+        let layers = max(3, FramePacing.currentQuality.engineFlameLayers)
 
-        if layers >= 3 {
-            let outer = SKSpriteNode(texture: engineFlameTexture(kind: .outer))
-            outer.name = "flameOuter"
-            outer.size = CGSize(width: 54, height: 78)
-            outer.anchorPoint = CGPoint(x: 0.5, y: 1.0)
-            outer.position = .zero
-            outer.zPosition = -1
-            outer.blendMode = .add
-            outer.color = tint
-            outer.colorBlendFactor = 0.35
-            root.addChild(outer)
-            startFlameFlicker(on: outer, scaleXRange: 0.88...1.14, scaleYRange: 0.78...1.28, alphaRange: 0.65...1.0, period: 0.06)
-        }
+        let outer = SKSpriteNode(texture: engineFlameTexture(kind: .outer))
+        outer.name = "flameOuter"
+        outer.size = CGSize(width: 72, height: 110)
+        outer.anchorPoint = CGPoint(x: 0.5, y: 1.0)
+        outer.position = .zero
+        outer.zPosition = 0
+        outer.blendMode = .add
+        // Hot orange core look; light ship-tint blend so hangar skins stay distinct.
+        outer.color = tint
+        outer.colorBlendFactor = 0.18
+        root.addChild(outer)
+        startFlameFlicker(on: outer, scaleXRange: 0.88...1.16, scaleYRange: 0.72...1.32, alphaRange: 0.75...1.0, period: 0.07)
 
-        if layers >= 2 {
-            let mid = SKSpriteNode(texture: engineFlameTexture(kind: .mid))
-            mid.name = "flameMid"
-            mid.size = CGSize(width: 34, height: 62)
-            mid.anchorPoint = CGPoint(x: 0.5, y: 1.0)
-            mid.position = CGPoint(x: 0, y: -2)
-            mid.zPosition = 0
-            mid.blendMode = .add
-            mid.color = SKColor(red: 1.0, green: 0.78, blue: 0.28, alpha: 1)
-            mid.colorBlendFactor = 0.25
-            root.addChild(mid)
-            startFlameFlicker(on: mid, scaleXRange: 0.90...1.10, scaleYRange: 0.80...1.24, alphaRange: 0.75...1.0, period: 0.05)
-        }
+        let mid = SKSpriteNode(texture: engineFlameTexture(kind: .mid))
+        mid.name = "flameMid"
+        mid.size = CGSize(width: 44, height: 88)
+        mid.anchorPoint = CGPoint(x: 0.5, y: 1.0)
+        mid.position = CGPoint(x: 0, y: -2)
+        mid.zPosition = 1
+        mid.blendMode = .add
+        mid.color = SKColor(red: 1.0, green: 0.82, blue: 0.25, alpha: 1)
+        mid.colorBlendFactor = 0.12
+        root.addChild(mid)
+        startFlameFlicker(on: mid, scaleXRange: 0.90...1.12, scaleYRange: 0.78...1.28, alphaRange: 0.85...1.0, period: 0.055)
 
         let core = SKSpriteNode(texture: engineFlameTexture(kind: .core))
         core.name = "flameCore"
-        core.size = CGSize(width: 18, height: 42)
+        core.size = CGSize(width: 24, height: 58)
         core.anchorPoint = CGPoint(x: 0.5, y: 1.0)
         core.position = CGPoint(x: 0, y: -1)
-        core.zPosition = 1
+        core.zPosition = 2
         core.blendMode = .add
         root.addChild(core)
-        startFlameFlicker(on: core, scaleXRange: 0.92...1.08, scaleYRange: 0.85...1.20, alphaRange: 0.80...1.0, period: 0.04)
+        startFlameFlicker(on: core, scaleXRange: 0.92...1.10, scaleYRange: 0.82...1.22, alphaRange: 0.90...1.0, period: 0.045)
 
-        // Side thruster tips only on high quality (3-nozzle look).
         if layers >= 5 {
             for side in [-1.0, 1.0] as [CGFloat] {
                 let tip = SKSpriteNode(texture: engineFlameTexture(kind: .mid))
                 tip.name = "flameTip"
-                tip.size = CGSize(width: 18, height: 40)
+                tip.size = CGSize(width: 26, height: 58)
                 tip.anchorPoint = CGPoint(x: 0.5, y: 1.0)
-                tip.position = CGPoint(x: side * 18, y: 4)
-                tip.zPosition = -0.5
+                tip.position = CGPoint(x: side * 22, y: 2)
+                tip.zPosition = 0.5
                 tip.blendMode = .add
-                tip.alpha = 0.85
-                tip.color = tint
-                tip.colorBlendFactor = 0.4
+                tip.alpha = 0.9
+                tip.color = SKColor(red: 1.0, green: 0.55, blue: 0.12, alpha: 1)
+                tip.colorBlendFactor = 0.2
                 root.addChild(tip)
                 startFlameFlicker(
                     on: tip,
-                    scaleXRange: 0.82...1.12,
-                    scaleYRange: 0.72...1.22,
-                    alphaRange: 0.55...0.95,
-                    period: 0.07
+                    scaleXRange: 0.84...1.14,
+                    scaleYRange: 0.70...1.26,
+                    alphaRange: 0.70...1.0,
+                    period: 0.065
                 )
             }
         }
 
-        if FramePacing.currentQuality != .conservative {
-            root.run(.repeatForever(.sequence([
-                .moveBy(x: 2.5, y: 0, duration: 0.11),
-                .moveBy(x: -4.5, y: 0, duration: 0.13),
-                .moveBy(x: 2.0, y: 0, duration: 0.10)
-            ])), withKey: "flameSway")
-        }
+        root.run(.repeatForever(.sequence([
+            .moveBy(x: 2.2, y: 0, duration: 0.10),
+            .moveBy(x: -4.0, y: 0, duration: 0.12),
+            .moveBy(x: 1.8, y: 0, duration: 0.10)
+        ])), withKey: "flameSway")
 
         return root
     }

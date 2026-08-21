@@ -294,14 +294,16 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
         let engine = makeEngineEmitter()
         engine.particleColor = ship.engineColor
-        engine.position = CGPoint(x: 0, y: -player.size.height * 0.42)
+        // Sit at the nozzle line so the particle trail starts where flames begin.
+        engine.position = CGPoint(x: 0, y: -player.size.height * 0.48)
+        engine.zPosition = 2
         player.addChild(engine)
         engineEmitter = engine
 
         let flame = makeEngineFlameNode(tint: ship.engineColor)
-        // Just under the thrusters — additive flicker over the baked exhaust.
-        flame.position = CGPoint(x: 0, y: -player.size.height * 0.38)
-        flame.setScale(1.15)
+        // Anchor just above the bottom of the hull so tongues extend clearly past the ship.
+        flame.position = CGPoint(x: 0, y: -player.size.height * 0.46)
+        flame.setScale(1.35)
         player.addChild(flame)
         engineFlame = flame
     }
