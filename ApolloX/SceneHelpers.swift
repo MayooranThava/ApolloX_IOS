@@ -152,37 +152,37 @@ extension SKScene {
         return emitter
     }
 
-    /// Soft grey smoke plume that trails behind falling lane cannons.
-    func makeCannonSmokeEmitter() -> SKEmitterNode {
+    /// Grey exhaust smoke that streams from the tail of falling nuclear rockets.
+    func makeRocketTailSmokeEmitter() -> SKEmitterNode {
         let emitter = SKEmitterNode()
         emitter.particleTexture = softDotTexture()
         let quality = FramePacing.currentQuality
         let baseRate: CGFloat
         switch quality {
-        case .high: baseRate = 42
-        case .balanced: baseRate = 24
-        case .conservative: baseRate = 10
+        case .high: baseRate = 56
+        case .balanced: baseRate = 32
+        case .conservative: baseRate = 14
         }
         emitter.particleBirthRate = FramePacing.scaledBirthRate(baseRate)
-        emitter.particleLifetime = 0.55
-        emitter.particleLifetimeRange = 0.22
-        emitter.particlePositionRange = CGVector(dx: 10, dy: 6)
-        emitter.particleSpeed = 70
-        emitter.particleSpeedRange = 35
-        // Smoke drifts upward (opposite of the cannon's fall).
+        emitter.particleLifetime = 0.65
+        emitter.particleLifetimeRange = 0.28
+        emitter.particlePositionRange = CGVector(dx: 12, dy: 8)
+        emitter.particleSpeed = 95
+        emitter.particleSpeedRange = 45
+        // Smoke streams upward from the tail while the rocket falls nose-down.
         emitter.emissionAngle = .pi / 2
-        emitter.emissionAngleRange = 0.55
-        emitter.particleAlpha = 0.55
-        emitter.particleAlphaRange = 0.2
-        emitter.particleAlphaSpeed = -0.85
-        emitter.particleScale = 0.28
-        emitter.particleScaleRange = 0.14
-        emitter.particleScaleSpeed = 0.35
-        emitter.particleColor = SKColor(white: 0.72, alpha: 1)
+        emitter.emissionAngleRange = 0.65
+        emitter.particleAlpha = 0.62
+        emitter.particleAlphaRange = 0.22
+        emitter.particleAlphaSpeed = -0.9
+        emitter.particleScale = 0.34
+        emitter.particleScaleRange = 0.18
+        emitter.particleScaleSpeed = 0.42
+        emitter.particleColor = SKColor(white: 0.78, alpha: 1)
         emitter.particleColorBlendFactor = 1
         emitter.particleBlendMode = .alpha
-        emitter.particleRotationRange = 1.2
-        emitter.particleRotationSpeed = 0.8
+        emitter.particleRotationRange = 1.4
+        emitter.particleRotationSpeed = 1.0
         emitter.targetNode = self
         return emitter
     }

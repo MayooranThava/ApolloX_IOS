@@ -579,7 +579,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     private func spawnFallingRocket(at columnX: CGFloat) {
         let rocket = rocketPool.checkout()
-        rocket.childNode(withName: "cannonSmoke")?.removeFromParent()
+        rocket.childNode(withName: "rocketTailSmoke")?.removeFromParent()
         rocket.texture = TextureCache.texture(GameConstants.rocketImage)
         rocket.setScale(GameRules.rocketScale)
         rocket.name = GameConstants.NodeName.rocket
@@ -595,10 +595,10 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             contact: GameConstants.PhysicsCategory.player
         )
 
-        let smoke = makeCannonSmokeEmitter()
-        smoke.name = "cannonSmoke"
-        // Trail behind the muzzle (texture is nose-down; breech/smoke sits toward the top).
-        smoke.position = CGPoint(x: 0, y: rocket.size.height * 0.42)
+        let smoke = makeRocketTailSmokeEmitter()
+        smoke.name = "rocketTailSmoke"
+        // Texture is nose-down: exhaust / smoke emits from the tail near the top.
+        smoke.position = CGPoint(x: 0, y: rocket.size.height * 0.46)
         smoke.zPosition = -1
         rocket.addChild(smoke)
 
@@ -620,7 +620,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     private func recycleRocket(_ node: PooledSprite) {
-        node.childNode(withName: "cannonSmoke")?.removeFromParent()
+        node.childNode(withName: "rocketTailSmoke")?.removeFromParent()
         untrack(node, from: &liveRockets)
         rocketPool.recycle(node)
     }
