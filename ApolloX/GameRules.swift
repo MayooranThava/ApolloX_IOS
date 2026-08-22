@@ -62,21 +62,21 @@ enum GameRules {
     static let fireballSpeed: CGFloat = 520
     static let fireballScale: CGFloat = 0.72
 
-    /// Falling cannons use a tall procedural sprite; scale targets ~55% of player height.
+    /// Falling nuclear rockets use a tall procedural sprite; scale targets ~55% of player height.
     static let rocketScale: CGFloat = 0.78
     /// Base fall speed; scales up with score (see `rocketSpeed(forScore:)`).
     static let rocketSpeed: CGFloat = 780
     /// +10% fall speed every this many points — readable ramp without time-tier coupling.
     static let rocketSpeedScoreStep = 100
     static let rocketSpeedStepMultiplier: CGFloat = 1.10
-    /// Cap so late-game cannons stay reactable (~2.5× ≈ score 1000+).
+    /// Cap so late-game rockets stay reactable (~2.5× ≈ score 1000+).
     static let rocketSpeedMaxMultiplier: CGFloat = 2.5
     static let rocketHitboxFactor: CGFloat = 0.30
-    /// Jetpack Joyride-style: cannons aim where the player was this many seconds ago.
+    /// Jetpack Joyride-style: rockets aim where the player was this many seconds ago.
     static let rocketTargetLookback: TimeInterval = 2.0
     /// Width of the semi-transparent red danger column shown during the warning.
     static let rocketWarningStripeWidth: CGFloat = 88
-    /// Seconds the lane warning flashes before the cannon drops.
+    /// Seconds the lane warning flashes before the rocket drops.
     static let rocketWarningDuration: TimeInterval = 1.25
     static let rocketWarningFlashInterval: TimeInterval = 0.08
     static let rocketFirstSpawnDelay: TimeInterval = 18.0
@@ -456,7 +456,7 @@ enum GameRules {
         playMinY + scaledHeight * playerBottomHeightFactor + playerBottomPadding
     }
 
-    // MARK: - Falling cannons
+    // MARK: - Falling nuclear rockets
 
     static func shouldSpawnRockets(elapsed: TimeInterval, bossActive: Bool) -> Bool {
         !bossActive && elapsed >= rocketFirstSpawnDelay

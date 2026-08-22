@@ -2,7 +2,7 @@
 //  GameplayTextures.swift
 //  ApolloX
 //
-//  Procedural sprites for falling lane cannons and their warnings.
+//  Procedural sprites for falling nuclear rockets and their lane warnings.
 //
 
 import SpriteKit
@@ -13,7 +13,7 @@ enum GameplayTextures {
     static let warningBadgeName = "rocketWarningBadge"
     static let yellowClearMineName = "yellowClearMine"
 
-    /// Tall gunmetal cannon drawn muzzle-down (lane hazard after the ! warning).
+    /// Tall flying rocket drawn nose-down (lane hazard after the ! warning).
     static let fallingRocketPixelSize = CGSize(width: 96, height: 240)
     static let yellowClearMinePixelSize = CGSize(width: 128, height: 128)
 
@@ -37,101 +37,94 @@ enum GameplayTextures {
             let w = size.width
             let h = size.height
 
-            // Soft smoke puff at the breech (top) — particles add the live trail.
+            // Soft baked exhaust glow at the tail (top) — live smoke particles trail behind.
             cg.saveGState()
-            cg.setFillColor(UIColor(white: 0.78, alpha: 0.35).cgColor)
-            cg.fillEllipse(in: CGRect(x: w * 0.22, y: h * 0.01, width: w * 0.56, height: h * 0.14))
-            cg.setFillColor(UIColor(white: 0.88, alpha: 0.28).cgColor)
-            cg.fillEllipse(in: CGRect(x: w * 0.30, y: h * 0.00, width: w * 0.28, height: h * 0.09))
+            cg.setFillColor(UIColor(red: 1.0, green: 0.55, blue: 0.12, alpha: 0.35).cgColor)
+            cg.fillEllipse(in: CGRect(x: w * 0.28, y: h * 0.00, width: w * 0.44, height: h * 0.12))
             cg.restoreGState()
 
-            // Breech block (rear of cannon).
-            let breech = UIBezierPath(
-                roundedRect: CGRect(x: w * 0.22, y: h * 0.12, width: w * 0.56, height: h * 0.16),
-                cornerRadius: w * 0.06
-            )
-            SKColor(red: 0.22, green: 0.24, blue: 0.28, alpha: 1).setFill()
-            breech.fill()
-            SKColor(white: 0.08, alpha: 0.7).setStroke()
-            breech.lineWidth = 2.5
-            breech.stroke()
-
-            // Main barrel tube.
-            let barrel = UIBezierPath(
-                roundedRect: CGRect(x: w * 0.32, y: h * 0.24, width: w * 0.36, height: h * 0.52),
+            // Exhaust nozzle / tail ring (top — rocket falls nose-down).
+            let nozzle = UIBezierPath(
+                roundedRect: CGRect(x: w * 0.30, y: h * 0.10, width: w * 0.40, height: h * 0.10),
                 cornerRadius: w * 0.04
             )
-            SKColor(red: 0.38, green: 0.40, blue: 0.44, alpha: 1).setFill()
-            barrel.fill()
+            SKColor(red: 0.22, green: 0.24, blue: 0.28, alpha: 1).setFill()
+            nozzle.fill()
+            SKColor(white: 0.08, alpha: 0.7).setStroke()
+            nozzle.lineWidth = 2
+            nozzle.stroke()
 
-            // Barrel highlight strip.
+            // Main fuselage.
+            let body = UIBezierPath(
+                roundedRect: CGRect(x: w * 0.28, y: h * 0.18, width: w * 0.44, height: h * 0.52),
+                cornerRadius: w * 0.06
+            )
+            SKColor(red: 0.72, green: 0.74, blue: 0.78, alpha: 1).setFill()
+            body.fill()
+            SKColor(white: 0.15, alpha: 0.55).setStroke()
+            body.lineWidth = 2.5
+            body.stroke()
+
+            // Fuselage highlight.
             let highlight = UIBezierPath(
-                roundedRect: CGRect(x: w * 0.36, y: h * 0.28, width: w * 0.08, height: h * 0.42),
+                roundedRect: CGRect(x: w * 0.34, y: h * 0.22, width: w * 0.08, height: h * 0.40),
                 cornerRadius: 3
             )
-            SKColor(white: 1, alpha: 0.18).setFill()
+            SKColor(white: 1, alpha: 0.22).setFill()
             highlight.fill()
 
-            // Reinforcing rings.
-            SKColor(red: 0.18, green: 0.19, blue: 0.22, alpha: 1).setFill()
-            for frac in [0.30, 0.46, 0.62] as [CGFloat] {
-                let ring = UIBezierPath(
-                    roundedRect: CGRect(x: w * 0.28, y: h * frac, width: w * 0.44, height: h * 0.045),
-                    cornerRadius: 3
-                )
-                ring.fill()
+            // Side fins near the tail.
+            func fin(left: Bool) {
+                let path = UIBezierPath()
+                let cx = left ? w * 0.28 : w * 0.72
+                path.move(to: CGPoint(x: cx, y: h * 0.22))
+                path.addLine(to: CGPoint(x: left ? w * 0.06 : w * 0.94, y: h * 0.12))
+                path.addLine(to: CGPoint(x: left ? w * 0.08 : w * 0.92, y: h * 0.28))
+                path.addLine(to: CGPoint(x: cx, y: h * 0.34))
+                path.close()
+                SKColor(red: 0.85, green: 0.18, blue: 0.12, alpha: 1).setFill()
+                path.fill()
+                SKColor(white: 0.1, alpha: 0.5).setStroke()
+                path.lineWidth = 1.5
+                path.stroke()
             }
+            fin(left: true)
+            fin(left: false)
 
-            // Trunnion / carriage knobs so it reads as a cannon, not a missile.
-            func trunnion(left: Bool) {
-                let cx = left ? w * 0.22 : w * 0.78
-                let rect = CGRect(x: cx - w * 0.07, y: h * 0.40, width: w * 0.14, height: w * 0.14)
-                SKColor(red: 0.28, green: 0.30, blue: 0.34, alpha: 1).setFill()
-                UIBezierPath(ovalIn: rect).fill()
-                SKColor(white: 0.1, alpha: 0.65).setStroke()
-                let outline = UIBezierPath(ovalIn: rect)
-                outline.lineWidth = 2
-                outline.stroke()
-            }
-            trunnion(left: true)
-            trunnion(left: false)
-
-            // Hazard band near the muzzle.
-            let hazard = UIBezierPath(
-                roundedRect: CGRect(x: w * 0.30, y: h * 0.70, width: w * 0.40, height: h * 0.06),
-                cornerRadius: 2
+            // Nuclear radiation warning disc on the body.
+            drawNuclearWarning(
+                center: CGPoint(x: w * 0.5, y: h * 0.42),
+                radius: w * 0.20,
+                in: cg
             )
-            SKColor(red: 0.95, green: 0.72, blue: 0.08, alpha: 1).setFill()
-            hazard.fill()
-            SKColor(red: 0.12, green: 0.10, blue: 0.04, alpha: 1).setFill()
-            for i in 0..<4 {
-                let x = w * 0.32 + CGFloat(i) * w * 0.09
-                UIBezierPath(rect: CGRect(x: x, y: h * 0.70, width: w * 0.045, height: h * 0.06)).fill()
-            }
 
-            // Muzzle flare / ring at the bottom.
-            let muzzleOuter = UIBezierPath(
-                roundedRect: CGRect(x: w * 0.26, y: h * 0.78, width: w * 0.48, height: h * 0.12),
-                cornerRadius: w * 0.05
-            )
-            SKColor(red: 0.20, green: 0.21, blue: 0.24, alpha: 1).setFill()
-            muzzleOuter.fill()
+            // Red nose cone pointing down.
+            let nose = UIBezierPath()
+            nose.move(to: CGPoint(x: w * 0.5, y: h * 0.98))
+            nose.addLine(to: CGPoint(x: w * 0.22, y: h * 0.70))
+            nose.addLine(to: CGPoint(x: w * 0.78, y: h * 0.70))
+            nose.close()
+            SKColor(red: 0.90, green: 0.16, blue: 0.12, alpha: 1).setFill()
+            nose.fill()
+            SKColor(white: 1, alpha: 0.35).setStroke()
+            nose.lineWidth = 2
+            nose.stroke()
 
-            // Dark bore opening.
-            let bore = UIBezierPath(ovalIn: CGRect(x: w * 0.36, y: h * 0.86, width: w * 0.28, height: h * 0.10))
-            SKColor(red: 0.05, green: 0.05, blue: 0.07, alpha: 1).setFill()
-            bore.fill()
-            SKColor(red: 0.55, green: 0.22, blue: 0.08, alpha: 0.75).setStroke()
-            let boreGlow = UIBezierPath(ovalIn: CGRect(x: w * 0.38, y: h * 0.875, width: w * 0.24, height: h * 0.07))
-            boreGlow.lineWidth = 2.5
-            boreGlow.stroke()
+            // Nose tip highlight.
+            let tip = UIBezierPath()
+            tip.move(to: CGPoint(x: w * 0.5, y: h * 0.96))
+            tip.addLine(to: CGPoint(x: w * 0.40, y: h * 0.82))
+            tip.addLine(to: CGPoint(x: w * 0.60, y: h * 0.82))
+            tip.close()
+            SKColor(red: 1.0, green: 0.45, blue: 0.28, alpha: 0.55).setFill()
+            tip.fill()
 
             // Subtle outline for contrast on dark nebula backgrounds.
             let outline = UIBezierPath(
-                roundedRect: CGRect(x: w * 0.20, y: h * 0.10, width: w * 0.60, height: h * 0.82),
-                cornerRadius: 10
+                roundedRect: CGRect(x: w * 0.14, y: h * 0.08, width: w * 0.72, height: h * 0.86),
+                cornerRadius: 12
             )
-            SKColor(white: 1, alpha: 0.22).setStroke()
+            SKColor(white: 1, alpha: 0.20).setStroke()
             outline.lineWidth = 2
             outline.stroke()
         }
@@ -139,6 +132,58 @@ enum GameplayTextures {
         texture.filteringMode = .linear
         texture.usesMipmaps = true
         return texture
+    }
+
+    /// Classic yellow radiation trefoil used on the falling nuclear rocket body.
+    private static func drawNuclearWarning(center: CGPoint, radius: CGFloat, in cg: CGContext) {
+        let disc = UIBezierPath(ovalIn: CGRect(
+            x: center.x - radius,
+            y: center.y - radius,
+            width: radius * 2,
+            height: radius * 2
+        ))
+        SKColor(red: 1.0, green: 0.86, blue: 0.05, alpha: 1).setFill()
+        disc.fill()
+        SKColor(white: 0.08, alpha: 0.85).setStroke()
+        disc.lineWidth = max(2, radius * 0.08)
+        disc.stroke()
+
+        // Three black radiation blades around a center disc.
+        SKColor(white: 0.08, alpha: 1).setFill()
+        let bladeInner = radius * 0.22
+        let bladeOuter = radius * 0.82
+        for i in 0..<3 {
+            let angle = CGFloat(i) * (2 * .pi / 3) - .pi / 2
+            let path = UIBezierPath()
+            path.addArc(
+                withCenter: center,
+                radius: bladeOuter,
+                startAngle: angle - 0.42,
+                endAngle: angle + 0.42,
+                clockwise: true
+            )
+            path.addArc(
+                withCenter: center,
+                radius: bladeInner,
+                startAngle: angle + 0.42,
+                endAngle: angle - 0.42,
+                clockwise: false
+            )
+            path.close()
+            path.fill()
+        }
+
+        let core = UIBezierPath(ovalIn: CGRect(
+            x: center.x - bladeInner * 0.85,
+            y: center.y - bladeInner * 0.85,
+            width: bladeInner * 1.7,
+            height: bladeInner * 1.7
+        ))
+        SKColor(white: 0.08, alpha: 1).setFill()
+        core.fill()
+
+        // Silence unused-cg warning when only UIBezierPath is used above.
+        _ = cg
     }
 
     /// Golden hazard mine with pulsing core — shoot it to chain-clear the screen.

@@ -56,10 +56,12 @@ def main() -> int:
     # 3) Larger sprites
     check(swift_number(RULES, "playerScale") >= 0.65, "playerScale should be bumped (~0.65)")
     check("playerBaselineY" in RULES, "playerBaselineY helper should keep thrusters on-screen")
-    check("rocketSpeed(forScore" in RULES, "falling cannons should ramp speed with score")
-    check("makeCannonSmokeEmitter" in (ROOT / "ApolloX" / "SceneHelpers.swift").read_text(),
-          "falling cannons should emit smoke trails")
-    check("cannonSmoke" in SCENE, "GameScene should attach cannon smoke to falling hazards")
+    check("rocketSpeed(forScore" in RULES, "falling rockets should ramp speed with score")
+    helpers = (ROOT / "ApolloX" / "SceneHelpers.swift").read_text()
+    check("makeRocketTailSmokeEmitter" in helpers, "falling rockets should emit tail smoke trails")
+    check("rocketTailSmoke" in SCENE, "GameScene should attach tail smoke to falling nuclear rockets")
+    textures = (ROOT / "ApolloX" / "GameplayTextures.swift").read_text()
+    check("drawNuclearWarning" in textures, "falling rockets should show a nuclear warning sign")
     check(swift_number(RULES, "bulletSize") >= 40, "bullet width should be larger")
     check("1.18" in RULES or "obstacleScale" in RULES, "obstacle scales should be increased via GameRules")
 
