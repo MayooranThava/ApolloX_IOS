@@ -324,16 +324,27 @@ final class GameRulesTests: XCTestCase {
     }
 
     func testEffectsQualityScalesWithThermalBudget() {
-        XCTAssertEqual(FramePacing.effectsQuality(thermalState: .nominal, lowPowerMode: false), .high)
-        XCTAssertEqual(FramePacing.effectsQuality(thermalState: .fair, lowPowerMode: false), .balanced)
-        XCTAssertEqual(FramePacing.effectsQuality(thermalState: .serious, lowPowerMode: false), .conservative)
-        XCTAssertEqual(FramePacing.effectsQuality(thermalState: .nominal, lowPowerMode: true), .conservative)
+        XCTAssertEqual(
+            FramePacing.effectsQuality(thermalState: .nominal, lowPowerMode: false, hardwareMaxFPS: 120),
+            .high
+        )
+        XCTAssertEqual(
+            FramePacing.effectsQuality(thermalState: .nominal, lowPowerMode: false, hardwareMaxFPS: 60),
+            .balanced,
+            "60 Hz iPhones should not default to Pro-tier VFX"
+        )
+        XCTAssertEqual(FramePacing.effectsQuality(thermalState: .fair, lowPowerMode: false, hardwareMaxFPS: 120), .balanced)
+        XCTAssertEqual(FramePacing.effectsQuality(thermalState: .fair, lowPowerMode: false, hardwareMaxFPS: 60), .conservative)
+        XCTAssertEqual(FramePacing.effectsQuality(thermalState: .serious, lowPowerMode: false, hardwareMaxFPS: 60), .conservative)
+        XCTAssertEqual(FramePacing.effectsQuality(thermalState: .nominal, lowPowerMode: true, hardwareMaxFPS: 120), .conservative)
         XCTAssertGreaterThan(EffectsQuality.high.engineBirthRate, EffectsQuality.conservative.engineBirthRate)
         XCTAssertEqual(EffectsQuality.conservative.starDustBirthRate, 0)
-        XCTAssertGreaterThan(EffectsQuality.balanced.engineBirthRate, 0)
+        XCTAssertEqual(EffectsQuality.balanced.engineBirthRate, 0, "sprite flames carry exhaust on 60 Hz phones")
         XCTAssertGreaterThanOrEqual(EffectsQuality.conservative.engineFlameLayers, 3)
         XCTAssertGreaterThan(EffectsQuality.high.engineFlameLayers, EffectsQuality.balanced.engineFlameLayers)
         XCTAssertGreaterThan(EffectsQuality.high.parallaxStarCount, EffectsQuality.conservative.parallaxStarCount)
+        XCTAssertGreaterThan(EffectsQuality.high.maxBossProjectiles, EffectsQuality.balanced.maxBossProjectiles)
+        XCTAssertEqual(EffectsQuality.balanced.rocketTailSmokeBirthRate, 0)
     }
 
     func testScaledBirthRateHalvesAt120Hz() {

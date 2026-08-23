@@ -256,6 +256,9 @@ def main() -> int:
     check("enum AudioCue" in audio and "AVAudioPlayer" in audio, "combat SFX should be preloaded AVAudioPlayer pools")
     check("preferredFramesPerSecond = 120" not in view, "hardcoded 120 fps bypasses Low Power / thermal policy")
     check("FramePacing.start" in view, "SKView should take its refresh rate from FramePacing")
+    check("hardwareMaxFPS" in pacing_src, "effects quality should scale baseline VFX for 60 Hz phones")
+    check("physicsBody = nil" in SCENE, "bullets should skip physics; swept tests handle hits")
+    check("maxBossProjectiles" in pacing_src, "boss projectile cap should scale with effects quality")
 
     import time
 

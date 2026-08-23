@@ -153,16 +153,12 @@ extension SKScene {
     }
 
     /// Grey exhaust smoke that streams from the tail of falling nuclear rockets.
-    func makeRocketTailSmokeEmitter() -> SKEmitterNode {
+    func makeRocketTailSmokeEmitter() -> SKEmitterNode? {
+        let baseRate = FramePacing.currentQuality.rocketTailSmokeBirthRate
+        guard baseRate > 0 else { return nil }
+
         let emitter = SKEmitterNode()
         emitter.particleTexture = softDotTexture()
-        let quality = FramePacing.currentQuality
-        let baseRate: CGFloat
-        switch quality {
-        case .high: baseRate = 56
-        case .balanced: baseRate = 32
-        case .conservative: baseRate = 14
-        }
         emitter.particleBirthRate = FramePacing.scaledBirthRate(baseRate)
         emitter.particleLifetime = 0.65
         emitter.particleLifetimeRange = 0.28
@@ -369,10 +365,11 @@ extension SKScene {
     }
 
     func applyPerformanceQuality(starDustRate: CGFloat? = nil) {
-        let quality = FramePacing.currentQuality
-        let dust = starDustRate ?? FramePacing.scaledBirthRate(quality.starDustBirthRate)
+        let dust = starDustRate ?? FramePacing.scaledBirthRate(FramePacing.currentQuality.starDustBirthRate)
         enumerateChildNodes(withName: GameConstants.NodeName.starDust) { node, _ in
-            (node as? SKEmitterNode)?.particleBirthRate = dust
+            guard let emitter = node as? SKEmitterNode else { return }
+            emitter.particleBirthRate = dust
+            emitter.isPaused = dust <= 0
         }
     }
 
