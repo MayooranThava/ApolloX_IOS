@@ -357,11 +357,20 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     private func refreshParticleRates() {
         let quality = FramePacing.currentQuality
-        engineEmitter?.particleBirthRate = FramePacing.scaledBirthRate(quality.engineBirthRate)
+        let engineRate = FramePacing.scaledBirthRate(quality.engineBirthRate)
+        engineEmitter?.particleBirthRate = engineRate
         engineEmitter?.isHidden = quality.engineBirthRate <= 0
+        engineEmitter?.isPaused = quality.engineBirthRate <= 0
         let dustRate = bossActive ? 0 : FramePacing.scaledBirthRate(quality.starDustBirthRate)
         applyPerformanceQuality(starDustRate: dustRate)
+        if let dust = childNode(withName: GameConstants.NodeName.starDust) as? SKEmitterNode {
+            dust.isPaused = dustRate <= 0
+        }
         scrollingBackground?.applyEffectsQuality(quality)
+    }
+
+    private var bossProjectileCap: Int {
+        FramePacing.currentQuality.maxBossProjectiles
     }
 
     @objc private func appWillResignActive() {
@@ -596,11 +605,13 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         )
 
         let smoke = makeRocketTailSmokeEmitter()
-        smoke.name = "rocketTailSmoke"
-        // Texture is nose-down: exhaust / smoke emits from the tail near the top.
-        smoke.position = CGPoint(x: 0, y: rocket.size.height * 0.46)
-        smoke.zPosition = -1
-        rocket.addChild(smoke)
+        if let smoke {
+            smoke.name = "rocketTailSmoke"
+            // Texture is nose-down: exhaust / smoke emits from the tail near the top.
+            smoke.position = CGPoint(x: 0, y: rocket.size.height * 0.46)
+            smoke.zPosition = -1
+            rocket.addChild(smoke)
+        }
 
         addChild(rocket)
         liveRockets.append(rocket)
@@ -863,11 +874,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         bullet.zPosition = GameConstants.Z.bullet
         bullet.hitRadius = GameRules.bulletHitRadius
         bullet.lastPosition = bullet.position
-        bullet.attachCirclePhysics(
-            radius: GameRules.bulletHitRadius,
-            category: GameConstants.PhysicsCategory.bullet,
-            contact: GameConstants.PhysicsCategory.enemy | GameConstants.PhysicsCategory.powerUp
-        )
+        bullet.physicsBody = nil
         addChild(bullet)
         liveBullets.append(bullet)
 
@@ -898,11 +905,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         powerUp.zPosition = GameConstants.Z.powerUp
         powerUp.powerUpKind = .star
         powerUp.hitRadius = powerUp.size.width * GameRules.starHitboxFactor
-        powerUp.attachCirclePhysics(
-            radius: powerUp.hitRadius,
-            category: GameConstants.PhysicsCategory.powerUp,
-            contact: GameConstants.PhysicsCategory.bullet
-        )
+        powerUp.physicsBody = nil
         addChild(powerUp)
         livePickups.append(powerUp)
 
@@ -937,11 +940,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         pickup.zPosition = GameConstants.Z.powerUp
         pickup.powerUpKind = .health
         pickup.hitRadius = pickup.size.width * GameRules.healthHitboxFactor
-        pickup.attachCirclePhysics(
-            radius: pickup.hitRadius,
-            category: GameConstants.PhysicsCategory.powerUp,
-            contact: GameConstants.PhysicsCategory.bullet
-        )
+        pickup.physicsBody = nil
         addChild(pickup)
         livePickups.append(pickup)
 
@@ -998,7 +997,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         node.attachCirclePhysics(
             radius: radius,
             category: GameConstants.PhysicsCategory.enemy,
-            contact: GameConstants.PhysicsCategory.player | GameConstants.PhysicsCategory.bullet
+            contact: GameConstants.PhysicsCategory.player
         )
         addChild(node)
         liveEnemies.append(node)
@@ -1062,7 +1061,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         node.attachCirclePhysics(
             radius: radius,
             category: GameConstants.PhysicsCategory.enemy,
-            contact: GameConstants.PhysicsCategory.player | GameConstants.PhysicsCategory.bullet
+            contact: GameConstants.PhysicsCategory.player
         )
         addChild(node)
         liveEnemies.append(node)
@@ -1137,7 +1136,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         node.attachCirclePhysics(
             radius: radius,
             category: GameConstants.PhysicsCategory.enemy,
-            contact: GameConstants.PhysicsCategory.player | GameConstants.PhysicsCategory.bullet
+            contact: GameConstants.PhysicsCategory.player
         )
         addChild(node)
         liveEnemies.append(node)
@@ -1184,7 +1183,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private func fireBossVolley() {
         guard bossActive, bossVulnerable, let boss = bossNode, boss.parent != nil,
               let profile = activeBossProfile, currentState == .playing else { return }
-        guard liveFireballs.count < GameRules.maxBossProjectiles else { return }
+        guard liveFireballs.count < bossProjectileCap else { return }
 
         let origin = boss.position
         switch profile.attackPattern {
@@ -1433,7 +1432,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         let needed = segmentCount - gapSegments
         // Skip the whole signature if we can't fit a complete ring — a truncated ring
         // leaves a broken dodge gap that feels unfair under load.
-        guard liveFireballs.count + needed <= GameRules.maxBossProjectiles else { return }
+        guard liveFireballs.count + needed <= bossProjectileCap else { return }
 
         // Aim the gap roughly toward the player, with a random nudge so they still have to move.
         let dx = player.position.x - center.x
@@ -1482,7 +1481,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     ) {
         guard count > gapSlots, playArea.width > 80 else { return }
         let needed = count - gapSlots
-        guard liveFireballs.count + needed <= GameRules.maxBossProjectiles else { return }
+        guard liveFireballs.count + needed <= bossProjectileCap else { return }
 
         let margin: CGFloat = 36
         let usable = playArea.width - margin * 2
@@ -1551,7 +1550,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         wobble: Bool,
         faceTravelDirection: Bool
     ) {
-        guard currentState == .playing, liveFireballs.count < GameRules.maxBossProjectiles else { return }
+        guard currentState == .playing, liveFireballs.count < bossProjectileCap else { return }
 
         let projectile = fireballPool.checkout()
         projectile.texture = TextureCache.texture(textureName)
@@ -2084,30 +2083,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             return
         }
 
-        if combined == (GameConstants.PhysicsCategory.bullet | GameConstants.PhysicsCategory.enemy) {
-            let bulletNode = maskA == GameConstants.PhysicsCategory.bullet ? contact.bodyA.node : contact.bodyB.node
-            let enemyNode = maskA == GameConstants.PhysicsCategory.enemy ? contact.bodyA.node : contact.bodyB.node
-            guard let enemyNode, enemyNode.parent != nil else { return }
-            let hitRadius = colliderRadius(forEnemy: enemyNode)
-            guard isColliderOnscreen(enemyNode, radius: hitRadius) else { return }
-
-            let blast = enemyNode.position
-            recycleProjectile(bulletNode)
-            damageObstacle(enemyNode, blastPoint: blast)
-            return
-        }
-
-        if combined == (GameConstants.PhysicsCategory.bullet | GameConstants.PhysicsCategory.powerUp) {
-            let bulletNode = maskA == GameConstants.PhysicsCategory.bullet ? contact.bodyA.node : contact.bodyB.node
-            let pickupNode = maskA == GameConstants.PhysicsCategory.powerUp ? contact.bodyA.node : contact.bodyB.node
-            guard let pickupNode, pickupNode.parent != nil else { return }
-            let hitRadius = colliderRadius(forPickup: pickupNode)
-            guard pickupNode.position.y - hitRadius < visibleMaxY else { return }
-
-            let point = pickupNode.position
-            recycleProjectile(bulletNode)
-            collectPickup(pickupNode, at: point)
-        }
+        // Bullets and pickups use swept hit tests in didFinishUpdate — no physics pairs.
     }
 
     // MARK: - Controls

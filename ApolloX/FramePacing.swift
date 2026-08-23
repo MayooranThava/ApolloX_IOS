@@ -19,11 +19,11 @@ enum EffectsQuality: Equatable {
     case conservative
 
     /// Particles/sec. Birth rate is time-based; per-frame sim cost still scales with FPS.
-    /// Keep a light particle trail; sprite flames do the heavy visual lifting.
+    /// Sprite flames carry the look; particles are optional polish on ProMotion hardware.
     var engineBirthRate: CGFloat {
         switch self {
         case .high: return 28
-        case .balanced: return 12
+        case .balanced: return 0
         case .conservative: return 0
         }
     }
@@ -31,7 +31,7 @@ enum EffectsQuality: Equatable {
     var starDustBirthRate: CGFloat {
         switch self {
         case .high: return 6
-        case .balanced: return 3
+        case .balanced: return 2
         case .conservative: return 0
         }
     }
@@ -39,7 +39,7 @@ enum EffectsQuality: Equatable {
     var parallaxStarCount: Int {
         switch self {
         case .high: return 18
-        case .balanced: return 10
+        case .balanced: return 6
         case .conservative: return 0
         }
     }
@@ -50,6 +50,24 @@ enum EffectsQuality: Equatable {
         case .high: return 5
         case .balanced: return 3
         case .conservative: return 3
+        }
+    }
+
+    /// Soft cap on simultaneous boss dodgeables — rings need headroom but 22 is heavy on 60 Hz phones.
+    var maxBossProjectiles: Int {
+        switch self {
+        case .high: return GameRules.maxBossProjectiles
+        case .balanced: return 14
+        case .conservative: return 10
+        }
+    }
+
+    /// Grey rocket-trail smoke is costly when several rockets are on screen at once.
+    var rocketTailSmokeBirthRate: CGFloat {
+        switch self {
+        case .high: return 56
+        case .balanced: return 0
+        case .conservative: return 0
         }
     }
 }
@@ -94,15 +112,20 @@ enum FramePacing {
 
     static func effectsQuality(
         thermalState: ProcessInfo.ThermalState,
-        lowPowerMode: Bool
+        lowPowerMode: Bool,
+        hardwareMaxFPS: Int = hardwareMaximumFramesPerSecond
     ) -> EffectsQuality {
+        // 60 Hz iPhones (15, 15 Plus, SE, etc.) stay on balanced at nominal thermal —
+        // ProMotion headroom is what makes `.high` sustainable during long sessions.
+        let baseline: EffectsQuality = hardwareMaxFPS >= 120 ? .high : .balanced
+
         if lowPowerMode || thermalState == .serious || thermalState == .critical {
             return .conservative
         }
         if thermalState == .fair {
-            return .balanced
+            return baseline == .high ? .balanced : .conservative
         }
-        return .high
+        return baseline
     }
 
     static func start(on view: SKView?) {
@@ -141,7 +164,11 @@ enum FramePacing {
             thermalState: thermal,
             lowPowerMode: lowPower
         )
-        let quality = effectsQuality(thermalState: thermal, lowPowerMode: lowPower)
+        let quality = effectsQuality(
+            thermalState: thermal,
+            lowPowerMode: lowPower,
+            hardwareMaxFPS: hardware
+        )
 
         currentFramesPerSecond = fps
         currentQuality = quality
