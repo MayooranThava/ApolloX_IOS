@@ -15,6 +15,8 @@ final class GameViewController: UIViewController {
         TextureCache.preload()
         AudioManager.preload()
         HapticManager.prepare()
+        // Apple: set the Game Center authenticate handler at launch. Do not gate play on it.
+        GameCenterService.authenticateAtLaunch()
 
         guard let skView = view as? SKView else { return }
 

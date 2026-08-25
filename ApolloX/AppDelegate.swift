@@ -31,6 +31,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func applicationDidBecomeActive(_ application: UIApplication) {
         FramePacing.apply()
+        // Flush any score that failed while offline once Game Center is reachable again.
+        GameCenterService.flushPendingScoreIfPossible()
         // GameScene resumes itself when appropriate; menus can always run.
         if activeSKView()?.scene is GameScene {
             return
