@@ -90,8 +90,8 @@ enum WeaponCatalog {
     static let plasmaGrenade = WeaponItem(
         id: SpecialWeaponID.plasmaGrenade.rawValue,
         name: "Plasma Grenade",
-        blurb: "Lobbed AoE burst",
-        price: 500,
+        blurb: "Smart lob — tracks the nearest threat",
+        price: 0,
         slot: .special,
         textureName: "weaponPlasmaGrenade",
         accent: SKColor(red: 0.55, green: 1.0, blue: 0.35, alpha: 1)
@@ -100,7 +100,7 @@ enum WeaponCatalog {
     static let seekerPod = WeaponItem(
         id: SpecialWeaponID.seekerPod.rawValue,
         name: "Seeker Pod",
-        blurb: "Homing strike — boss hunter",
+        blurb: "Homing strike — prioritizes bosses",
         price: 750,
         slot: .special,
         textureName: "weaponSeekerPod",
@@ -110,7 +110,7 @@ enum WeaponCatalog {
     static let flakBurst = WeaponItem(
         id: SpecialWeaponID.flakBurst.rawValue,
         name: "Flak Burst",
-        blurb: "Point-blank radial clear",
+        blurb: "Forward shock — clears what is closing in",
         price: 650,
         slot: .special,
         textureName: "weaponFlakBurst",
@@ -119,8 +119,8 @@ enum WeaponCatalog {
 
     static let cooldownMine = WeaponItem(
         id: SpecialWeaponID.cooldownMine.rawValue,
-        name: "Cooldown Mine",
-        blurb: "Drop a proximity charge",
+        name: "Sky Mine",
+        blurb: "Hovers ahead in your lane — enemies fall into it",
         price: 900,
         slot: .special,
         textureName: "weaponCooldownMine",
@@ -162,11 +162,11 @@ enum WeaponCatalog {
         WeaponTextures.registerCombatTextures()
     }
 
-    private static let canvasSize = CGSize(width: 160, height: 160)
+    private static let canvasSize = CGSize(width: 180, height: 180)
 
     private static func makeIcon(for item: WeaponItem) -> SKTexture {
         let format = UIGraphicsImageRendererFormat()
-        format.scale = 2
+        format.scale = 3
         format.opaque = false
         let renderer = UIGraphicsImageRenderer(size: canvasSize, format: format)
         let image = renderer.image { ctx in
@@ -316,29 +316,30 @@ enum WeaponCatalog {
     }
 }
 
-/// Combat projectile textures for hardpoints (pooled, mipmapped).
+/// Combat projectile textures for hardpoints (pooled, mipmapped, retina-authored).
 enum WeaponTextures {
-    static let scatterBolt = "hardpointScatterBolt"
-    static let railSpike = "hardpointRailSpike"
-    static let ionNeedle = "hardpointIonNeedle"
-    static let plasmaGrenade = "hardpointPlasmaGrenade"
-    static let seekerPod = "hardpointSeekerPod"
-    static let cooldownMine = "hardpointCooldownMine"
+    static let scatterBolt = "hardpointScatterBolt_hd"
+    static let railSpike = "hardpointRailSpike_hd"
+    static let ionNeedle = "hardpointIonNeedle_hd"
+    static let plasmaGrenade = "hardpointPlasmaGrenade_hd"
+    static let seekerPod = "hardpointSeekerPod_hd"
+    static let cooldownMine = "hardpointSkyMine_hd"
+    static let softGlow = "hardpointSoftGlow_hd"
 
     static func registerCombatTextures() {
-        store(scatterBolt, drawScatterBolt)
-        store(railSpike, drawRailSpike)
-        store(ionNeedle, drawIonNeedle)
-        store(plasmaGrenade, drawGrenade)
-        store(seekerPod, drawSeeker)
-        store(cooldownMine, drawMine)
+        store(scatterBolt, size: CGSize(width: 72, height: 120), drawScatterBolt)
+        store(railSpike, size: CGSize(width: 72, height: 140), drawRailSpike)
+        store(ionNeedle, size: CGSize(width: 48, height: 110), drawIonNeedle)
+        store(plasmaGrenade, size: CGSize(width: 128, height: 128), drawGrenade)
+        store(seekerPod, size: CGSize(width: 128, height: 128), drawSeeker)
+        store(cooldownMine, size: CGSize(width: 128, height: 128), drawMine)
+        store(softGlow, size: CGSize(width: 96, height: 96), drawSoftGlow)
     }
 
-    private static func store(_ key: String, _ draw: (CGContext, CGSize) -> Void) {
+    private static func store(_ key: String, size: CGSize, _ draw: (CGContext, CGSize) -> Void) {
         guard TextureCache.optional(key) == nil else { return }
-        let size = CGSize(width: 64, height: 96)
         let format = UIGraphicsImageRendererFormat()
-        format.scale = 2
+        format.scale = 3
         format.opaque = false
         let renderer = UIGraphicsImageRenderer(size: size, format: format)
         let image = renderer.image { ctx in draw(ctx.cgContext, size) }
@@ -348,49 +349,159 @@ enum WeaponTextures {
         TextureCache.store(key, texture: texture)
     }
 
+    private static func drawSoftGlow(in cg: CGContext, size: CGSize) {
+        let colors = [UIColor.white.cgColor, UIColor.clear.cgColor] as CFArray
+        let space = CGColorSpaceCreateDeviceRGB()
+        guard let gradient = CGGradient(colorsSpace: space, colors: colors, locations: [0, 1]) else { return }
+        let center = CGPoint(x: size.width * 0.5, y: size.height * 0.5)
+        cg.drawRadialGradient(
+            gradient,
+            startCenter: center,
+            startRadius: 0,
+            endCenter: center,
+            endRadius: size.width * 0.48,
+            options: []
+        )
+    }
+
     private static func drawScatterBolt(in cg: CGContext, size: CGSize) {
-        let bolt = UIBezierPath(roundedRect: CGRect(x: size.width * 0.32, y: 8, width: size.width * 0.36, height: size.height - 16), cornerRadius: 8)
-        UIColor(red: 1, green: 0.72, blue: 0.25, alpha: 1).setFill()
-        bolt.fill()
+        drawBoltCore(
+            in: cg,
+            size: size,
+            outer: UIColor(red: 1, green: 0.55, blue: 0.12, alpha: 0.55),
+            mid: UIColor(red: 1, green: 0.78, blue: 0.28, alpha: 1),
+            core: UIColor(red: 1, green: 0.96, blue: 0.85, alpha: 1)
+        )
     }
 
     private static func drawRailSpike(in cg: CGContext, size: CGSize) {
-        let spike = UIBezierPath()
-        spike.move(to: CGPoint(x: size.width * 0.5, y: 4))
-        spike.addLine(to: CGPoint(x: size.width * 0.72, y: size.height - 8))
-        spike.addLine(to: CGPoint(x: size.width * 0.28, y: size.height - 8))
-        spike.close()
+        let outer = UIBezierPath()
+        outer.move(to: CGPoint(x: size.width * 0.5, y: 4))
+        outer.addLine(to: CGPoint(x: size.width * 0.78, y: size.height - 6))
+        outer.addLine(to: CGPoint(x: size.width * 0.22, y: size.height - 6))
+        outer.close()
+        UIColor(red: 0.35, green: 0.75, blue: 1, alpha: 0.35).setFill()
+        outer.fill()
+
+        let mid = UIBezierPath()
+        mid.move(to: CGPoint(x: size.width * 0.5, y: 10))
+        mid.addLine(to: CGPoint(x: size.width * 0.68, y: size.height - 14))
+        mid.addLine(to: CGPoint(x: size.width * 0.32, y: size.height - 14))
+        mid.close()
         UIColor(red: 0.55, green: 0.9, blue: 1, alpha: 1).setFill()
-        spike.fill()
+        mid.fill()
+
         UIColor.white.setFill()
-        UIBezierPath(rect: CGRect(x: size.width * 0.46, y: 12, width: size.width * 0.08, height: size.height * 0.7)).fill()
+        UIBezierPath(roundedRect: CGRect(x: size.width * 0.46, y: 16, width: size.width * 0.08, height: size.height * 0.62), cornerRadius: 3).fill()
     }
 
     private static func drawIonNeedle(in cg: CGContext, size: CGSize) {
-        let needle = UIBezierPath(roundedRect: CGRect(x: size.width * 0.42, y: 6, width: size.width * 0.16, height: size.height - 12), cornerRadius: 4)
-        UIColor(red: 0.4, green: 1, blue: 0.7, alpha: 1).setFill()
-        needle.fill()
+        drawBoltCore(
+            in: cg,
+            size: size,
+            outer: UIColor(red: 0.2, green: 1, blue: 0.55, alpha: 0.4),
+            mid: UIColor(red: 0.4, green: 1, blue: 0.72, alpha: 1),
+            core: UIColor.white
+        )
+    }
+
+    private static func drawBoltCore(
+        in cg: CGContext,
+        size: CGSize,
+        outer: UIColor,
+        mid: UIColor,
+        core: UIColor
+    ) {
+        let glow = UIBezierPath(roundedRect: CGRect(x: size.width * 0.22, y: 4, width: size.width * 0.56, height: size.height - 8), cornerRadius: 12)
+        outer.setFill()
+        glow.fill()
+        let body = UIBezierPath(roundedRect: CGRect(x: size.width * 0.34, y: 10, width: size.width * 0.32, height: size.height - 20), cornerRadius: 8)
+        mid.setFill()
+        body.fill()
+        core.setFill()
+        UIBezierPath(roundedRect: CGRect(x: size.width * 0.44, y: 18, width: size.width * 0.12, height: size.height - 36), cornerRadius: 4).fill()
     }
 
     private static func drawGrenade(in cg: CGContext, size: CGSize) {
-        let orb = UIBezierPath(ovalIn: CGRect(x: size.width * 0.18, y: size.height * 0.22, width: size.width * 0.64, height: size.width * 0.64))
-        UIColor(red: 0.45, green: 1, blue: 0.35, alpha: 1).setFill()
-        orb.fill()
+        let center = CGPoint(x: size.width * 0.5, y: size.height * 0.54)
+        drawOrb(
+            in: cg,
+            center: center,
+            radius: size.width * 0.38,
+            outer: UIColor(red: 0.25, green: 0.85, blue: 0.2, alpha: 0.35),
+            mid: UIColor(red: 0.45, green: 1, blue: 0.35, alpha: 1),
+            core: UIColor(red: 0.85, green: 1, blue: 0.7, alpha: 1)
+        )
+        UIColor(white: 0.12, alpha: 1).setFill()
+        UIBezierPath(roundedRect: CGRect(x: center.x - 10, y: center.y - size.width * 0.42, width: 20, height: 22), cornerRadius: 4).fill()
+        UIColor(red: 0.7, green: 1, blue: 0.45, alpha: 1).setFill()
+        UIBezierPath(ovalIn: CGRect(x: center.x - 6, y: center.y - size.width * 0.46, width: 12, height: 10)).fill()
     }
 
     private static func drawSeeker(in cg: CGContext, size: CGSize) {
-        let body = UIBezierPath(ovalIn: CGRect(x: size.width * 0.2, y: size.height * 0.28, width: size.width * 0.6, height: size.width * 0.6))
-        UIColor(red: 1, green: 0.4, blue: 0.85, alpha: 1).setFill()
-        body.fill()
+        let center = CGPoint(x: size.width * 0.5, y: size.height * 0.52)
+        drawOrb(
+            in: cg,
+            center: center,
+            radius: size.width * 0.34,
+            outer: UIColor(red: 1, green: 0.2, blue: 0.75, alpha: 0.35),
+            mid: UIColor(red: 1, green: 0.42, blue: 0.85, alpha: 1),
+            core: UIColor(red: 1, green: 0.9, blue: 0.98, alpha: 1)
+        )
         UIColor.white.setFill()
-        UIBezierPath(ovalIn: CGRect(x: size.width * 0.4, y: size.height * 0.42, width: size.width * 0.2, height: size.width * 0.2)).fill()
+        UIBezierPath(ovalIn: CGRect(x: center.x - 10, y: center.y - 10, width: 20, height: 20)).fill()
+        UIColor(red: 0.45, green: 0.1, blue: 0.4, alpha: 1).setFill()
+        UIBezierPath(ovalIn: CGRect(x: center.x - 4, y: center.y - 4, width: 8, height: 8)).fill()
+        for angle in [CGFloat.pi * 0.15, CGFloat.pi * 0.85, CGFloat.pi * 1.5] {
+            let fin = UIBezierPath()
+            let tip = CGPoint(x: center.x + cos(angle) * size.width * 0.46, y: center.y + sin(angle) * size.width * 0.46)
+            fin.move(to: CGPoint(x: center.x + cos(angle) * 18, y: center.y + sin(angle) * 18))
+            fin.addLine(to: CGPoint(x: tip.x + cos(angle + 1.2) * 10, y: tip.y + sin(angle + 1.2) * 10))
+            fin.addLine(to: tip)
+            fin.addLine(to: CGPoint(x: tip.x + cos(angle - 1.2) * 10, y: tip.y + sin(angle - 1.2) * 10))
+            fin.close()
+            UIColor(red: 1, green: 0.55, blue: 0.9, alpha: 0.95).setFill()
+            fin.fill()
+        }
     }
 
     private static func drawMine(in cg: CGContext, size: CGSize) {
-        let core = UIBezierPath(ovalIn: CGRect(x: size.width * 0.18, y: size.height * 0.22, width: size.width * 0.64, height: size.width * 0.64))
-        UIColor(red: 1, green: 0.88, blue: 0.2, alpha: 1).setFill()
-        core.fill()
-        UIColor(white: 0.1, alpha: 1).setFill()
-        UIBezierPath(ovalIn: CGRect(x: size.width * 0.38, y: size.height * 0.38, width: size.width * 0.24, height: size.width * 0.24)).fill()
+        let center = CGPoint(x: size.width * 0.5, y: size.height * 0.5)
+        drawOrb(
+            in: cg,
+            center: center,
+            radius: size.width * 0.36,
+            outer: UIColor(red: 1, green: 0.75, blue: 0.1, alpha: 0.35),
+            mid: UIColor(red: 1, green: 0.88, blue: 0.2, alpha: 1),
+            core: UIColor(red: 1, green: 0.98, blue: 0.75, alpha: 1)
+        )
+        UIColor(white: 0.08, alpha: 1).setFill()
+        UIBezierPath(ovalIn: CGRect(x: center.x - 16, y: center.y - 16, width: 32, height: 32)).fill()
+        UIColor(red: 1, green: 0.35, blue: 0.15, alpha: 1).setFill()
+        UIBezierPath(ovalIn: CGRect(x: center.x - 7, y: center.y - 7, width: 14, height: 14)).fill()
+        for i in 0..<6 {
+            let angle = CGFloat(i) * .pi / 3
+            let spikeCenter = CGPoint(x: center.x + cos(angle) * size.width * 0.42, y: center.y + sin(angle) * size.width * 0.42)
+            UIColor(red: 1, green: 0.82, blue: 0.2, alpha: 1).setFill()
+            UIBezierPath(ovalIn: CGRect(x: spikeCenter.x - 8, y: spikeCenter.y - 8, width: 16, height: 16)).fill()
+        }
+    }
+
+    private static func drawOrb(
+        in cg: CGContext,
+        center: CGPoint,
+        radius: CGFloat,
+        outer: UIColor,
+        mid: UIColor,
+        core: UIColor
+    ) {
+        UIColor(white: 1, alpha: 0.2).setFill()
+        UIBezierPath(ovalIn: CGRect(x: center.x - radius * 1.15, y: center.y - radius * 1.15, width: radius * 2.3, height: radius * 2.3)).fill()
+        outer.setFill()
+        UIBezierPath(ovalIn: CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)).fill()
+        mid.setFill()
+        UIBezierPath(ovalIn: CGRect(x: center.x - radius * 0.72, y: center.y - radius * 0.72, width: radius * 1.44, height: radius * 1.44)).fill()
+        core.setFill()
+        UIBezierPath(ovalIn: CGRect(x: center.x - radius * 0.28, y: center.y - radius * 0.42, width: radius * 0.5, height: radius * 0.36)).fill()
     }
 }

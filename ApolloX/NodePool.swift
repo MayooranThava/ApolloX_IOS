@@ -23,6 +23,8 @@ final class PooledSprite: SKSpriteNode {
     var specialKind: SpecialWeaponID?
     /// Seeker / grenade flight speed in points per second.
     var flightSpeed: CGFloat = 0
+    /// Sky mines arm after reaching hover; grenades always live-proximate.
+    var isArmed: Bool = false
 
     func resetGameplayState() {
         lastPosition = .zero
@@ -35,6 +37,7 @@ final class PooledSprite: SKSpriteNode {
         projectileDamage = 1
         specialKind = nil
         flightSpeed = 0
+        isArmed = false
         name = nil
         userData = nil
     }

@@ -1115,27 +1115,41 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     private func launchPlasmaGrenade(profile: GameRules.SpecialFireProfile) {
         let node = specialPool.checkout()
-        node.texture = TextureCache.texture(profile.textureName)
-        node.size = CGSize(width: 56, height: 56)
-        node.name = GameConstants.NodeName.playerSpecial
-        node.specialKind = .plasmaGrenade
-        node.projectileDamage = profile.damage
-        node.hitRadius = profile.aoeRadius
+        configureSpecialNode(
+            node,
+            textureName: profile.textureName,
+            size: CGSize(width: 72, height: 72),
+            kind: .plasmaGrenade,
+            damage: profile.damage,
+            hitRadius: profile.aoeRadius,
+            glowColor: SKColor(red: 0.45, green: 1.0, blue: 0.35, alpha: 0.55)
+        )
+        node.isArmed = true
         node.position = CGPoint(x: player.position.x, y: player.position.y + 40)
         node.lastPosition = node.position
-        node.zPosition = GameConstants.Z.bullet + 1
-        node.physicsBody = nil
         addChild(node)
         liveSpecials.append(node)
 
-        let target = CGPoint(x: player.position.x, y: min(playArea.maxY - 80, player.position.y + 520))
+        let target = smartGrenadeTarget()
+        let control = CGPoint(
+            x: (node.position.x + target.x) * 0.5 + CGFloat.random(in: -40...40),
+            y: max(node.position.y, target.y) + 90
+        )
+        let path = UIBezierPath()
+        path.move(to: node.position)
+        path.addQuadCurve(to: target, controlPoint: control)
+        let follow = SKAction.follow(path.cgPath, asOffset: false, orientToPath: false, duration: profile.travelDuration)
         node.run(.sequence([
             .group([
-                .move(to: target, duration: profile.travelDuration),
-                .rotate(byAngle: .pi * 2, duration: profile.travelDuration)
+                follow,
+                .rotate(byAngle: .pi * 2.2, duration: profile.travelDuration),
+                .sequence([
+                    .scale(to: 1.12, duration: profile.travelDuration * 0.45),
+                    .scale(to: 0.95, duration: profile.travelDuration * 0.55)
+                ])
             ]),
             .run { [weak self, weak node] in
-                guard let self, let node else { return }
+                guard let self, let node, node.parent != nil else { return }
                 self.detonateSpecial(node, at: node.position)
             }
         ]))
@@ -1143,17 +1157,19 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     private func launchSeekerPod(profile: GameRules.SpecialFireProfile) {
         let node = specialPool.checkout()
-        node.texture = TextureCache.texture(profile.textureName)
-        node.size = CGSize(width: 52, height: 52)
-        node.name = GameConstants.NodeName.playerSpecial
-        node.specialKind = .seekerPod
-        node.projectileDamage = profile.damage
-        node.hitRadius = 28
-        node.flightSpeed = 620
+        configureSpecialNode(
+            node,
+            textureName: profile.textureName,
+            size: CGSize(width: 68, height: 68),
+            kind: .seekerPod,
+            damage: profile.damage,
+            hitRadius: 30,
+            glowColor: SKColor(red: 1.0, green: 0.45, blue: 0.85, alpha: 0.5)
+        )
+        node.flightSpeed = 700
+        node.isArmed = true
         node.position = CGPoint(x: player.position.x, y: player.position.y + 36)
         node.lastPosition = node.position
-        node.zPosition = GameConstants.Z.bullet + 1
-        node.physicsBody = nil
         addChild(node)
         liveSpecials.append(node)
 
@@ -1167,8 +1183,9 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     private func triggerFlakBurst(profile: GameRules.SpecialFireProfile) {
-        let origin = player.position
-        spawnExplosion(at: origin, image: "explosion", scale: 1.35)
+        // Center the blast ahead of the ship — threats come from above.
+        let origin = CGPoint(x: player.position.x, y: player.position.y + 110)
+        spawnExplosion(at: origin, image: "explosion", scale: 1.45)
         let rings = FramePacing.currentQuality == .conservative ? 1 : 2
         for index in 0..<rings {
             let delay = Double(index) * 0.05
@@ -1178,8 +1195,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
                     self?.spawnShockwaveRing(
                         at: origin,
                         startScale: 0.2,
-                        endScale: 4.2 + CGFloat(index),
-                        duration: 0.35,
+                        endScale: 4.6 + CGFloat(index),
+                        duration: 0.36,
                         color: SKColor(red: 1, green: 0.55, blue: 0.2, alpha: 0.9),
                         lineWidth: 6
                     )
@@ -1200,31 +1217,131 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     private func dropCooldownMine(profile: GameRules.SpecialFireProfile) {
         let node = specialPool.checkout()
-        node.texture = TextureCache.texture(profile.textureName)
-        node.size = CGSize(width: 64, height: 64)
-        node.name = GameConstants.NodeName.playerSpecial
-        node.specialKind = .cooldownMine
-        node.projectileDamage = profile.damage
-        node.hitRadius = profile.aoeRadius
-        node.position = CGPoint(x: player.position.x, y: player.position.y - 30)
+        configureSpecialNode(
+            node,
+            textureName: profile.textureName,
+            size: CGSize(width: 78, height: 78),
+            kind: .cooldownMine,
+            damage: profile.damage,
+            hitRadius: profile.aoeRadius,
+            glowColor: SKColor(red: 1.0, green: 0.85, blue: 0.2, alpha: 0.5)
+        )
+        node.isArmed = false
+        node.position = CGPoint(x: player.position.x, y: player.position.y + 20)
         node.lastPosition = node.position
-        node.zPosition = GameConstants.Z.effect
-        node.physicsBody = nil
-        node.setScale(0.7)
+        node.setScale(0.75)
         addChild(node)
         liveSpecials.append(node)
 
-        node.run(.repeatForever(.sequence([
-            .scale(to: 0.85, duration: 0.35),
-            .scale(to: 0.7, duration: 0.35)
-        ])))
+        // Hover in-lane ahead of the player so falling hazards run into it.
+        let hoverY = min(playArea.maxY - 140, playArea.minY + playArea.height * 0.58)
+        let hover = CGPoint(x: player.position.x, y: hoverY)
+        let deployDuration: TimeInterval = 0.35
         node.run(.sequence([
+            .group([
+                .move(to: hover, duration: deployDuration),
+                .scale(to: 1.0, duration: deployDuration)
+            ]),
+            .run { [weak node] in
+                guard let node else { return }
+                node.isArmed = true
+                node.run(.repeatForever(.sequence([
+                    .scale(to: 1.08, duration: 0.32),
+                    .scale(to: 0.94, duration: 0.32)
+                ])), withKey: "skyMinePulse")
+            },
             .wait(forDuration: profile.travelDuration),
             .run { [weak self, weak node] in
                 guard let self, let node, node.parent != nil else { return }
                 self.detonateSpecial(node, at: node.position)
             }
         ]))
+
+        // Readable arming radius (sprite ring, not SKShapeNode).
+        if FramePacing.currentQuality != .conservative {
+            let ring = SKSpriteNode(texture: TextureCache.texture(WeaponTextures.softGlow))
+            ring.name = "skyMineRadius"
+            ring.size = CGSize(width: profile.aoeRadius * 1.6, height: profile.aoeRadius * 1.6)
+            ring.alpha = 0.22
+            ring.zPosition = -1
+            ring.blendMode = .add
+            ring.color = SKColor(red: 1, green: 0.85, blue: 0.2, alpha: 1)
+            ring.colorBlendFactor = 1
+            node.addChild(ring)
+            ring.run(.repeatForever(.sequence([
+                .fadeAlpha(to: 0.12, duration: 0.45),
+                .fadeAlpha(to: 0.28, duration: 0.45)
+            ])))
+        }
+    }
+
+    private func configureSpecialNode(
+        _ node: PooledSprite,
+        textureName: String,
+        size: CGSize,
+        kind: SpecialWeaponID,
+        damage: Int,
+        hitRadius: CGFloat,
+        glowColor: SKColor
+    ) {
+        node.childNode(withName: "specialGlow")?.removeFromParent()
+        node.childNode(withName: "skyMineRadius")?.removeFromParent()
+        node.texture = TextureCache.texture(textureName)
+        node.size = size
+        node.name = GameConstants.NodeName.playerSpecial
+        node.specialKind = kind
+        node.projectileDamage = damage
+        node.hitRadius = hitRadius
+        node.zPosition = GameConstants.Z.bullet + 1
+        node.physicsBody = nil
+        node.zRotation = 0
+        node.alpha = 1
+        node.setScale(1)
+
+        if FramePacing.currentQuality != .conservative {
+            let glow = SKSpriteNode(texture: TextureCache.texture(WeaponTextures.softGlow))
+            glow.name = "specialGlow"
+            glow.size = CGSize(width: size.width * 1.55, height: size.height * 1.55)
+            glow.zPosition = -1
+            glow.blendMode = .add
+            glow.color = glowColor
+            glow.colorBlendFactor = 1
+            glow.alpha = 0.85
+            node.addChild(glow)
+            glow.run(.repeatForever(.sequence([
+                .fadeAlpha(to: 0.45, duration: 0.28),
+                .fadeAlpha(to: 0.9, duration: 0.28)
+            ])))
+        }
+    }
+
+    private func smartGrenadeTarget() -> CGPoint {
+        if let enemy = nearestThreatForGrenade() {
+            return enemy.position
+        }
+        // No contacts yet — lob into the approach lane where the next wave enters.
+        return CGPoint(
+            x: player.position.x,
+            y: min(playArea.maxY - 100, player.position.y + playArea.height * 0.42)
+        )
+    }
+
+    private func nearestThreatForGrenade() -> PooledSprite? {
+        var best: PooledSprite?
+        var bestScore = CGFloat.greatestFiniteMagnitude
+        for enemy in liveEnemies where enemy.parent != nil {
+            // Prefer threats above the ship; ignore anything already behind the nose.
+            guard enemy.position.y > player.position.y - 20 else { continue }
+            let dx = enemy.position.x - player.position.x
+            let dy = enemy.position.y - player.position.y
+            // Weight vertical distance a bit less so clustered mid-lane targets win.
+            let score = dx * dx + dy * dy * 0.65
+            if score < bestScore {
+                bestScore = score
+                best = enemy
+            }
+        }
+        return best
     }
 
     private func updateSpecialProjectiles(delta: TimeInterval) {
@@ -1243,8 +1360,12 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
                 if seekerHitTest(node) {
                     continue
                 }
+            case .plasmaGrenade:
+                if node.isArmed, specialProximityDetonate(node, triggerFactor: 0.55) {
+                    continue
+                }
             case .cooldownMine:
-                if mineProximityDetonate(node) {
+                if node.isArmed, specialProximityDetonate(node, triggerFactor: 0.72) {
                     continue
                 }
             default:
@@ -1255,7 +1376,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     private func steerSeeker(_ node: PooledSprite, delta: TimeInterval) {
-        guard let target = nearestEnemy(to: node.position) else {
+        guard let target = preferredSeekerTarget(from: node.position) else {
             node.position.y += node.flightSpeed * CGFloat(delta)
             return
         }
@@ -1266,6 +1387,13 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         node.position.x += dx / length * step
         node.position.y += dy / length * step
         node.zRotation = atan2(dx, dy)
+    }
+
+    private func preferredSeekerTarget(from point: CGPoint) -> PooledSprite? {
+        if bossVulnerable, let boss = bossNode, boss.parent != nil {
+            return boss
+        }
+        return nearestEnemy(to: point)
     }
 
     private func nearestEnemy(to point: CGPoint) -> PooledSprite? {
@@ -1299,8 +1427,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         return false
     }
 
-    private func mineProximityDetonate(_ node: PooledSprite) -> Bool {
-        let trigger: CGFloat = 70
+    private func specialProximityDetonate(_ node: PooledSprite, triggerFactor: CGFloat) -> Bool {
+        let trigger = max(48, node.hitRadius * triggerFactor)
         for enemy in liveEnemies where enemy.parent != nil {
             let dx = enemy.position.x - node.position.x
             let dy = enemy.position.y - node.position.y
@@ -1315,8 +1443,27 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private func detonateSpecial(_ node: PooledSprite, at point: CGPoint) {
         let damage = node.projectileDamage
         let radius = max(40, node.hitRadius)
+        let tint: SKColor
+        switch node.specialKind {
+        case .plasmaGrenade:
+            tint = SKColor(red: 0.45, green: 1.0, blue: 0.35, alpha: 0.9)
+        case .cooldownMine:
+            tint = SKColor(red: 1.0, green: 0.85, blue: 0.2, alpha: 0.9)
+        default:
+            tint = SKColor(red: 1, green: 0.7, blue: 0.3, alpha: 0.9)
+        }
         recycleSpecial(node)
-        spawnExplosion(at: point, image: "explosion", scale: 1.2)
+        spawnExplosion(at: point, image: "explosion", scale: 1.25)
+        if FramePacing.currentQuality != .conservative {
+            spawnShockwaveRing(
+                at: point,
+                startScale: 0.2,
+                endScale: max(3.2, radius / 40),
+                duration: 0.34,
+                color: tint,
+                lineWidth: 7
+            )
+        }
         AudioManager.play(.explosion)
         HapticManager.enemyDestroyed()
         let radius2 = radius * radius
@@ -1330,6 +1477,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     private func recycleSpecial(_ node: PooledSprite) {
         node.removeAllActions()
+        node.childNode(withName: "specialGlow")?.removeFromParent()
+        node.childNode(withName: "skyMineRadius")?.removeFromParent()
         untrack(node, from: &liveSpecials)
         specialPool.recycle(node)
     }
