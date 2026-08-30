@@ -111,6 +111,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     deinit {
         NotificationCenter.default.removeObserver(self)
+        FramePacing.setOverlayFrameCapActive(false)
     }
 
     override func didMove(to view: SKView) {
@@ -141,12 +142,16 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     override func update(_ currentTime: TimeInterval) {
-        guard currentState == .playing, !isPausedBySystem else {
+        // Frozen / paused frames must not advance run time or scroll — that was the
+        // main post-pause hitch (Control Center kept ticking while sprites were frozen).
+        guard currentState == .playing, !isPausedBySystem, !gameplayFrozen else {
             lastUpdateTime = currentTime
             return
         }
         if lastUpdateTime > 0 {
-            let delta = currentTime - lastUpdateTime
+            let rawDelta = currentTime - lastUpdateTime
+            FramePacing.reportFrameDuration(rawDelta)
+            let delta = FramePacing.clampedDelta(rawDelta)
             runElapsed += delta
             scrollingBackground?.tick(deltaTime: delta)
             lastFrameDelta = delta
@@ -157,7 +162,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
                 updateBackgroundTier(tier, animated: tier > 0)
             }
         } else {
-            lastFrameDelta = 1.0 / 60.0
+            lastFrameDelta = 1.0 / TimeInterval(max(FramePacing.currentFramesPerSecond, 30))
         }
         lastUpdateTime = currentTime
 
@@ -344,7 +349,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     override func didFinishUpdate() {
-        guard currentState == .playing, !isPausedBySystem else { return }
+        guard currentState == .playing, !isPausedBySystem, !gameplayFrozen else { return }
         resolveSweptProjectileHits()
     }
 
@@ -462,11 +467,11 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         let engineRate = FramePacing.scaledBirthRate(quality.engineBirthRate)
         engineEmitter?.particleBirthRate = engineRate
         engineEmitter?.isHidden = quality.engineBirthRate <= 0
-        engineEmitter?.isPaused = quality.engineBirthRate <= 0
+        engineEmitter?.isPaused = gameplayFrozen || quality.engineBirthRate <= 0
         let dustRate = bossActive ? 0 : FramePacing.scaledBirthRate(quality.starDustBirthRate)
         applyPerformanceQuality(starDustRate: dustRate)
         if let dust = childNode(withName: GameConstants.NodeName.starDust) as? SKEmitterNode {
-            dust.isPaused = dustRate <= 0
+            dust.isPaused = gameplayFrozen || dustRate <= 0
         }
         scrollingBackground?.applyEffectsQuality(quality)
     }
@@ -498,11 +503,11 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             if currentState == .paused {
                 freezeGameplay()
             }
+            // Stay on the overlay cap until the player taps Resume.
             return
         }
         if currentState == .playing {
             unfreezeGameplay()
-            lastUpdateTime = 0
         }
     }
 
@@ -835,6 +840,11 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private func runGameOver() {
         guard currentState == .playing || currentState == .paused else { return }
         currentState = .gameOver
+        if gameplayFrozen {
+            gameplayFrozen = false
+            speed = 1
+            FramePacing.setOverlayFrameCapActive(false)
+        }
         dismissPauseOverlay()
         HapticManager.gameOver()
         engineEmitter?.particleBirthRate = 0
@@ -883,7 +893,6 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         dismissPauseOverlay()
         currentState = .playing
         unfreezeGameplay()
-        lastUpdateTime = 0
         AudioManager.play(.uiTap)
         HapticManager.fire()
     }
@@ -891,38 +900,43 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private func freezeGameplay() {
         guard !gameplayFrozen else { return }
         gameplayFrozen = true
-        removeAction(forKey: "spawningEnemies")
-        removeAction(forKey: "spawningPowerUp")
-        removeAction(forKey: "spawningHealth")
-        removeAction(forKey: "spawningRockets")
-        removeAction(forKey: "spawningClearMine")
-        removeAction(forKey: "fireBullets")
+        // Scene speed freezes every SKAction (spawns, fire, delayed boss volleys)
+        // in place so resume does not restart timers or dump a spawn wave.
+        speed = 0
         player.isPaused = true
         engineEmitter?.isPaused = true
+        setAmbientEmittersPaused(true)
+        gravityWellFX?.isPaused = true
         for node in liveBullets + liveEnemies + livePickups + liveFireballs + liveRockets {
             node.isPaused = true
         }
         bossNode?.isPaused = true
+        FramePacing.setOverlayFrameCapActive(true)
     }
 
     private func unfreezeGameplay() {
         guard gameplayFrozen else { return }
         gameplayFrozen = false
+        speed = 1
         player.isPaused = false
-        engineEmitter?.isPaused = false
+        gravityWellFX?.isPaused = false
         for node in liveBullets + liveEnemies + livePickups + liveFireballs + liveRockets {
             node.isPaused = false
         }
         bossNode?.isPaused = false
-        guard currentState == .playing else { return }
-        schedulePowerUps()
-        scheduleHealthPickups()
-        scheduleNextClearMine()
-        if !bossActive {
-            scheduleNextObstacle()
-            scheduleNextRocket()
+        // Restore ProMotion / thermal target before the next played frame.
+        FramePacing.setOverlayFrameCapActive(false)
+        lastUpdateTime = 0
+        refreshParticleRates()
+    }
+
+    private func setAmbientEmittersPaused(_ paused: Bool) {
+        if let dust = childNode(withName: GameConstants.NodeName.starDust) as? SKEmitterNode {
+            dust.isPaused = paused || dust.particleBirthRate <= 0
         }
-        restartFiring()
+        if paused {
+            engineEmitter?.isPaused = true
+        }
     }
 
     private func presentPauseOverlay() {
@@ -972,6 +986,11 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         guard currentState == .paused else { return }
         AudioManager.play(.uiTap)
         HapticManager.fire()
+        if gameplayFrozen {
+            gameplayFrozen = false
+            speed = 1
+        }
+        FramePacing.setOverlayFrameCapActive(false)
         dismissPauseOverlay()
         presentScene(GameTitleScene(size: size))
     }
@@ -2260,7 +2279,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     // MARK: - Contacts
 
     func didBegin(_ contact: SKPhysicsContact) {
-        guard currentState == .playing else { return }
+        guard currentState == .playing, !gameplayFrozen, !isPausedBySystem else { return }
 
         let maskA = contact.bodyA.categoryBitMask
         let maskB = contact.bodyB.categoryBitMask
@@ -2318,7 +2337,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     // MARK: - Controls
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard currentState == .playing, !isPausedBySystem else { return }
+        guard currentState == .playing, !isPausedBySystem, !gameplayFrozen else { return }
         for touch in touches {
             steeringTouchX = touch.location(in: self).x
         }
@@ -2355,7 +2374,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             return
         }
 
-        guard currentState == .playing, !isPausedBySystem else { return }
+        guard currentState == .playing, !isPausedBySystem, !gameplayFrozen else { return }
 
         if hud.containsPauseTouch(point) {
             enterPause(showOverlay: true)
