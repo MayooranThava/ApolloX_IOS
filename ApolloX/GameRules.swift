@@ -58,13 +58,24 @@ enum GameRules {
     static let spawnRampInterval: TimeInterval = 30.0
 
     static let bossSpawnInterval: TimeInterval = 30.0
-    static let maxBossCount = 6
+    static let maxBossCount = 4
     static let bossScale: CGFloat = 2.35
     static let bossDescentDuration: TimeInterval = 9.0
     /// Boss ignores player shots until fully on-screen and at least this long has passed.
     static let bossVulnerableDelay: TimeInterval = 1.8
     static let fireballSpeed: CGFloat = 520
     static let fireballScale: CGFloat = 0.72
+
+    /// Soft gravity well: gentle lateral pull toward a point (points / second at full strength).
+    static let softGravityStrength: CGFloat = 95
+    static let softGravityDuration: TimeInterval = 2.4
+    static let softGravityRadius: CGFloat = 280
+    /// Soft time warp: boss projectiles play actions at this speed while active.
+    static let softTimeWarpFactor: CGFloat = 0.72
+    static let softTimeWarpDuration: TimeInterval = 2.6
+    /// Temporary dodgeable minions / swarm / eggs lifetime (also cleared on boss death).
+    static let bossMinionLifetime: TimeInterval = 5.5
+    static let bossMinionMaxCount = 5
 
     /// Falling nuclear rockets use a tall procedural sprite; scale targets ~55% of player height.
     static let rocketScale: CGFloat = 0.78
@@ -98,26 +109,22 @@ enum GameRules {
     static let clearMinePoints = 8
 
     /// Legacy alias — first boss HP.
-    static let bossMaxHP = 15
+    static let bossMaxHP = 18
     static let bossPoints = 25
     static let bossFireInterval: TimeInterval = 2.1
     /// Soft cap on simultaneous boss dodgeables (rings need more than a triple fan).
     static let maxBossProjectiles = 22
 
-    /// Space monsters that appear every 30s (up to six per run).
+    /// Space monsters that appear every 30s (up to four per run). Each cycles four attacks.
     enum BossAttackPattern: String, CaseIterable {
-        /// Aimed plasma bolts + purple ring-of-fire with a dodge gap.
-        case nebulaCyclops
-        /// Fast claw fans + descending claw wall with a safe lane.
-        case crimsonClawfiend
-        /// Slime volleys + acid curtain with one clear corridor.
-        case acidHydra
-        /// Ice shard spreads + closing frost gates with a drifting gap.
-        case frostMaw
-        /// Magma boulders + erupting pillar columns with a safe lane.
-        case magmaBehemoth
-        /// Void orbs + collapsing ring with a dodge gap.
-        case voidEmperor
+        /// Void Pulse, Tentacle Swipe, Gravity Well, Minion Spawn.
+        case voidLeviathan
+        /// Solar Flare, Orbital Ring, Core Laser, Meteor Shower.
+        case solarConclave
+        /// Reality Shards, Dimension Slash, Time Warp, Portal Summon.
+        case nexusSentinel
+        /// Toxic Spray, Spore Bombs, Swarm Call, Infected Eggs.
+        case plagueBroodmother
     }
 
     struct BossProfile {
@@ -139,70 +146,48 @@ enum GameRules {
 
     static let bossProfiles: [BossProfile] = [
         BossProfile(
-            name: "Nebula Cyclops",
+            name: "Void Leviathan",
             sprite: "bossNebula",
-            maxHP: 15,
-            points: 25,
+            maxHP: 18,
+            points: 28,
             tintRed: 1, tintGreen: 1, tintBlue: 1, tintBlend: 0,
-            fireInterval: 2.1,
+            fireInterval: 2.05,
             scale: 2.35,
-            bannerRed: 0.85, bannerGreen: 0.35, bannerBlue: 1.0,
-            attackPattern: .nebulaCyclops
+            bannerRed: 0.78, bannerGreen: 0.32, bannerBlue: 1.0,
+            attackPattern: .voidLeviathan
         ),
         BossProfile(
-            name: "Crimson Clawfiend",
+            name: "Solar Conclave",
             sprite: "bossCrimson",
-            maxHP: 22,
-            points: 32,
+            maxHP: 28,
+            points: 38,
             tintRed: 1, tintGreen: 1, tintBlue: 1, tintBlend: 0,
-            fireInterval: 1.95,
+            fireInterval: 1.90,
             scale: 2.35,
-            bannerRed: 1.0, bannerGreen: 0.25, bannerBlue: 0.2,
-            attackPattern: .crimsonClawfiend
+            bannerRed: 1.0, bannerGreen: 0.55, bannerBlue: 0.18,
+            attackPattern: .solarConclave
         ),
         BossProfile(
-            name: "Acid Hydra",
-            sprite: "bossAcid",
-            maxHP: 30,
-            points: 40,
-            tintRed: 1, tintGreen: 1, tintBlue: 1, tintBlend: 0,
-            fireInterval: 1.85,
-            scale: 2.40,
-            bannerRed: 0.45, bannerGreen: 1.0, bannerBlue: 0.25,
-            attackPattern: .acidHydra
-        ),
-        BossProfile(
-            name: "Frost Maw",
+            name: "Nexus Sentinel",
             sprite: "bossFrost",
             maxHP: 40,
-            points: 50,
+            points: 52,
             tintRed: 1, tintGreen: 1, tintBlue: 1, tintBlend: 0,
-            fireInterval: 1.7,
+            fireInterval: 1.75,
             scale: 2.40,
-            bannerRed: 0.45, bannerGreen: 0.85, bannerBlue: 1.0,
-            attackPattern: .frostMaw
+            bannerRed: 0.35, bannerGreen: 0.88, bannerBlue: 1.0,
+            attackPattern: .nexusSentinel
         ),
         BossProfile(
-            name: "Magma Behemoth",
-            sprite: "bossMagma",
-            maxHP: 52,
-            points: 62,
+            name: "Plague Broodmother",
+            sprite: "bossAcid",
+            maxHP: 55,
+            points: 70,
             tintRed: 1, tintGreen: 1, tintBlue: 1, tintBlend: 0,
             fireInterval: 1.55,
-            scale: 2.45,
-            bannerRed: 1.0, bannerGreen: 0.55, bannerBlue: 0.15,
-            attackPattern: .magmaBehemoth
-        ),
-        BossProfile(
-            name: "Void Emperor",
-            sprite: "bossEmperor",
-            maxHP: 65,
-            points: 80,
-            tintRed: 1, tintGreen: 1, tintBlue: 1, tintBlend: 0,
-            fireInterval: 1.4,
-            scale: 2.35,
-            bannerRed: 0.75, bannerGreen: 0.2, bannerBlue: 1.0,
-            attackPattern: .voidEmperor
+            scale: 2.40,
+            bannerRed: 0.42, bannerGreen: 0.95, bannerBlue: 0.22,
+            attackPattern: .plagueBroodmother
         )
     ]
 

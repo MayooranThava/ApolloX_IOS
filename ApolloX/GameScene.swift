@@ -35,6 +35,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private var isInvulnerable = false
     private var runElapsed: TimeInterval = 0
     private var lastUpdateTime: TimeInterval = 0
+    private var lastFrameDelta: TimeInterval = 1.0 / 60.0
     private var bossesSpawnedCount = 0
     private var currentBossMaxHP = GameRules.bossMaxHP
     private var currentBossPoints = GameRules.bossPoints
@@ -45,6 +46,12 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private var bossNode: PooledSprite?
     private var activeBossProfile: GameRules.BossProfile?
     private var bossVolleyIndex = 0
+    /// Soft gravity well (gentle lateral pull) while active.
+    private var softGravityUntil: TimeInterval = 0
+    private var softGravityCenter = CGPoint.zero
+    /// Soft time warp — boss projectiles play actions slower while active.
+    private var softTimeWarpUntil: TimeInterval = 0
+    private var gravityWellFX: SKSpriteNode?
     private var backgroundTier = -1
     private var scrollingBackground: ScrollingBackgroundNode?
     /// Cached so swept tests do not rebuild `PlayfieldLayout` every pair.
@@ -142,12 +149,15 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             let delta = currentTime - lastUpdateTime
             runElapsed += delta
             scrollingBackground?.tick(deltaTime: delta)
+            lastFrameDelta = delta
 
             let tier = GameRules.spawnTier(elapsed: runElapsed)
             if tier != backgroundTier {
                 backgroundTier = tier
                 updateBackgroundTier(tier, animated: tier > 0)
             }
+        } else {
+            lastFrameDelta = 1.0 / 60.0
         }
         lastUpdateTime = currentTime
 
@@ -162,7 +172,96 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
         updateBossVulnerability()
         applyPlayerSteering()
+        applySoftBossEffects()
         recordPlayerXHistory()
+    }
+
+    private func applySoftBossEffects() {
+        guard currentState == .playing else { return }
+
+        if runElapsed < softGravityUntil {
+            let dx = softGravityCenter.x - player.position.x
+            let distance = abs(dx)
+            if distance > 4, distance < GameRules.softGravityRadius {
+                let falloff = 1 - (distance / GameRules.softGravityRadius)
+                let pull = GameRules.softGravityStrength * falloff * CGFloat(min(lastFrameDelta, 0.05))
+                let halfWidth = player.size.width * player.xScale * 0.45
+                let nudged = player.position.x + (dx > 0 ? pull : -pull)
+                player.position.x = GameRules.clampPlayerX(
+                    x: nudged,
+                    playMinX: playArea.minX,
+                    playMaxX: playArea.maxX,
+                    halfWidth: halfWidth
+                )
+            }
+        } else if gravityWellFX != nil {
+            clearGravityWellFX()
+        }
+
+        let warpActive = runElapsed < softTimeWarpUntil
+        let factor: CGFloat = warpActive ? GameRules.softTimeWarpFactor : 1
+        for shot in liveFireballs where abs(shot.speed - factor) > 0.01 {
+            shot.speed = factor
+        }
+    }
+
+    private func activateSoftGravity(at point: CGPoint) {
+        softGravityCenter = point
+        softGravityUntil = runElapsed + GameRules.softGravityDuration
+        clearGravityWellFX()
+
+        let fx = SKSpriteNode(texture: TextureCache.texture(BossAttackTextures.gravityWell))
+        fx.size = CGSize(width: 120, height: 120)
+        fx.position = point
+        fx.zPosition = GameConstants.Z.effect
+        fx.alpha = 0.85
+        fx.setScale(0.6)
+        addChild(fx)
+        gravityWellFX = fx
+        fx.run(.repeatForever(.sequence([
+            .group([
+                .scale(to: 1.15, duration: 0.55),
+                .fadeAlpha(to: 0.45, duration: 0.55)
+            ]),
+            .group([
+                .scale(to: 0.7, duration: 0.55),
+                .fadeAlpha(to: 0.85, duration: 0.55)
+            ])
+        ])))
+        fx.run(.sequence([
+            .wait(forDuration: GameRules.softGravityDuration),
+            .fadeOut(withDuration: 0.2),
+            .run { [weak self] in self?.clearGravityWellFX() }
+        ]))
+    }
+
+    private func clearGravityWellFX() {
+        gravityWellFX?.removeAllActions()
+        gravityWellFX?.removeFromParent()
+        gravityWellFX = nil
+    }
+
+    private func activateSoftTimeWarp(at point: CGPoint) {
+        softTimeWarpUntil = runElapsed + GameRules.softTimeWarpDuration
+        for shot in liveFireballs {
+            shot.speed = GameRules.softTimeWarpFactor
+        }
+
+        let fx = SKSpriteNode(texture: TextureCache.texture(BossAttackTextures.timeWarpOrb))
+        fx.size = CGSize(width: 110, height: 110)
+        fx.position = point
+        fx.zPosition = GameConstants.Z.effect
+        fx.alpha = 0.8
+        addChild(fx)
+        fx.run(.sequence([
+            .group([
+                .scale(to: 1.35, duration: 0.35),
+                .fadeAlpha(to: 0.35, duration: 0.35)
+            ]),
+            .wait(forDuration: GameRules.softTimeWarpDuration - 0.55),
+            .fadeOut(withDuration: 0.25),
+            .removeFromParent()
+        ]))
     }
 
     private func recordPlayerXHistory() {
@@ -257,7 +356,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         visibleMaxY = layout.visibleRect.maxY
         relayoutProductionBackground()
         hud.layout(in: layout.safeRect)
-        bossHealthBar.layout(in: layout.safeRect, below: 148)
+        bossHealthBar.layout(in: layout.safeRect, below: 156)
 
         if player.parent != nil {
             player.position.x = GameRules.clampPlayerX(
@@ -1170,9 +1269,18 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         activeBossProfile = profile
         bossVolleyIndex = 0
 
-        bossHealthBar.show(maxHP: profile.maxHP, title: profile.name)
+        let accent = SKColor(
+            red: profile.bannerRed,
+            green: profile.bannerGreen,
+            blue: profile.bannerBlue,
+            alpha: 1
+        )
+        bossHealthBar.show(maxHP: profile.maxHP, title: profile.name, accent: accent)
         hud.setStatus("Boss \(bossesSpawnedCount)/\(GameRules.maxBossCount)")
         hud.pulseStatus()
+        softGravityUntil = 0
+        softTimeWarpUntil = 0
+        clearGravityWellFX()
 
         node.alpha = 0.82
         node.run(.repeatForever(.sequence([
@@ -1213,232 +1321,297 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
         let origin = boss.position
         switch profile.attackPattern {
-        case .nebulaCyclops:
-            fireNebulaVolley(from: origin)
-        case .crimsonClawfiend:
-            fireClawVolley(from: origin)
-        case .acidHydra:
-            fireAcidHydraVolley(from: origin)
-        case .frostMaw:
-            fireFrostVolley(from: origin)
-        case .magmaBehemoth:
-            fireMagmaVolley(from: origin)
-        case .voidEmperor:
-            fireVoidVolley(from: origin)
+        case .voidLeviathan:
+            fireVoidLeviathanVolley(from: origin)
+        case .solarConclave:
+            fireSolarConclaveVolley(from: origin)
+        case .nexusSentinel:
+            fireNexusSentinelVolley(from: origin)
+        case .plagueBroodmother:
+            firePlagueBroodmotherVolley(from: origin)
         }
     }
 
-    // MARK: - Boss attack patterns
+    // MARK: - Boss attack patterns (4 attacks each)
 
-    private func fireNebulaVolley(from origin: CGPoint) {
-        // Signature every other volley: purple ring of fire with a dodge gap.
-        if bossVolleyIndex % 2 == 0 {
-            fireRingWithGap(
-                textureName: BossAttackTextures.nebulaFlame,
-                center: CGPoint(x: playArea.midX, y: origin.y - 90),
-                startRadius: 55,
-                endRadius: max(playArea.width, playArea.height) * 0.55,
-                segmentCount: 16,
-                gapSegments: 3,
-                travelDuration: 1.55,
-                scale: 0.78,
-                hitboxFactor: 0.36,
-                expandOutward: true
-            )
-        } else {
-            spawnBossProjectile(
-                textureName: BossAttackTextures.cosmicBolt,
-                scale: 1.02,
-                speed: 440,
-                hitboxFactor: 0.38,
-                from: origin,
-                targetX: player.position.x,
-                wobble: true
-            )
-        }
-        bossVolleyIndex += 1
-    }
-
-    private func fireClawVolley(from origin: CGPoint) {
-        if bossVolleyIndex % 2 == 0 {
-            // Descending claw wall — leave one safe lane for the player to slip through.
-            fireDescendingWallWithGap(
-                textureName: BossAttackTextures.clawShard,
-                fromY: origin.y - 70,
-                count: 9,
-                gapSlots: 2,
-                speed: 620,
-                scale: 0.74,
-                hitboxFactor: 0.30
-            )
-        } else {
-            let spreads: [CGFloat] = [-95, 0, 95]
-            for spread in spreads {
-                spawnBossProjectile(
-                    textureName: BossAttackTextures.clawShard,
-                    scale: 0.82,
-                    speed: 680,
-                    hitboxFactor: 0.32,
-                    from: origin,
-                    targetX: player.position.x + spread
-                )
-            }
-        }
-        bossVolleyIndex += 1
-    }
-
-    private func fireAcidHydraVolley(from origin: CGPoint) {
+    private func fireVoidLeviathanVolley(from origin: CGPoint) {
         let mode = bossVolleyIndex % 4
         bossVolleyIndex += 1
-
         switch mode {
-        case 0:
-            let spreads: [CGFloat] = [-70, 0, 70]
+        case 0: // Void Pulse
+            let spreads: [CGFloat] = [-85, 0, 85]
             for spread in spreads {
                 spawnBossProjectile(
-                    textureName: BossAttackTextures.acidBall,
-                    scale: 0.78,
-                    speed: 540,
+                    textureName: BossAttackTextures.voidPulse,
+                    scale: 0.95,
+                    speed: 460,
                     hitboxFactor: 0.36,
                     from: origin,
                     targetX: player.position.x + spread,
                     wobble: true
                 )
             }
-        case 1:
-            let baseX = player.position.x
-            for index in 0..<6 {
-                let dripDelay = Double(index) * 0.09
-                let spread = CGFloat.random(in: -55...55)
-                run(.sequence([
-                    .wait(forDuration: dripDelay),
-                    .run { [weak self] in
-                        guard let self, self.bossActive, self.bossVulnerable else { return }
-                        self.spawnBossProjectile(
-                            textureName: BossAttackTextures.acidDrip,
-                            scale: 0.62,
-                            speed: 720,
-                            hitboxFactor: 0.34,
-                            from: origin,
-                            targetX: baseX + spread
-                        )
-                    }
-                ]))
-            }
-        case 2:
-            // Acid curtain with one clear corridor.
+        case 1: // Tentacle Swipe
             fireDescendingWallWithGap(
-                textureName: BossAttackTextures.acidBall,
-                fromY: origin.y - 60,
-                count: 8,
+                textureName: BossAttackTextures.tentacleOrb,
+                fromY: origin.y - 70,
+                count: 9,
                 gapSlots: 2,
-                speed: 480,
-                scale: 0.70,
+                speed: 540,
+                scale: 0.72,
+                hitboxFactor: 0.32
+            )
+        case 2: // Soft Gravity Well
+            let well = CGPoint(
+                x: GameRules.clampPlayerX(
+                    x: player.position.x + CGFloat.random(in: -90...90),
+                    playMinX: playArea.minX,
+                    playMaxX: playArea.maxX,
+                    halfWidth: 40
+                ),
+                y: max(player.position.y + 70, playArea.minY + 200)
+            )
+            activateSoftGravity(at: well)
+            spawnBossProjectile(
+                textureName: BossAttackTextures.voidPulse,
+                scale: 0.88,
+                speed: 400,
                 hitboxFactor: 0.34,
+                from: origin,
+                targetX: well.x,
                 wobble: true
             )
-        default:
-            spawnBossProjectile(
-                textureName: BossAttackTextures.acidSplat,
-                scale: 1.05,
-                speed: 380,
-                hitboxFactor: 0.42,
+        default: // Minion Spawn (temporary)
+            spawnBossMinions(
+                textureName: BossAttackTextures.voidMinion,
                 from: origin,
-                targetX: player.position.x,
-                wobble: true
+                count: 3,
+                scale: 0.78,
+                speed: 260
             )
         }
     }
 
-    private func fireFrostVolley(from origin: CGPoint) {
-        if bossVolleyIndex % 2 == 0 {
-            // Frost gates close from both sides, leaving a drifting center gap.
+    private func fireSolarConclaveVolley(from origin: CGPoint) {
+        let mode = bossVolleyIndex % 4
+        bossVolleyIndex += 1
+        switch mode {
+        case 0: // Solar Flare
+            let spreads: [CGFloat] = [-100, -35, 35, 100]
+            for spread in spreads {
+                spawnBossProjectile(
+                    textureName: BossAttackTextures.solarFlare,
+                    scale: 0.86,
+                    speed: 620,
+                    hitboxFactor: 0.34,
+                    from: origin,
+                    targetX: player.position.x + spread
+                )
+            }
+        case 1: // Orbital Ring
+            fireRingWithGap(
+                textureName: BossAttackTextures.orbitalSpark,
+                center: CGPoint(x: playArea.midX, y: origin.y - 90),
+                startRadius: 50,
+                endRadius: max(playArea.width, playArea.height) * 0.55,
+                segmentCount: 16,
+                gapSegments: 3,
+                travelDuration: 1.5,
+                scale: 0.74,
+                hitboxFactor: 0.34,
+                expandOutward: true
+            )
+        case 2: // Core Laser
             fireDescendingWallWithGap(
-                textureName: BossAttackTextures.iceShard,
-                fromY: origin.y - 55,
-                count: 10,
+                textureName: BossAttackTextures.coreLaser,
+                fromY: origin.y - 40,
+                count: 8,
                 gapSlots: 2,
-                speed: 400,
-                scale: 0.72,
+                speed: 700,
+                scale: 0.70,
                 hitboxFactor: 0.28
             )
-        } else {
+        default: // Meteor Shower
+            let baseX = player.position.x
+            for index in 0..<5 {
+                let delay = Double(index) * 0.12
+                let spread = CGFloat.random(in: -110...110)
+                run(.sequence([
+                    .wait(forDuration: delay),
+                    .run { [weak self] in
+                        guard let self, self.bossActive, self.bossVulnerable else { return }
+                        self.spawnBossProjectile(
+                            textureName: BossAttackTextures.meteor,
+                            scale: 0.92,
+                            speed: 360,
+                            hitboxFactor: 0.40,
+                            from: origin,
+                            targetX: baseX + spread,
+                            wobble: true
+                        )
+                    }
+                ]))
+            }
+        }
+    }
+
+    private func fireNexusSentinelVolley(from origin: CGPoint) {
+        let mode = bossVolleyIndex % 4
+        bossVolleyIndex += 1
+        switch mode {
+        case 0: // Reality Shards
             let spreads: [CGFloat] = [-120, -40, 40, 120]
             for spread in spreads {
                 spawnBossProjectile(
-                    textureName: BossAttackTextures.iceShard,
-                    scale: 0.76,
-                    speed: 430,
+                    textureName: BossAttackTextures.realityShard,
+                    scale: 0.78,
+                    speed: 450,
                     hitboxFactor: 0.30,
                     from: origin,
                     targetX: player.position.x + spread
                 )
             }
-        }
-        bossVolleyIndex += 1
-    }
-
-    private func fireMagmaVolley(from origin: CGPoint) {
-        if bossVolleyIndex % 2 == 0 {
-            // Erupting magma pillars — three columns with one safe lane.
+        case 1: // Dimension Slash
             fireDescendingWallWithGap(
-                textureName: BossAttackTextures.magmaBoulder,
-                fromY: origin.y - 40,
-                count: 7,
+                textureName: BossAttackTextures.dimensionSlash,
+                fromY: origin.y - 55,
+                count: 10,
                 gapSlots: 2,
-                speed: 320,
-                scale: 0.92,
-                hitboxFactor: 0.40,
-                wobble: true
+                speed: 420,
+                scale: 0.70,
+                hitboxFactor: 0.28
             )
-        } else {
-            let shots = Bool.random() ? 1 : 2
-            for index in 0..<shots {
-                let spread = CGFloat(index) * 80 - CGFloat(shots - 1) * 40
-                spawnBossProjectile(
-                    textureName: BossAttackTextures.magmaBoulder,
-                    scale: 1.08,
-                    speed: 340,
-                    hitboxFactor: 0.44,
-                    from: origin,
-                    targetX: player.position.x + spread,
-                    wobble: true
-                )
-            }
-        }
-        bossVolleyIndex += 1
-    }
-
-    private func fireVoidVolley(from origin: CGPoint) {
-        if bossVolleyIndex % 2 == 0 {
-            // Collapsing void ring — player must slip through the gap before it closes.
-            fireRingWithGap(
-                textureName: BossAttackTextures.voidOrb,
-                center: CGPoint(x: playArea.midX, y: max(player.position.y + 40, playArea.minY + 220)),
-                startRadius: max(playArea.width, playArea.height) * 0.48,
-                endRadius: 70,
-                segmentCount: 16,
-                gapSegments: 3,
-                travelDuration: 1.45,
-                scale: 0.80,
-                hitboxFactor: 0.34,
-                expandOutward: false
-            )
-        } else {
-            let spreads: [CGFloat] = [-110, 0, 110]
+        case 2: // Soft Time Warp
+            let warpPoint = CGPoint(x: playArea.midX, y: origin.y - 40)
+            activateSoftTimeWarp(at: warpPoint)
+            let spreads: [CGFloat] = [-70, 0, 70]
             for spread in spreads {
                 spawnBossProjectile(
-                    textureName: BossAttackTextures.voidOrb,
-                    scale: 0.88,
-                    speed: 500,
+                    textureName: BossAttackTextures.realityShard,
+                    scale: 0.72,
+                    speed: 320,
+                    hitboxFactor: 0.28,
+                    from: origin,
+                    targetX: player.position.x + spread
+                )
+            }
+        default: // Portal Summon (temporary)
+            spawnBossMinions(
+                textureName: BossAttackTextures.portalMinion,
+                from: origin,
+                count: 3,
+                scale: 0.76,
+                speed: 240
+            )
+        }
+    }
+
+    private func firePlagueBroodmotherVolley(from origin: CGPoint) {
+        let mode = bossVolleyIndex % 4
+        bossVolleyIndex += 1
+        switch mode {
+        case 0: // Toxic Spray
+            let spreads: [CGFloat] = [-80, -25, 25, 80]
+            for spread in spreads {
+                spawnBossProjectile(
+                    textureName: BossAttackTextures.toxicSpray,
+                    scale: 0.78,
+                    speed: 520,
                     hitboxFactor: 0.36,
                     from: origin,
                     targetX: player.position.x + spread,
                     wobble: true
                 )
             }
+        case 1: // Spore Bombs
+            let spreads: [CGFloat] = [-60, 60]
+            for spread in spreads {
+                spawnBossProjectile(
+                    textureName: BossAttackTextures.sporeBomb,
+                    scale: 1.02,
+                    speed: 300,
+                    hitboxFactor: 0.42,
+                    from: origin,
+                    targetX: player.position.x + spread,
+                    wobble: true
+                )
+            }
+        case 2: // Swarm Call (temporary)
+            spawnBossMinions(
+                textureName: BossAttackTextures.swarmMinion,
+                from: origin,
+                count: 4,
+                scale: 0.68,
+                speed: 280
+            )
+        default: // Infected Eggs (temporary; hatch into drips)
+            spawnBossMinions(
+                textureName: BossAttackTextures.infectedEgg,
+                from: origin,
+                count: 3,
+                scale: 0.72,
+                speed: 200
+            )
+            let baseX = player.position.x
+            for index in 0..<3 {
+                let delay = 0.85 + Double(index) * 0.15
+                run(.sequence([
+                    .wait(forDuration: delay),
+                    .run { [weak self] in
+                        guard let self, self.bossActive, self.bossVulnerable else { return }
+                        self.spawnBossProjectile(
+                            textureName: BossAttackTextures.toxicSpray,
+                            scale: 0.58,
+                            speed: 640,
+                            hitboxFactor: 0.32,
+                            from: CGPoint(x: baseX + CGFloat.random(in: -70...70), y: origin.y - 40),
+                            targetX: self.player.position.x + CGFloat.random(in: -40...40)
+                        )
+                    }
+                ]))
+            }
         }
-        bossVolleyIndex += 1
+    }
+
+    /// Temporary dodgeables that time out and are cleared when the boss dies.
+    private func spawnBossMinions(
+        textureName: String,
+        from origin: CGPoint,
+        count: Int,
+        scale: CGFloat,
+        speed: CGFloat
+    ) {
+        let capped = min(count, GameRules.bossMinionMaxCount)
+        guard liveFireballs.count + capped <= bossProjectileCap else { return }
+        for index in 0..<capped {
+            let spread = CGFloat(index - (capped - 1) / 2) * 70
+            let start = CGPoint(x: origin.x + spread, y: origin.y - 50)
+            let end = CGPoint(
+                x: GameRules.clampPlayerX(
+                    x: player.position.x + spread * 0.4,
+                    playMinX: playArea.minX,
+                    playMaxX: playArea.maxX,
+                    halfWidth: 24
+                ),
+                y: playArea.minY - 60
+            )
+            let distance = hypot(end.x - start.x, end.y - start.y)
+            let travel = min(
+                GameRules.bossMinionLifetime,
+                TimeInterval(distance / max(speed, 1))
+            )
+            spawnBossProjectileAt(
+                textureName: textureName,
+                scale: scale,
+                hitboxFactor: 0.34,
+                start: start,
+                end: end,
+                duration: travel,
+                wobble: true,
+                faceTravelDirection: false,
+                lifetimeCap: GameRules.bossMinionLifetime
+            )
+        }
     }
 
     /// Expanding / collapsing ring of projectiles with a missing sector the player must fit through.
@@ -1574,7 +1747,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         end: CGPoint,
         duration: TimeInterval,
         wobble: Bool,
-        faceTravelDirection: Bool
+        faceTravelDirection: Bool,
+        lifetimeCap: TimeInterval? = nil
     ) {
         guard currentState == .playing, liveFireballs.count < bossProjectileCap else { return }
 
@@ -1588,6 +1762,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         projectile.zPosition = GameConstants.Z.enemyProjectile
         projectile.colorBlendFactor = 0
         projectile.alpha = 1
+        projectile.speed = runElapsed < softTimeWarpUntil ? GameRules.softTimeWarpFactor : 1
         if faceTravelDirection {
             projectile.zRotation = atan2(end.y - start.y, end.x - start.x) - .pi / 2
         } else {
@@ -1610,8 +1785,15 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             ])))
         }
 
+        let moveDuration = max(0.2, duration)
+        let effectiveDuration: TimeInterval
+        if let lifetimeCap {
+            effectiveDuration = max(0.2, min(moveDuration, lifetimeCap))
+        } else {
+            effectiveDuration = moveDuration
+        }
         projectile.run(.sequence([
-            .move(to: end, duration: max(0.2, duration)),
+            .move(to: end, duration: effectiveDuration),
             .run { [weak self, weak projectile] in
                 guard let self, let projectile else { return }
                 self.recycleFireball(projectile)
@@ -1621,6 +1803,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     private func recycleFireball(_ node: PooledSprite) {
         node.removeAllActions()
+        node.speed = 1
         untrack(node, from: &liveFireballs)
         fireballPool.recycle(node)
     }
@@ -1639,6 +1822,9 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         bossNode = nil
         activeBossProfile = nil
         bossVolleyIndex = 0
+        softGravityUntil = 0
+        softTimeWarpUntil = 0
+        clearGravityWellFX()
         bossHealthBar.hideBar()
         clearFireballs()
         nextBossSpawnAt = GameRules.nextBossSpawnTime(afterDefeatAt: runElapsed)

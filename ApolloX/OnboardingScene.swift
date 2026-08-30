@@ -30,7 +30,7 @@ final class OnboardingScene: SKScene {
         Step(
             title: "Survive",
             body: "Mines take two hits. Green + restores a life.",
-            tip: "Six bosses appear every 30 seconds. Stay sharp."
+            tip: "Four bosses appear every 30 seconds. Stay sharp."
         )
     ]
 
