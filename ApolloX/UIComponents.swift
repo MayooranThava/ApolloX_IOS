@@ -525,7 +525,7 @@ final class BossHealthBarNode: SKNode {
 
     func layout(in safeRect: CGRect, below hudHeight: CGFloat) {
         let width = min(safeRect.width - 64, 540)
-        let height: CGFloat = 72
+        let height: CGFloat = 78
         barWidth = width - 40
 
         panel.size = CGSize(width: width, height: height)
@@ -549,9 +549,9 @@ final class BossHealthBarNode: SKNode {
         // Sit clearly under the HUD status row so FIRE BOOST never overlaps the name.
         position = CGPoint(x: safeRect.midX, y: safeRect.maxY - hudHeight - height * 0.5 - 36)
 
-        title.position = CGPoint(x: 0, y: 18)
+        title.position = CGPoint(x: 0, y: 20)
         hpLabel.horizontalAlignmentMode = .right
-        hpLabel.position = CGPoint(x: barWidth * 0.5 - 2, y: -28)
+        hpLabel.position = CGPoint(x: barWidth * 0.5 - 2, y: -30)
 
         track.size = CGSize(width: barWidth, height: 18)
         track.texture = ShapeTexture.roundedRect(
@@ -561,10 +561,10 @@ final class BossHealthBarNode: SKNode {
             stroke: SKColor(white: 1, alpha: 0.10),
             lineWidth: 1
         )
-        track.position = CGPoint(x: 0, y: -12)
+        track.position = CGPoint(x: 0, y: -8)
 
         fill.size = track.size
-        fill.position = CGPoint(x: -barWidth * 0.5, y: -12)
+        fill.position = CGPoint(x: -barWidth * 0.5, y: -8)
         refreshFillTexture()
     }
 
