@@ -48,7 +48,7 @@ final class GameTitleScene: SKScene {
         let instructions = [
             "Drag to steer  •  Auto-fire",
             "Mines take two hits  •  Stars boost fire",
-            "Six bosses  •  Credits unlock ships"
+            "Four bosses  •  Credits unlock ships"
         ]
         for line in instructions {
             let label = makeGameLabel(text: line, fontSize: 28, color: SKColor(white: 0.78, alpha: 1))

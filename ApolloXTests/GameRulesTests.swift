@@ -83,25 +83,32 @@ final class GameRulesTests: XCTestCase {
             elapsed: 50, bossesSpawned: 0, bossActive: true, nextBossSpawnAt: 30
         ))
         XCTAssertFalse(GameRules.shouldSpawnBoss(
-            elapsed: 200, bossesSpawned: 6, bossActive: false, nextBossSpawnAt: 999
+            elapsed: 200, bossesSpawned: 4, bossActive: false, nextBossSpawnAt: 999
         ))
     }
 
-    func testBossRosterHasSixEntries() {
-        XCTAssertEqual(GameRules.bossProfiles.count, 6)
-        XCTAssertEqual(GameRules.maxBossCount, 6)
+    func testBossRosterHasFourEntries() {
+        XCTAssertEqual(GameRules.bossProfiles.count, 4)
+        XCTAssertEqual(GameRules.maxBossCount, 4)
         XCTAssertEqual(GameRules.firstBossSpawnTime(), 30)
         XCTAssertEqual(GameRules.nextBossSpawnTime(afterDefeatAt: 40), 70)
-        XCTAssertEqual(GameRules.bossProfile(at: 0).maxHP, 15)
-        XCTAssertEqual(GameRules.bossProfile(at: 5).maxHP, 65)
-        XCTAssertGreaterThan(GameRules.bossProfile(at: 5).points, GameRules.bossProfile(at: 0).points)
+        XCTAssertEqual(GameRules.bossProfile(at: 0).name, "Void Leviathan")
+        XCTAssertEqual(GameRules.bossProfile(at: 0).maxHP, 18)
+        XCTAssertEqual(GameRules.bossProfile(at: 3).name, "Plague Broodmother")
+        XCTAssertEqual(GameRules.bossProfile(at: 3).maxHP, 55)
+        XCTAssertGreaterThan(GameRules.bossProfile(at: 3).points, GameRules.bossProfile(at: 0).points)
+        XCTAssertLessThan(GameRules.softTimeWarpFactor, 1)
+        XCTAssertGreaterThan(GameRules.softGravityStrength, 0)
+        XCTAssertGreaterThan(GameRules.bossMinionLifetime, 2)
     }
 
     func testEachBossHasUniqueAttackPattern() {
         let patterns = GameRules.bossProfiles.map(\.attackPattern)
         XCTAssertEqual(Set(patterns).count, patterns.count)
-        XCTAssertEqual(GameRules.bossProfile(at: 0).attackPattern, .nebulaCyclops)
-        XCTAssertEqual(GameRules.bossProfile(at: 2).attackPattern, .acidHydra)
+        XCTAssertEqual(GameRules.bossProfile(at: 0).attackPattern, .voidLeviathan)
+        XCTAssertEqual(GameRules.bossProfile(at: 1).attackPattern, .solarConclave)
+        XCTAssertEqual(GameRules.bossProfile(at: 2).attackPattern, .nexusSentinel)
+        XCTAssertEqual(GameRules.bossProfile(at: 3).attackPattern, .plagueBroodmother)
         XCTAssertGreaterThanOrEqual(GameRules.maxBossProjectiles, 16)
     }
 

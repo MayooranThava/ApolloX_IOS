@@ -11,10 +11,8 @@ ROOT = Path(__file__).resolve().parents[1]
 BOSS_NAMES = [
     "bossNebula",
     "bossCrimson",
-    "bossAcid",
     "bossFrost",
-    "bossMagma",
-    "bossEmperor",
+    "bossAcid",
 ]
 
 

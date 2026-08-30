@@ -474,14 +474,21 @@ final class BossHealthBarNode: SKNode {
     private let panel = SKSpriteNode()
     private let track = SKSpriteNode()
     private let fill = SKSpriteNode()
+    private let glow = SKSpriteNode()
     private let title = SKLabelNode()
+    private let hpLabel = SKLabelNode()
 
     private var barWidth: CGFloat = 420
+    private var fillColor = SKColor(red: 0.95, green: 0.38, blue: 0.22, alpha: 1)
 
     override init() {
         super.init()
         zPosition = GameConstants.Z.hud + 1
         isHidden = true
+
+        glow.color = SKColor(red: 0.45, green: 0.75, blue: 1.0, alpha: 0.18)
+        glow.zPosition = -1
+        addChild(glow)
 
         panel.color = GameTheme.panel
         addChild(panel)
@@ -489,17 +496,27 @@ final class BossHealthBarNode: SKNode {
         track.color = SKColor(white: 1, alpha: 0.12)
         addChild(track)
 
-        fill.color = SKColor(red: 0.95, green: 0.28, blue: 0.18, alpha: 1)
+        fill.color = fillColor
         fill.anchorPoint = CGPoint(x: 0, y: 0.5)
         addChild(fill)
 
-        title.fontName = GameFont.resolved(size: 22)
-        title.fontSize = 22
+        title.fontName = GameFont.resolved(size: 18)
+        title.fontSize = 18
         title.fontColor = GameTheme.accent
         title.text = "SPACE MONSTER"
         title.verticalAlignmentMode = .center
         title.horizontalAlignmentMode = .center
+        title.zPosition = 2
         addChild(title)
+
+        hpLabel.fontName = GameFont.resolved(size: 13)
+        hpLabel.fontSize = 13
+        hpLabel.fontColor = SKColor(white: 1, alpha: 0.72)
+        hpLabel.text = ""
+        hpLabel.verticalAlignmentMode = .center
+        hpLabel.horizontalAlignmentMode = .right
+        hpLabel.zPosition = 2
+        addChild(hpLabel)
     }
 
     required init?(coder aDecoder: NSCoder) {
@@ -507,63 +524,93 @@ final class BossHealthBarNode: SKNode {
     }
 
     func layout(in safeRect: CGRect, below hudHeight: CGFloat) {
-        let width = min(safeRect.width - 80, 520)
-        let height: CGFloat = 44
-        barWidth = width - 32
+        let width = min(safeRect.width - 64, 540)
+        let height: CGFloat = 72
+        barWidth = width - 40
 
         panel.size = CGSize(width: width, height: height)
         panel.texture = ShapeTexture.roundedRect(
             size: panel.size,
-            cornerRadius: 18,
-            fill: GameTheme.panel,
-            stroke: SKColor(white: 1, alpha: 0.14),
-            lineWidth: 2
+            cornerRadius: 16,
+            fill: SKColor(red: 0.06, green: 0.10, blue: 0.20, alpha: 0.92),
+            stroke: SKColor(red: 0.92, green: 0.78, blue: 0.32, alpha: 0.55),
+            lineWidth: 2.5
         )
-        position = CGPoint(x: safeRect.midX, y: safeRect.maxY - hudHeight - height * 0.5 - 18)
 
-        title.position = CGPoint(x: 0, y: height * 0.5 + 16)
+        glow.size = CGSize(width: width + 18, height: height + 14)
+        glow.texture = ShapeTexture.roundedRect(
+            size: glow.size,
+            cornerRadius: 20,
+            fill: SKColor(red: 0.35, green: 0.70, blue: 1.0, alpha: 0.14),
+            stroke: .clear,
+            lineWidth: 0
+        )
 
-        track.size = CGSize(width: barWidth, height: 14)
+        // Sit clearly under the HUD status row so FIRE BOOST never overlaps the name.
+        position = CGPoint(x: safeRect.midX, y: safeRect.maxY - hudHeight - height * 0.5 - 36)
+
+        title.position = CGPoint(x: 0, y: 18)
+        hpLabel.horizontalAlignmentMode = .right
+        hpLabel.position = CGPoint(x: barWidth * 0.5 - 2, y: -28)
+
+        track.size = CGSize(width: barWidth, height: 18)
         track.texture = ShapeTexture.roundedRect(
             size: track.size,
-            cornerRadius: 7,
+            cornerRadius: 9,
             fill: SKColor(white: 1, alpha: 0.10),
-            stroke: SKColor(white: 1, alpha: 0.08),
+            stroke: SKColor(white: 1, alpha: 0.10),
             lineWidth: 1
         )
-        track.position = CGPoint(x: 0, y: 0)
+        track.position = CGPoint(x: 0, y: -12)
 
         fill.size = track.size
-        fill.position = CGPoint(x: -barWidth * 0.5, y: 0)
-        fill.texture = ShapeTexture.roundedRect(
-            size: fill.size,
-            cornerRadius: 7,
-            fill: fill.color,
-            stroke: SKColor(white: 1, alpha: 0.06),
-            lineWidth: 1
-        )
+        fill.position = CGPoint(x: -barWidth * 0.5, y: -12)
+        refreshFillTexture()
     }
 
-    func show(maxHP: Int, title: String = "SPACE MONSTER") {
+    func show(maxHP: Int, title: String = "SPACE MONSTER", accent: SKColor? = nil) {
         isHidden = false
         self.title.text = title.uppercased()
+        if let accent {
+            fillColor = accent
+            fill.color = accent
+            refreshFillTexture()
+        }
         setHP(current: maxHP, maximum: maxHP)
+        glow.removeAllActions()
+        glow.alpha = 1
+        glow.run(.repeatForever(.sequence([
+            .fadeAlpha(to: 0.55, duration: 0.7),
+            .fadeAlpha(to: 1.0, duration: 0.7)
+        ])))
     }
 
     func hideBar() {
         isHidden = true
+        glow.removeAllActions()
     }
 
     func setHP(current: Int, maximum: Int) {
         let ratio = maximum > 0 ? CGFloat(current) / CGFloat(maximum) : 0
         fill.xScale = max(0, min(1, ratio))
+        hpLabel.text = "\(max(0, current))/\(max(0, maximum))"
     }
 
     func pulseDamage() {
         fill.run(.sequence([
             .colorize(with: .white, colorBlendFactor: 0.45, duration: 0.05),
-            .colorize(with: SKColor(red: 0.95, green: 0.28, blue: 0.18, alpha: 1), colorBlendFactor: 0, duration: 0.12)
+            .colorize(with: fillColor, colorBlendFactor: 0, duration: 0.12)
         ]))
+    }
+
+    private func refreshFillTexture() {
+        fill.texture = ShapeTexture.roundedRect(
+            size: fill.size,
+            cornerRadius: 9,
+            fill: fillColor,
+            stroke: SKColor(white: 1, alpha: 0.12),
+            lineWidth: 1
+        )
     }
 }
 
