@@ -109,7 +109,7 @@ enum GameRules {
     static let clearMinePoints = 8
 
     /// Legacy alias — first boss HP.
-    static let bossMaxHP = 15
+    static let bossMaxHP = 18
     static let bossPoints = 25
     static let bossFireInterval: TimeInterval = 2.1
     /// Soft cap on simultaneous boss dodgeables (rings need more than a triple fan).
