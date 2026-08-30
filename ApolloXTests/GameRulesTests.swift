@@ -318,6 +318,17 @@ final class GameRulesTests: XCTestCase {
         XCTAssertEqual(over.shield, 2)
     }
 
+    func testComboIncrementsOnKillAndResetsOnHit() {
+        XCTAssertEqual(GameRules.comboAfterKill(current: 0), 1)
+        XCTAssertEqual(GameRules.comboAfterKill(current: 11), 12)
+        XCTAssertEqual(GameRules.comboAfterPlayerHit(), 0)
+    }
+
+    func testFormattedScorePadsLikeCockpitHUD() {
+        XCTAssertEqual(HUDBarNode.formattedScore(5), "000 005")
+        XCTAssertEqual(HUDBarNode.formattedScore(2350), "002 350")
+    }
+
     func testProMotionFramePacingHonorsApplePolicy() {
         XCTAssertEqual(
             FramePacing.preferredFramesPerSecond(hardwareMax: 120, thermalState: .nominal, lowPowerMode: false),
