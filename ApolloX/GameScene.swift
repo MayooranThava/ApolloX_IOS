@@ -27,6 +27,10 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private var poweredShotsRemaining = 0
     private var fireDelay = GameConstants.baseFireDelay
     private var bulletImageName = GameConstants.bulletImage
+    private var equippedPrimaryID = PrimaryWeaponID.pulseLaser
+    private var equippedSpecialID = SpecialWeaponID.plasmaGrenade
+    private var specialReadyAt: TimeInterval = 0
+    private let specialButton = SpecialWeaponButton()
     private var currentState: State = .playing
     private var playArea = CGRect.zero
     /// True after the app actually enters the background (home switch), not screenshot/Control Center.
@@ -81,8 +85,9 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private var livePickups: [PooledSprite] = []
     private var liveFireballs: [PooledSprite] = []
     private var liveRockets: [PooledSprite] = []
+    private var liveSpecials: [PooledSprite] = []
 
-    private lazy var bulletPool = NodePool(prewarm: 18, maxIdle: 24) {
+    private lazy var bulletPool = NodePool(prewarm: 18, maxIdle: 28) {
         PooledSprite(texture: TextureCache.texture(GameConstants.bulletImage))
     }
     private lazy var obstaclePool = NodePool(prewarm: 10, maxIdle: 16) {
@@ -99,6 +104,9 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     }
     private lazy var rocketPool = NodePool(prewarm: 6, maxIdle: 12) {
         PooledSprite(texture: TextureCache.texture(GameConstants.rocketImage))
+    }
+    private lazy var specialPool = NodePool(prewarm: 4, maxIdle: 8) {
+        PooledSprite(texture: TextureCache.texture(WeaponTextures.plasmaGrenade))
     }
 
     override init(size: CGSize) {
@@ -122,8 +130,11 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
         scrollingBackground = addProductionBackground()
         GameplayTextures.registerProceduralTextures()
+        WeaponCatalog.registerTextures()
         addChild(hud)
         addChild(bossHealthBar)
+        addChild(specialButton)
+        configureLoadout()
         configurePlayer()
         relayoutForSafeArea()
         whenSafeAreaReady { [weak self] in
@@ -135,6 +146,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         registerLifecycleObservers()
         updateHUD()
         refreshParticleRates()
+        refreshSpecialButton()
     }
 
     override func didChangeSize(_ oldSize: CGSize) {
@@ -179,6 +191,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         applyPlayerSteering()
         applySoftBossEffects()
         recordPlayerXHistory()
+        updateSpecialProjectiles(delta: lastFrameDelta)
+        refreshSpecialCooldownUI()
     }
 
     private func applySoftBossEffects() {
@@ -362,6 +376,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         relayoutProductionBackground()
         hud.layout(in: layout.safeRect)
         bossHealthBar.layout(in: layout.safeRect, below: 156)
+        specialButton.layout(in: layout.safeRect)
 
         if player.parent != nil {
             player.position.x = GameRules.clampPlayerX(
@@ -380,6 +395,15 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             overlay.position = CGPoint(x: size.width * 0.5, y: size.height * 0.5)
             resumeButton?.position = CGPoint(x: 0, y: -40)
         }
+    }
+
+    private func configureLoadout() {
+        equippedPrimaryID = WeaponCatalog.primaryID(PlayerProgress.equippedPrimaryWeaponId)
+        equippedSpecialID = WeaponCatalog.specialID(PlayerProgress.equippedSpecialWeaponId)
+        let primary = GameRules.primaryProfile(for: equippedPrimaryID)
+        fireDelay = primary.fireDelay
+        bulletImageName = primary.textureName
+        specialReadyAt = 0
     }
 
     private func configurePlayer() {
@@ -423,11 +447,11 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         hud.setCombo(killCombo)
         hud.setLives(lives)
         if poweredShotsRemaining > 0 {
-            hud.setStatus("Fire: Boost")
+            hud.setStatus("Boost • \(PlayerProgress.equippedPrimary().name)")
         } else if GameRules.starsNeededForUpgrade > 1, starCharge > 0 {
             hud.setStatus("Stars: \(starCharge)/\(GameRules.starsNeededForUpgrade)")
         } else {
-            hud.setStatus("Fire: Normal")
+            hud.setStatus(PlayerProgress.equippedPrimary().name)
         }
     }
 
@@ -852,7 +876,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         engineFlame?.removeAllActions()
 
         removeAllActions()
-        for sprite in liveBullets + liveEnemies + livePickups + liveFireballs + liveRockets {
+        for sprite in liveBullets + liveEnemies + livePickups + liveFireballs + liveRockets + liveSpecials {
             sprite.removeAllActions()
         }
         bossNode?.removeAllActions()
@@ -907,7 +931,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         engineEmitter?.isPaused = true
         setAmbientEmittersPaused(true)
         gravityWellFX?.isPaused = true
-        for node in liveBullets + liveEnemies + livePickups + liveFireballs + liveRockets {
+        for node in liveBullets + liveEnemies + livePickups + liveFireballs + liveRockets + liveSpecials {
             node.isPaused = true
         }
         bossNode?.isPaused = true
@@ -920,7 +944,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         speed = 1
         player.isPaused = false
         gravityWellFX?.isPaused = false
-        for node in liveBullets + liveEnemies + livePickups + liveFireballs + liveRockets {
+        for node in liveBullets + liveEnemies + livePickups + liveFireballs + liveRockets + liveSpecials {
             node.isPaused = false
         }
         bossNode?.isPaused = false
@@ -995,44 +1019,334 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         presentScene(GameTitleScene(size: size))
     }
 
-    // MARK: - Spawning
-
     private func fireBullet() {
         guard currentState == .playing, player.parent != nil else { return }
 
+        let profile = GameRules.primaryProfile(for: equippedPrimaryID)
         let powered = poweredShotsRemaining > 0
         if powered {
             poweredShotsRemaining -= 1
             if poweredShotsRemaining == 0 {
-                bulletImageName = GameConstants.bulletImage
-                fireDelay = GameConstants.baseFireDelay
+                fireDelay = profile.fireDelay
+                bulletImageName = profile.textureName
                 refreshFireRate()
             }
         }
 
-        let bullet = bulletPool.checkout()
-        bullet.texture = TextureCache.texture(bulletImageName)
-        bullet.size = powered ? GameRules.poweredBulletSize : GameRules.bulletSize
-        bullet.name = GameConstants.NodeName.bullet
-        bullet.position = CGPoint(x: player.position.x, y: player.position.y + player.size.height * player.yScale * 0.28)
-        bullet.zPosition = GameConstants.Z.bullet
-        bullet.hitRadius = GameRules.bulletHitRadius
-        bullet.lastPosition = bullet.position
-        bullet.physicsBody = nil
-        addChild(bullet)
-        liveBullets.append(bullet)
+        let textureName = powered && equippedPrimaryID == .pulseLaser
+            ? GameConstants.poweredBulletImage
+            : profile.textureName
+        let boltSize = powered && equippedPrimaryID == .pulseLaser
+            ? GameRules.poweredBulletSize
+            : profile.size
+        let muzzle = CGPoint(
+            x: player.position.x,
+            y: player.position.y + player.size.height * player.yScale * 0.28
+        )
+
+        let count = max(1, profile.boltCount)
+        for index in 0..<count {
+            let bullet = bulletPool.checkout()
+            bullet.texture = TextureCache.texture(textureName)
+            bullet.size = boltSize
+            bullet.name = GameConstants.NodeName.bullet
+            bullet.position = muzzle
+            bullet.zPosition = GameConstants.Z.bullet
+            bullet.hitRadius = profile.hitRadius
+            bullet.pierceRemaining = profile.pierceCount
+            bullet.projectileDamage = profile.damage
+            bullet.lastPosition = muzzle
+            bullet.physicsBody = nil
+
+            var angle: CGFloat = 0
+            if count > 1 {
+                let t = CGFloat(index) / CGFloat(count - 1)
+                angle = -profile.spread * 0.5 + profile.spread * t
+            }
+            bullet.zRotation = -angle
+
+            addChild(bullet)
+            liveBullets.append(bullet)
+
+            let dx = sin(angle)
+            let dy = cos(angle)
+            let travel = size.height - muzzle.y + 120
+            let end = CGPoint(x: muzzle.x + dx * travel, y: muzzle.y + dy * travel)
+            let distance = hypot(end.x - muzzle.x, end.y - muzzle.y)
+            let duration = TimeInterval(distance / profile.bulletSpeed)
+            bullet.run(.sequence([
+                .move(to: end, duration: duration),
+                .run { [weak self, weak bullet] in
+                    guard let self, let bullet else { return }
+                    self.recycleProjectile(bullet)
+                }
+            ]))
+        }
 
         AudioManager.play(.laser)
+    }
 
-        let duration = TimeInterval((size.height - bullet.position.y + 80) / GameRules.bulletSpeed)
-        bullet.run(.sequence([
-            .moveTo(y: size.height + 80, duration: duration),
-            .run { [weak self, weak bullet] in
-                guard let self, let bullet else { return }
-                self.recycleProjectile(bullet)
+    private func fireSpecial() {
+        guard currentState == .playing, !gameplayFrozen, player.parent != nil else { return }
+        guard runElapsed >= specialReadyAt else { return }
+
+        let profile = GameRules.specialProfile(for: equippedSpecialID)
+        if liveSpecials.count >= min(profile.maxLive, GameRules.maxLiveSpecialProjectiles) {
+            return
+        }
+
+        specialReadyAt = runElapsed + profile.cooldown
+        specialButton.pulse()
+        HapticManager.fire()
+        AudioManager.play(.mine)
+
+        switch equippedSpecialID {
+        case .plasmaGrenade:
+            launchPlasmaGrenade(profile: profile)
+        case .seekerPod:
+            launchSeekerPod(profile: profile)
+        case .flakBurst:
+            triggerFlakBurst(profile: profile)
+        case .cooldownMine:
+            dropCooldownMine(profile: profile)
+        }
+        refreshSpecialCooldownUI()
+    }
+
+    private func launchPlasmaGrenade(profile: GameRules.SpecialFireProfile) {
+        let node = specialPool.checkout()
+        node.texture = TextureCache.texture(profile.textureName)
+        node.size = CGSize(width: 56, height: 56)
+        node.name = GameConstants.NodeName.playerSpecial
+        node.specialKind = .plasmaGrenade
+        node.projectileDamage = profile.damage
+        node.hitRadius = profile.aoeRadius
+        node.position = CGPoint(x: player.position.x, y: player.position.y + 40)
+        node.lastPosition = node.position
+        node.zPosition = GameConstants.Z.bullet + 1
+        node.physicsBody = nil
+        addChild(node)
+        liveSpecials.append(node)
+
+        let target = CGPoint(x: player.position.x, y: min(playArea.maxY - 80, player.position.y + 520))
+        node.run(.sequence([
+            .group([
+                .move(to: target, duration: profile.travelDuration),
+                .rotate(byAngle: .pi * 2, duration: profile.travelDuration)
+            ]),
+            .run { [weak self, weak node] in
+                guard let self, let node else { return }
+                self.detonateSpecial(node, at: node.position)
             }
         ]))
     }
+
+    private func launchSeekerPod(profile: GameRules.SpecialFireProfile) {
+        let node = specialPool.checkout()
+        node.texture = TextureCache.texture(profile.textureName)
+        node.size = CGSize(width: 52, height: 52)
+        node.name = GameConstants.NodeName.playerSpecial
+        node.specialKind = .seekerPod
+        node.projectileDamage = profile.damage
+        node.hitRadius = 28
+        node.flightSpeed = 620
+        node.position = CGPoint(x: player.position.x, y: player.position.y + 36)
+        node.lastPosition = node.position
+        node.zPosition = GameConstants.Z.bullet + 1
+        node.physicsBody = nil
+        addChild(node)
+        liveSpecials.append(node)
+
+        node.run(.sequence([
+            .wait(forDuration: profile.travelDuration),
+            .run { [weak self, weak node] in
+                guard let self, let node, node.parent != nil else { return }
+                self.recycleSpecial(node)
+            }
+        ]))
+    }
+
+    private func triggerFlakBurst(profile: GameRules.SpecialFireProfile) {
+        let origin = player.position
+        spawnExplosion(at: origin, image: "explosion", scale: 1.35)
+        let rings = FramePacing.currentQuality == .conservative ? 1 : 2
+        for index in 0..<rings {
+            let delay = Double(index) * 0.05
+            run(.sequence([
+                .wait(forDuration: delay),
+                .run { [weak self] in
+                    self?.spawnShockwaveRing(
+                        at: origin,
+                        startScale: 0.2,
+                        endScale: 4.2 + CGFloat(index),
+                        duration: 0.35,
+                        color: SKColor(red: 1, green: 0.55, blue: 0.2, alpha: 0.9),
+                        lineWidth: 6
+                    )
+                }
+            ]))
+        }
+
+        let radius = profile.aoeRadius
+        let radius2 = radius * radius
+        for enemy in liveEnemies where enemy.parent != nil {
+            let dx = enemy.position.x - origin.x
+            let dy = enemy.position.y - origin.y
+            guard dx * dx + dy * dy <= radius2 else { continue }
+            damageObstacle(enemy, blastPoint: enemy.position, amount: profile.damage)
+        }
+        AudioManager.play(.explosion)
+    }
+
+    private func dropCooldownMine(profile: GameRules.SpecialFireProfile) {
+        let node = specialPool.checkout()
+        node.texture = TextureCache.texture(profile.textureName)
+        node.size = CGSize(width: 64, height: 64)
+        node.name = GameConstants.NodeName.playerSpecial
+        node.specialKind = .cooldownMine
+        node.projectileDamage = profile.damage
+        node.hitRadius = profile.aoeRadius
+        node.position = CGPoint(x: player.position.x, y: player.position.y - 30)
+        node.lastPosition = node.position
+        node.zPosition = GameConstants.Z.effect
+        node.physicsBody = nil
+        node.setScale(0.7)
+        addChild(node)
+        liveSpecials.append(node)
+
+        node.run(.repeatForever(.sequence([
+            .scale(to: 0.85, duration: 0.35),
+            .scale(to: 0.7, duration: 0.35)
+        ])))
+        node.run(.sequence([
+            .wait(forDuration: profile.travelDuration),
+            .run { [weak self, weak node] in
+                guard let self, let node, node.parent != nil else { return }
+                self.detonateSpecial(node, at: node.position)
+            }
+        ]))
+    }
+
+    private func updateSpecialProjectiles(delta: TimeInterval) {
+        guard delta > 0 else { return }
+        var index = 0
+        while index < liveSpecials.count {
+            let node = liveSpecials[index]
+            guard node.parent != nil else {
+                liveSpecials.remove(at: index)
+                continue
+            }
+
+            switch node.specialKind {
+            case .seekerPod:
+                steerSeeker(node, delta: delta)
+                if seekerHitTest(node) {
+                    continue
+                }
+            case .cooldownMine:
+                if mineProximityDetonate(node) {
+                    continue
+                }
+            default:
+                break
+            }
+            index += 1
+        }
+    }
+
+    private func steerSeeker(_ node: PooledSprite, delta: TimeInterval) {
+        guard let target = nearestEnemy(to: node.position) else {
+            node.position.y += node.flightSpeed * CGFloat(delta)
+            return
+        }
+        let dx = target.position.x - node.position.x
+        let dy = target.position.y - node.position.y
+        let length = max(0.001, hypot(dx, dy))
+        let step = node.flightSpeed * CGFloat(delta)
+        node.position.x += dx / length * step
+        node.position.y += dy / length * step
+        node.zRotation = atan2(dx, dy)
+    }
+
+    private func nearestEnemy(to point: CGPoint) -> PooledSprite? {
+        var best: PooledSprite?
+        var bestDist = CGFloat.greatestFiniteMagnitude
+        for enemy in liveEnemies where enemy.parent != nil {
+            let dx = enemy.position.x - point.x
+            let dy = enemy.position.y - point.y
+            let d = dx * dx + dy * dy
+            if d < bestDist {
+                bestDist = d
+                best = enemy
+            }
+        }
+        return best
+    }
+
+    private func seekerHitTest(_ node: PooledSprite) -> Bool {
+        for enemy in liveEnemies where enemy.parent != nil {
+            let radius = colliderRadius(forEnemy: enemy) + node.hitRadius
+            let dx = enemy.position.x - node.position.x
+            let dy = enemy.position.y - node.position.y
+            if dx * dx + dy * dy <= radius * radius {
+                let damage = node.projectileDamage
+                let point = enemy.position
+                recycleSpecial(node)
+                damageObstacle(enemy, blastPoint: point, amount: damage)
+                return true
+            }
+        }
+        return false
+    }
+
+    private func mineProximityDetonate(_ node: PooledSprite) -> Bool {
+        let trigger: CGFloat = 70
+        for enemy in liveEnemies where enemy.parent != nil {
+            let dx = enemy.position.x - node.position.x
+            let dy = enemy.position.y - node.position.y
+            if dx * dx + dy * dy <= trigger * trigger {
+                detonateSpecial(node, at: node.position)
+                return true
+            }
+        }
+        return false
+    }
+
+    private func detonateSpecial(_ node: PooledSprite, at point: CGPoint) {
+        let damage = node.projectileDamage
+        let radius = max(40, node.hitRadius)
+        recycleSpecial(node)
+        spawnExplosion(at: point, image: "explosion", scale: 1.2)
+        AudioManager.play(.explosion)
+        HapticManager.enemyDestroyed()
+        let radius2 = radius * radius
+        for enemy in liveEnemies where enemy.parent != nil {
+            let dx = enemy.position.x - point.x
+            let dy = enemy.position.y - point.y
+            guard dx * dx + dy * dy <= radius2 else { continue }
+            damageObstacle(enemy, blastPoint: enemy.position, amount: damage)
+        }
+    }
+
+    private func recycleSpecial(_ node: PooledSprite) {
+        node.removeAllActions()
+        untrack(node, from: &liveSpecials)
+        specialPool.recycle(node)
+    }
+
+    private func refreshSpecialButton() {
+        specialButton.configure(weapon: PlayerProgress.equippedSpecial())
+        refreshSpecialCooldownUI()
+    }
+
+    private func refreshSpecialCooldownUI() {
+        let profile = GameRules.specialProfile(for: equippedSpecialID)
+        let remaining = max(0, specialReadyAt - runElapsed)
+        let progress = profile.cooldown > 0 ? CGFloat(remaining / profile.cooldown) : 0
+        specialButton.setCooldownProgress(progress)
+    }
+
+    // MARK: - Spawning (pickups / obstacles)
 
     private func spawnPowerUp() {
         guard currentState == .playing, playArea.width > 80 else { return }
@@ -1900,8 +2214,11 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         spawnExplosion(at: position, image: "mini_explosion", scale: 0.85)
 
         if outcome.activated {
-            bulletImageName = GameConstants.poweredBulletImage
-            fireDelay = GameConstants.poweredFireDelay
+            let primary = GameRules.primaryProfile(for: equippedPrimaryID)
+            bulletImageName = equippedPrimaryID == .pulseLaser
+                ? GameConstants.poweredBulletImage
+                : primary.textureName
+            fireDelay = primary.boostedFireDelay
             poweredShotsRemaining = outcome.poweredShots
             HapticManager.upgrade()
             AudioManager.play(.boost)
@@ -1994,7 +2311,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         ]))
     }
 
-    private func damageObstacle(_ node: SKNode, blastPoint: CGPoint) {
+    private func damageObstacle(_ node: SKNode, blastPoint: CGPoint, amount: Int = 1) {
         let sprite = node as? PooledSprite
         let kind = sprite?.obstacleKind ?? .asteroid
 
@@ -2008,7 +2325,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             return
         }
 
-        let hp = max(0, (sprite?.obstacleHP ?? 1) - 1)
+        let hp = max(0, (sprite?.obstacleHP ?? 1) - max(1, amount))
         sprite?.obstacleHP = hp
 
         if kind == .boss {
@@ -2380,6 +2697,10 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             enterPause(showOverlay: true)
             return
         }
+        if specialButton.containsTouch(point) {
+            fireSpecial()
+            return
+        }
 
         steeringTouchX = point.x
     }
@@ -2465,7 +2786,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     private func applySweptHit(bullet: PooledSprite, start: CGPoint, end: CGPoint) -> Bool {
-        let projectileRadius = GameRules.bulletHitRadius
+        let projectileRadius = bullet.hitRadius > 0 ? bullet.hitRadius : GameRules.bulletHitRadius
         let dx = end.x - start.x
         let dy = end.y - start.y
         let moveSquared = dx * dx + dy * dy
@@ -2473,6 +2794,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
         for enemy in liveEnemies {
             guard enemy.parent != nil else { continue }
+            let enemyID = ObjectIdentifier(enemy)
+            if bullet.piercedEnemyIDs.contains(enemyID) { continue }
             let radius = colliderRadius(forEnemy: enemy)
             guard isColliderOnscreen(enemy, radius: radius) else { continue }
             if !usePointOnly,
@@ -2492,8 +2815,15 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
                 target: enemy.position,
                 targetRadius: radius
             ) {
+                let damage = max(1, bullet.projectileDamage)
+                if bullet.pierceRemaining > 0 {
+                    bullet.pierceRemaining -= 1
+                    bullet.piercedEnemyIDs.insert(enemyID)
+                    damageObstacle(enemy, blastPoint: enemy.position, amount: damage)
+                    return false
+                }
                 recycleProjectile(bullet)
-                damageObstacle(enemy, blastPoint: enemy.position)
+                damageObstacle(enemy, blastPoint: enemy.position, amount: damage)
                 return true
             }
         }

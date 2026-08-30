@@ -456,6 +456,24 @@ final class GameRulesTests: XCTestCase {
         }
     }
 
+    func testHardpointProfilesAreDistinct() {
+        let pulse = GameRules.primaryProfile(for: .pulseLaser)
+        let scatter = GameRules.primaryProfile(for: .scatterBolts)
+        let rail = GameRules.primaryProfile(for: .railSpike)
+        let ion = GameRules.primaryProfile(for: .ionNeedle)
+        XCTAssertEqual(pulse.boltCount, 1)
+        XCTAssertEqual(scatter.boltCount, 3)
+        XCTAssertGreaterThan(scatter.spread, 0)
+        XCTAssertEqual(rail.pierceCount, 1)
+        XCTAssertLessThan(ion.fireDelay, pulse.fireDelay)
+
+        let grenade = GameRules.specialProfile(for: .plasmaGrenade)
+        let flak = GameRules.specialProfile(for: .flakBurst)
+        XCTAssertGreaterThan(grenade.aoeRadius, 0)
+        XCTAssertGreaterThan(flak.aoeRadius, grenade.aoeRadius)
+        XCTAssertLessThanOrEqual(GameRules.maxLiveSpecialProjectiles, 6)
+    }
+
     func testNodePoolReusesSpritesAndCapsIdle() {
         var created = 0
         let pool = NodePool(prewarm: 2, maxIdle: 2) {

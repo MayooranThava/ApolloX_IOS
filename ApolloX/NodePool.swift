@@ -13,6 +13,16 @@ final class PooledSprite: SKSpriteNode {
     var obstacleKind: GameConstants.ObstacleKind?
     var obstacleHP: Int = 1
     var powerUpKind: GameConstants.PowerUpKind?
+    /// Remaining pierce-throughs after the first enemy hit (rail spike).
+    var pierceRemaining: Int = 0
+    /// Enemies already pierced by this bolt (avoid multi-hit on the same body).
+    var piercedEnemyIDs: Set<ObjectIdentifier> = []
+    /// Damage applied when this player projectile hits.
+    var projectileDamage: Int = 1
+    /// Special projectile behavior tag (nil for primary bolts).
+    var specialKind: SpecialWeaponID?
+    /// Seeker / grenade flight speed in points per second.
+    var flightSpeed: CGFloat = 0
 
     func resetGameplayState() {
         lastPosition = .zero
@@ -20,6 +30,11 @@ final class PooledSprite: SKSpriteNode {
         obstacleKind = nil
         obstacleHP = 1
         powerUpKind = nil
+        pierceRemaining = 0
+        piercedEnemyIDs.removeAll(keepingCapacity: true)
+        projectileDamage = 1
+        specialKind = nil
+        flightSpeed = 0
         name = nil
         userData = nil
     }

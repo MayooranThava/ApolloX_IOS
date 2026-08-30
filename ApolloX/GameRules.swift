@@ -503,4 +503,131 @@ enum GameRules {
         default: return min(4, 2 + tier / 2)
         }
     }
+
+    // MARK: - Hangar hardpoints
+
+    struct PrimaryFireProfile: Equatable {
+        let fireDelay: TimeInterval
+        let boostedFireDelay: TimeInterval
+        let bulletSpeed: CGFloat
+        let hitRadius: CGFloat
+        let size: CGSize
+        let boltCount: Int
+        /// Radians of total cone for multi-bolt primaries.
+        let spread: CGFloat
+        /// Extra enemies a single bolt may pierce after the first hit (0 = normal).
+        let pierceCount: Int
+        let textureName: String
+        let damage: Int
+    }
+
+    struct SpecialFireProfile: Equatable {
+        let cooldown: TimeInterval
+        let maxLive: Int
+        let aoeRadius: CGFloat
+        let travelDuration: TimeInterval
+        let damage: Int
+        let textureName: String
+    }
+
+    static func primaryProfile(for id: PrimaryWeaponID) -> PrimaryFireProfile {
+        switch id {
+        case .pulseLaser:
+            return PrimaryFireProfile(
+                fireDelay: 0.42,
+                boostedFireDelay: 0.16,
+                bulletSpeed: bulletSpeed,
+                hitRadius: bulletHitRadius,
+                size: bulletSize,
+                boltCount: 1,
+                spread: 0,
+                pierceCount: 0,
+                textureName: GameConstants.bulletImage,
+                damage: 1
+            )
+        case .scatterBolts:
+            return PrimaryFireProfile(
+                fireDelay: 0.55,
+                boostedFireDelay: 0.22,
+                bulletSpeed: 1500,
+                hitRadius: 18,
+                size: CGSize(width: 28, height: 64),
+                boltCount: 3,
+                spread: 0.42,
+                pierceCount: 0,
+                textureName: WeaponTextures.scatterBolt,
+                damage: 1
+            )
+        case .railSpike:
+            return PrimaryFireProfile(
+                fireDelay: 0.72,
+                boostedFireDelay: 0.34,
+                bulletSpeed: 2100,
+                hitRadius: 20,
+                size: CGSize(width: 36, height: 110),
+                boltCount: 1,
+                spread: 0,
+                pierceCount: 1,
+                textureName: WeaponTextures.railSpike,
+                damage: 1
+            )
+        case .ionNeedle:
+            return PrimaryFireProfile(
+                fireDelay: 0.14,
+                boostedFireDelay: 0.07,
+                bulletSpeed: 1900,
+                hitRadius: 12,
+                size: CGSize(width: 18, height: 54),
+                boltCount: 1,
+                spread: 0,
+                pierceCount: 0,
+                textureName: WeaponTextures.ionNeedle,
+                damage: 1
+            )
+        }
+    }
+
+    static func specialProfile(for id: SpecialWeaponID) -> SpecialFireProfile {
+        switch id {
+        case .plasmaGrenade:
+            return SpecialFireProfile(
+                cooldown: 4.5,
+                maxLive: 3,
+                aoeRadius: 160,
+                travelDuration: 0.85,
+                damage: 2,
+                textureName: WeaponTextures.plasmaGrenade
+            )
+        case .seekerPod:
+            return SpecialFireProfile(
+                cooldown: 5.5,
+                maxLive: 2,
+                aoeRadius: 0,
+                travelDuration: 2.4,
+                damage: 3,
+                textureName: WeaponTextures.seekerPod
+            )
+        case .flakBurst:
+            return SpecialFireProfile(
+                cooldown: 6.0,
+                maxLive: 1,
+                aoeRadius: 210,
+                travelDuration: 0,
+                damage: 1,
+                textureName: WeaponTextures.plasmaGrenade
+            )
+        case .cooldownMine:
+            return SpecialFireProfile(
+                cooldown: 7.0,
+                maxLive: 2,
+                aoeRadius: 150,
+                travelDuration: 5.0,
+                damage: 2,
+                textureName: WeaponTextures.cooldownMine
+            )
+        }
+    }
+
+    /// Soft cap so special spam cannot explode node counts on 60 Hz phones.
+    static let maxLiveSpecialProjectiles = 6
 }

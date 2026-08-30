@@ -2,7 +2,7 @@
 //  StoreScene.swift
 //  ApolloX
 //
-//  Hangar: swipe horizontally through rockets, buy with run credits, then equip.
+//  Hangar: Hulls (rockets) and Weapons (hardpoints). Swipe, buy with run credits, equip.
 //
 
 import SpriteKit
@@ -10,7 +10,11 @@ import UIKit
 
 final class StoreScene: SKScene {
 
-    private let catalog = PlayerShipCatalog.all
+    private enum Shelf: Int {
+        case hulls
+        case weapons
+    }
+
     private let cardSpacing: CGFloat = 680
 
     private let titleLabel = SKLabelNode()
@@ -26,19 +30,30 @@ final class StoreScene: SKScene {
     private var actionButton: MenuButtonNode?
     private var leftButton: MenuButtonNode?
     private var rightButton: MenuButtonNode?
+    private var hullsTab: MenuButtonNode?
+    private var weaponsTab: MenuButtonNode?
     private var dots: [SKSpriteNode] = []
 
+    private var shelf: Shelf = .hulls
     private var pageIndex = 0
     private var dragStartX: CGFloat?
     private var trackStartX: CGFloat = 0
     private var isDragging = false
     private var lastBackgroundTick: TimeInterval = 0
 
+    private var shipCatalog: [PlayerShip] { PlayerShipCatalog.all }
+    private var weaponCatalog: [WeaponItem] { WeaponCatalog.all }
+
+    private var pageCount: Int {
+        shelf == .hulls ? shipCatalog.count : weaponCatalog.count
+    }
+
     override func didMove(to view: SKView) {
         view.accessibilityIdentifier = GameConstants.Accessibility.storeScene
         view.accessibilityLabel = "Hangar"
         HapticManager.prepare()
         PlayerShipCatalog.registerTextures()
+        WeaponCatalog.registerTextures()
         addProductionBackground()
 
         titleLabel.fontName = GameFont.resolved(size: 72)
@@ -61,7 +76,7 @@ final class StoreScene: SKScene {
         walletPanel.addChild(walletLabel)
 
         hintLabel.fontName = GameFont.resolved(size: 26)
-        hintLabel.text = "Swipe to browse  •  Buy  •  Equip"
+        hintLabel.text = "Swipe  •  Hulls / Weapons  •  Buy  •  Equip"
         hintLabel.fontSize = 26
         hintLabel.fontColor = SKColor(white: 0.78, alpha: 1)
         hintLabel.verticalAlignmentMode = .center
@@ -79,7 +94,13 @@ final class StoreScene: SKScene {
         crop.zPosition = GameConstants.Z.hud
         crop.addChild(track)
         addChild(crop)
-        buildCards()
+
+        let hulls = MenuButtonNode(title: "Hulls", width: 220, height: 72, fontSize: 32, emphasized: true)
+        let weapons = MenuButtonNode(title: "Weapons", width: 260, height: 72, fontSize: 32, emphasized: false)
+        hullsTab = hulls
+        weaponsTab = weapons
+        addChild(hulls)
+        addChild(weapons)
 
         let back = MenuButtonNode(title: "Back", width: 240, height: 88, fontSize: 40, emphasized: false)
         backButton = back
@@ -96,11 +117,8 @@ final class StoreScene: SKScene {
         addChild(left)
         addChild(right)
 
-        buildDots()
-        pageIndex = catalog.firstIndex(where: { $0.id == PlayerProgress.equippedShipId }) ?? 0
+        rebuildShelf(animated: false)
         refreshWallet()
-        refreshAction()
-        refreshDots()
 
         whenSafeAreaReady { [weak self] in
             self?.relayout()
@@ -120,32 +138,38 @@ final class StoreScene: SKScene {
         snapToPage(pageIndex, animated: false)
     }
 
-    private func buildCards() {
+    private func rebuildShelf(animated: Bool) {
         track.removeAllChildren()
-
-        for (index, ship) in catalog.enumerated() {
-            let card = makeCard(for: ship)
-            card.position = CGPoint(x: CGFloat(index) * cardSpacing, y: 0)
-            track.addChild(card)
+        switch shelf {
+        case .hulls:
+            for (index, ship) in shipCatalog.enumerated() {
+                let card = makeShipCard(for: ship)
+                card.position = CGPoint(x: CGFloat(index) * cardSpacing, y: 0)
+                track.addChild(card)
+            }
+            pageIndex = shipCatalog.firstIndex(where: { $0.id == PlayerProgress.equippedShipId }) ?? 0
+        case .weapons:
+            for (index, weapon) in weaponCatalog.enumerated() {
+                let card = makeWeaponCard(for: weapon)
+                card.position = CGPoint(x: CGFloat(index) * cardSpacing, y: 0)
+                track.addChild(card)
+            }
+            let equipped = Set([
+                PlayerProgress.equippedPrimaryWeaponId,
+                PlayerProgress.equippedSpecialWeaponId
+            ])
+            pageIndex = weaponCatalog.firstIndex(where: { equipped.contains($0.id) }) ?? 0
         }
+        buildDots()
+        hullsTab?.setTitle("Hulls", emphasized: shelf == .hulls)
+        weaponsTab?.setTitle("Weapons", emphasized: shelf == .weapons)
+        snapToPage(pageIndex, animated: animated)
+        refreshAction()
+        refreshDots()
     }
 
-    private func makeCard(for ship: PlayerShip) -> SKNode {
-        let root = SKNode()
-        root.name = ship.id
-
-        let panel = SKSpriteNode()
-        panel.size = CGSize(width: 560, height: 720)
-        panel.texture = ShapeTexture.roundedRect(
-            size: panel.size,
-            cornerRadius: 42,
-            fill: GameTheme.panel,
-            stroke: SKColor(white: 1, alpha: 0.16),
-            lineWidth: 2
-        )
-        panel.zPosition = 0
-        root.addChild(panel)
-
+    private func makeShipCard(for ship: PlayerShip) -> SKNode {
+        let root = makeCardChrome()
         let sprite = SKSpriteNode(texture: TextureCache.texture(ship.textureName))
         if let texSize = sprite.texture?.size(), texSize.width > 0 {
             sprite.size = texSize
@@ -158,46 +182,115 @@ final class StoreScene: SKScene {
             .moveBy(x: 0, y: -14, duration: 1.15)
         ])))
         root.addChild(sprite)
+        addCardLabels(
+            to: root,
+            title: ship.name,
+            blurb: ship.blurb,
+            meta: "HULL",
+            price: ship.price,
+            isFree: ship.isFree,
+            accent: ship.engineColor
+        )
+        return root
+    }
+
+    private func makeWeaponCard(for weapon: WeaponItem) -> SKNode {
+        let root = makeCardChrome()
+        let sprite = SKSpriteNode(texture: TextureCache.texture(weapon.textureName))
+        if let texSize = sprite.texture?.size(), texSize.width > 0 {
+            sprite.size = texSize
+        }
+        sprite.setScale(1.55)
+        sprite.position = CGPoint(x: 0, y: 110)
+        sprite.zPosition = 2
+        sprite.run(.repeatForever(.sequence([
+            .moveBy(x: 0, y: 12, duration: 1.05),
+            .moveBy(x: 0, y: -12, duration: 1.05)
+        ])))
+        root.addChild(sprite)
+        addCardLabels(
+            to: root,
+            title: weapon.name,
+            blurb: weapon.blurb,
+            meta: weapon.slotLabel,
+            price: weapon.price,
+            isFree: weapon.isFree,
+            accent: weapon.accent
+        )
+        return root
+    }
+
+    private func makeCardChrome() -> SKNode {
+        let root = SKNode()
+        let panel = SKSpriteNode()
+        panel.size = CGSize(width: 560, height: 720)
+        panel.texture = ShapeTexture.roundedRect(
+            size: panel.size,
+            cornerRadius: 42,
+            fill: GameTheme.panel,
+            stroke: SKColor(white: 1, alpha: 0.16),
+            lineWidth: 2
+        )
+        panel.zPosition = 0
+        root.addChild(panel)
+        return root
+    }
+
+    private func addCardLabels(
+        to root: SKNode,
+        title: String,
+        blurb: String,
+        meta: String,
+        price: Int,
+        isFree: Bool,
+        accent: SKColor
+    ) {
+        let slot = SKLabelNode(fontNamed: GameFont.resolved(size: 22))
+        slot.text = meta
+        slot.fontSize = 22
+        slot.fontColor = accent
+        slot.verticalAlignmentMode = .center
+        slot.position = CGPoint(x: 0, y: -130)
+        slot.zPosition = 2
+        root.addChild(slot)
 
         let name = SKLabelNode(fontNamed: GameFont.resolved(size: 44))
-        name.text = ship.name
+        name.text = title
         name.fontSize = 44
         name.fontColor = .white
         name.verticalAlignmentMode = .center
-        name.position = CGPoint(x: 0, y: -170)
+        name.position = CGPoint(x: 0, y: -178)
         name.zPosition = 2
         root.addChild(name)
 
-        let blurb = SKLabelNode(fontNamed: GameFont.resolved(size: 26))
-        blurb.text = ship.blurb
-        blurb.fontSize = 26
-        blurb.fontColor = GameTheme.secondary
-        blurb.verticalAlignmentMode = .center
-        blurb.position = CGPoint(x: 0, y: -230)
-        blurb.zPosition = 2
-        root.addChild(blurb)
+        let blurbLabel = SKLabelNode(fontNamed: GameFont.resolved(size: 26))
+        blurbLabel.text = blurb
+        blurbLabel.fontSize = 26
+        blurbLabel.fontColor = GameTheme.secondary
+        blurbLabel.verticalAlignmentMode = .center
+        blurbLabel.position = CGPoint(x: 0, y: -232)
+        blurbLabel.zPosition = 2
+        root.addChild(blurbLabel)
 
-        let price = SKLabelNode(fontNamed: GameFont.resolved(size: 30))
-        price.fontSize = 30
-        price.verticalAlignmentMode = .center
-        price.position = CGPoint(x: 0, y: -286)
-        price.zPosition = 2
-        if ship.isFree {
-            price.text = "STARTER"
-            price.fontColor = GameTheme.accent
+        let priceLabel = SKLabelNode(fontNamed: GameFont.resolved(size: 30))
+        priceLabel.fontSize = 30
+        priceLabel.verticalAlignmentMode = .center
+        priceLabel.position = CGPoint(x: 0, y: -286)
+        priceLabel.zPosition = 2
+        if isFree {
+            priceLabel.text = "STARTER"
+            priceLabel.fontColor = GameTheme.accent
         } else {
-            price.text = "\(ship.price) CREDITS"
-            price.fontColor = GameTheme.credit
+            priceLabel.text = "\(price) CREDITS"
+            priceLabel.fontColor = GameTheme.credit
         }
-        root.addChild(price)
-
-        return root
+        root.addChild(priceLabel)
     }
 
     private func buildDots() {
         dots.forEach { $0.removeFromParent() }
         dots.removeAll()
-        for _ in catalog {
+        for _ in 0..<pageCount {
             let dot = SKSpriteNode()
             dot.size = CGSize(width: 18, height: 18)
             dot.zPosition = GameConstants.Z.hud
@@ -210,8 +303,12 @@ final class StoreScene: SKScene {
         relayoutProductionBackground()
         let safe = playfield.safeRect
 
-        titleLabel.position = CGPoint(x: safe.midX, y: safe.maxY - 88)
-        hintLabel.position = CGPoint(x: safe.midX, y: titleLabel.position.y - 62)
+        titleLabel.position = CGPoint(x: safe.midX, y: safe.maxY - 72)
+        backButton?.position = CGPoint(x: safe.minX + 150, y: safe.maxY - 72)
+        hintLabel.position = CGPoint(x: safe.midX, y: titleLabel.position.y - 52)
+
+        hullsTab?.position = CGPoint(x: safe.midX - 150, y: hintLabel.position.y - 58)
+        weaponsTab?.position = CGPoint(x: safe.midX + 150, y: hintLabel.position.y - 58)
 
         walletLabel.text = "CREDITS  \(PlayerProgress.credits)"
         let walletSize = CGSize(width: 360, height: 64)
@@ -223,14 +320,13 @@ final class StoreScene: SKScene {
             stroke: SKColor(white: 1, alpha: 0.16),
             lineWidth: 2
         )
-        walletPanel.position = CGPoint(x: safe.midX, y: hintLabel.position.y - 70)
+        walletPanel.position = CGPoint(x: safe.midX, y: (hullsTab?.position.y ?? 0) - 70)
 
-        cropSize = CGSize(width: min(safe.width - 40, 640), height: 760)
+        cropSize = CGSize(width: min(safe.width - 40, 640), height: 700)
         let mask = SKSpriteNode(color: .white, size: cropSize)
         crop.maskNode = mask
-        crop.position = CGPoint(x: safe.midX, y: safe.midY + 10)
+        crop.position = CGPoint(x: safe.midX, y: safe.midY - 10)
 
-        backButton?.position = CGPoint(x: safe.minX + 150, y: safe.maxY - 88)
         actionButton?.position = CGPoint(x: safe.midX, y: safe.minY + 118)
         leftButton?.position = CGPoint(x: safe.midX - cropSize.width * 0.5 + 20, y: crop.position.y)
         rightButton?.position = CGPoint(x: safe.midX + cropSize.width * 0.5 - 20, y: crop.position.y)
@@ -245,16 +341,21 @@ final class StoreScene: SKScene {
         refreshDots()
     }
 
-    private func currentShip() -> PlayerShip {
-        catalog[min(max(pageIndex, 0), catalog.count - 1)]
-    }
-
     private func refreshWallet() {
         walletLabel.text = "CREDITS  \(PlayerProgress.credits)"
     }
 
     private func refreshAction() {
-        let ship = currentShip()
+        switch shelf {
+        case .hulls:
+            refreshShipAction()
+        case .weapons:
+            refreshWeaponAction()
+        }
+    }
+
+    private func refreshShipAction() {
+        let ship = shipCatalog[min(max(pageIndex, 0), shipCatalog.count - 1)]
         let owned = PlayerProgress.isOwned(ship.id)
         let equipped = PlayerProgress.equippedShipId == ship.id
         if equipped {
@@ -265,6 +366,23 @@ final class StoreScene: SKScene {
             actionButton?.setTitle("Buy  \(ship.price)", emphasized: true)
         } else {
             actionButton?.setTitle("Need  \(ship.price - PlayerProgress.credits)", emphasized: false)
+        }
+    }
+
+    private func refreshWeaponAction() {
+        let weapon = weaponCatalog[min(max(pageIndex, 0), weaponCatalog.count - 1)]
+        let owned = PlayerProgress.isWeaponOwned(weapon.id)
+        let equipped = weapon.slot == .primary
+            ? PlayerProgress.equippedPrimaryWeaponId == weapon.id
+            : PlayerProgress.equippedSpecialWeaponId == weapon.id
+        if equipped {
+            actionButton?.setTitle("Equipped", emphasized: false)
+        } else if owned {
+            actionButton?.setTitle("Equip", emphasized: true)
+        } else if PlayerProgress.credits >= weapon.price {
+            actionButton?.setTitle("Buy  \(weapon.price)", emphasized: true)
+        } else {
+            actionButton?.setTitle("Need  \(weapon.price - PlayerProgress.credits)", emphasized: false)
         }
     }
 
@@ -284,7 +402,7 @@ final class StoreScene: SKScene {
     }
 
     private func snapToPage(_ index: Int, animated: Bool) {
-        pageIndex = min(max(index, 0), catalog.count - 1)
+        pageIndex = min(max(index, 0), max(pageCount - 1, 0))
         let targetX = -CGFloat(pageIndex) * cardSpacing
         if animated {
             track.removeAction(forKey: "snap")
@@ -308,7 +426,16 @@ final class StoreScene: SKScene {
     }
 
     private func handleAction() {
-        let ship = currentShip()
+        switch shelf {
+        case .hulls:
+            handleShipAction()
+        case .weapons:
+            handleWeaponAction()
+        }
+    }
+
+    private func handleShipAction() {
+        let ship = shipCatalog[min(max(pageIndex, 0), shipCatalog.count - 1)]
         if PlayerProgress.equippedShipId == ship.id {
             showStatus("Already equipped", color: GameTheme.secondary)
             AudioManager.play(.uiTap)
@@ -332,24 +459,56 @@ final class StoreScene: SKScene {
             refreshWallet()
             refreshAction()
             showStatus("Purchased \(ship.name)", color: GameTheme.credit)
-            walletLabel.run(.sequence([
-                .scale(to: 1.12, duration: 0.1),
-                .scale(to: 1.0, duration: 0.12)
-            ]))
         case .cannotAfford(let needed):
             AudioManager.play(.uiTap)
             HapticManager.lifeLost()
             refreshAction()
             showStatus("Need \(needed) more credits", color: SKColor(red: 1, green: 0.45, blue: 0.38, alpha: 1))
-            walletPanel.run(.sequence([
-                .moveBy(x: -10, y: 0, duration: 0.04),
-                .moveBy(x: 20, y: 0, duration: 0.06),
-                .moveBy(x: -10, y: 0, duration: 0.04)
-            ]))
         case .alreadyOwned:
             _ = PlayerProgress.equip(ship.id)
             refreshAction()
         case .unknownShip:
+            break
+        }
+    }
+
+    private func handleWeaponAction() {
+        let weapon = weaponCatalog[min(max(pageIndex, 0), weaponCatalog.count - 1)]
+        let equipped = weapon.slot == .primary
+            ? PlayerProgress.equippedPrimaryWeaponId == weapon.id
+            : PlayerProgress.equippedSpecialWeaponId == weapon.id
+        if equipped {
+            showStatus("Already equipped", color: GameTheme.secondary)
+            AudioManager.play(.uiTap)
+            return
+        }
+        if PlayerProgress.isWeaponOwned(weapon.id) {
+            guard PlayerProgress.equipWeapon(weapon.id) == .equipped else { return }
+            actionButton?.pulse()
+            AudioManager.play(.uiTap)
+            HapticManager.upgrade()
+            refreshAction()
+            showStatus("Equipped \(weapon.name)", color: GameTheme.credit)
+            return
+        }
+
+        switch PlayerProgress.purchaseWeapon(weapon.id) {
+        case .purchased:
+            actionButton?.pulse()
+            AudioManager.play(.boost)
+            HapticManager.upgrade()
+            refreshWallet()
+            refreshAction()
+            showStatus("Purchased \(weapon.name)", color: GameTheme.credit)
+        case .cannotAfford(let needed):
+            AudioManager.play(.uiTap)
+            HapticManager.lifeLost()
+            refreshAction()
+            showStatus("Need \(needed) more credits", color: SKColor(red: 1, green: 0.45, blue: 0.38, alpha: 1))
+        case .alreadyOwned:
+            _ = PlayerProgress.equipWeapon(weapon.id)
+            refreshAction()
+        case .unknownWeapon:
             break
         }
     }
@@ -372,6 +531,24 @@ final class StoreScene: SKScene {
             AudioManager.play(.uiTap)
             HapticManager.fire()
             presentScene(GameTitleScene(size: size))
+            return
+        }
+        if let hullsTab, hullsTab.containsTouch(point), shelf != .hulls {
+            hullsTab.pulse()
+            AudioManager.play(.uiTap)
+            HapticManager.fire()
+            shelf = .hulls
+            rebuildShelf(animated: false)
+            relayout()
+            return
+        }
+        if let weaponsTab, weaponsTab.containsTouch(point), shelf != .weapons {
+            weaponsTab.pulse()
+            AudioManager.play(.uiTap)
+            HapticManager.fire()
+            shelf = .weapons
+            rebuildShelf(animated: false)
+            relayout()
             return
         }
         if let actionButton, actionButton.containsTouch(point) {
@@ -403,7 +580,7 @@ final class StoreScene: SKScene {
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard isDragging, let touch = touches.first, let dragStartX else { return }
         let dx = touch.location(in: self).x - dragStartX
-        let minX = -CGFloat(catalog.count - 1) * cardSpacing
+        let minX = -CGFloat(max(pageCount - 1, 0)) * cardSpacing
         track.position.x = min(0, max(minX, trackStartX + dx))
     }
 
