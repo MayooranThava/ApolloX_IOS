@@ -807,3 +807,94 @@ final class SettingsToggleNode: SKNode {
         name = titleLabel.text
     }
 }
+
+/// Thumb-side hardpoint trigger with cooldown fill.
+final class SpecialWeaponButton: SKNode {
+    private let plate = SKSpriteNode()
+    private let icon = SKSpriteNode()
+    private let cooldownOverlay = SKSpriteNode()
+    private let label = SKLabelNode()
+    private(set) var hitRect = CGRect.zero
+    private var buttonSize = CGSize(width: 108, height: 108)
+
+    override init() {
+        super.init()
+        zPosition = GameConstants.Z.hud
+        name = GameConstants.NodeName.specialButton
+
+        plate.zPosition = 0
+        addChild(plate)
+        icon.zPosition = 1
+        icon.setScale(0.55)
+        addChild(icon)
+        cooldownOverlay.color = SKColor(white: 0, alpha: 0.55)
+        cooldownOverlay.zPosition = 2
+        cooldownOverlay.anchorPoint = CGPoint(x: 0.5, y: 0)
+        addChild(cooldownOverlay)
+        label.fontName = GameFont.resolved(size: 18)
+        label.fontSize = 18
+        label.fontColor = .white
+        label.verticalAlignmentMode = .center
+        label.horizontalAlignmentMode = .center
+        label.zPosition = 3
+        addChild(label)
+    }
+
+    required init?(coder aDecoder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    func configure(weapon: WeaponItem) {
+        icon.texture = TextureCache.texture(weapon.textureName)
+        if let size = icon.texture?.size(), size.width > 0 {
+            icon.size = size
+        }
+        icon.setScale(0.52)
+        plate.texture = ShapeTexture.hudSlab(
+            size: buttonSize,
+            cornerRadius: 22,
+            fill: GameTheme.buttonMuted,
+            topHighlight: weapon.accent,
+            stroke: weapon.accent.withAlphaComponent(0.8),
+            lineWidth: 2
+        )
+        plate.size = buttonSize
+        label.text = weapon.name.uppercased()
+        label.fontSize = 16
+    }
+
+    func layout(in safeRect: CGRect) {
+        position = CGPoint(x: safeRect.maxX - 78, y: safeRect.minY + 110)
+        label.position = CGPoint(x: 0, y: -buttonSize.height * 0.5 - 18)
+        cooldownOverlay.size = CGSize(width: buttonSize.width - 8, height: buttonSize.height - 8)
+        cooldownOverlay.position = CGPoint(x: 0, y: -(buttonSize.height - 8) * 0.5)
+        let pad: CGFloat = 18
+        hitRect = CGRect(
+            x: position.x - buttonSize.width * 0.5 - pad,
+            y: position.y - buttonSize.height * 0.5 - pad,
+            width: buttonSize.width + pad * 2,
+            height: buttonSize.height + pad * 2 + 28
+        )
+    }
+
+    /// `progress` 0 = ready, 1 = full cooldown remaining.
+    func setCooldownProgress(_ progress: CGFloat) {
+        let clamped = min(1, max(0, progress))
+        cooldownOverlay.yScale = clamped
+        cooldownOverlay.isHidden = clamped <= 0.001
+        alpha = clamped > 0.001 ? 0.85 : 1
+    }
+
+    func containsTouch(_ pointInScene: CGPoint) -> Bool {
+        hitRect.contains(pointInScene)
+    }
+
+    func pulse() {
+        removeAction(forKey: "specialPulse")
+        setScale(1)
+        run(.sequence([
+            .scale(to: 1.12, duration: 0.08),
+            .scale(to: 1.0, duration: 0.1)
+        ]), withKey: "specialPulse")
+    }
+}

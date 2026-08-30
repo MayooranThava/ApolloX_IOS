@@ -24,6 +24,7 @@
 		C1B10003208A000100BD3501 /* ScoreStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B10002208A000100BD3501 /* ScoreStore.swift */; };
 		C1B70001208A000100BD3501 /* PlayerProgress.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B70000208A000100BD3501 /* PlayerProgress.swift */; };
 		C1B70003208A000100BD3501 /* PlayerShipCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B70002208A000100BD3501 /* PlayerShipCatalog.swift */; };
+		C1B7000B208A000100BD3501 /* WeaponCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B7000A208A000100BD3501 /* WeaponCatalog.swift */; };
 		C1B70005208A000100BD3501 /* StoreScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B70004208A000100BD3501 /* StoreScene.swift */; };
 		C1B80001208A000100BD3501 /* GameCenterService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B80000208A000100BD3501 /* GameCenterService.swift */; };
 		C1B80003208A000100BD3501 /* LeaderboardScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B80002208A000100BD3501 /* LeaderboardScene.swift */; };
@@ -78,6 +79,7 @@
 		C1B10002208A000100BD3501 /* ScoreStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScoreStore.swift; sourceTree = "<group>"; };
 		C1B70000208A000100BD3501 /* PlayerProgress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerProgress.swift; sourceTree = "<group>"; };
 		C1B70002208A000100BD3501 /* PlayerShipCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerShipCatalog.swift; sourceTree = "<group>"; };
+		C1B7000A208A000100BD3501 /* WeaponCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeaponCatalog.swift; sourceTree = "<group>"; };
 		C1B70004208A000100BD3501 /* StoreScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreScene.swift; sourceTree = "<group>"; };
 		C1B80000208A000100BD3501 /* GameCenterService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameCenterService.swift; sourceTree = "<group>"; };
 		C1B80002208A000100BD3501 /* LeaderboardScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeaderboardScene.swift; sourceTree = "<group>"; };
@@ -224,6 +226,7 @@
 				C1B90000208A000100BD3501 /* AppSettings.swift */,
 				C1B70000208A000100BD3501 /* PlayerProgress.swift */,
 				C1B70002208A000100BD3501 /* PlayerShipCatalog.swift */,
+				C1B7000A208A000100BD3501 /* WeaponCatalog.swift */,
 				C1B10004208A000100BD3501 /* HapticManager.swift */,
 				C1B10012208A000100BD3501 /* AudioManager.swift */,
 				C1B30000208A000100BD3501 /* FramePacing.swift */,
@@ -401,6 +404,7 @@
 				C1B90001208A000100BD3501 /* AppSettings.swift in Sources */,
 				C1B70001208A000100BD3501 /* PlayerProgress.swift in Sources */,
 				C1B70003208A000100BD3501 /* PlayerShipCatalog.swift in Sources */,
+				C1B7000B208A000100BD3501 /* WeaponCatalog.swift in Sources */,
 				C1B10005208A000100BD3501 /* HapticManager.swift in Sources */,
 				C1B10007208A000100BD3501 /* SceneHelpers.swift in Sources */,
 				C1B50001208A000100BD3501 /* ScrollingBackgroundNode.swift in Sources */,

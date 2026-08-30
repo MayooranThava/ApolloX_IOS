@@ -46,9 +46,10 @@ final class GameTitleScene: SKScene {
 
         // Short tips only — full teach is OnboardingScene on first Play.
         let instructions = [
-            "Drag to steer  •  Auto-fire",
+            "Drag to steer  •  Auto-fire + special",
+            "Hangar: unlock hulls and hardpoints",
             "Mines take two hits  •  Stars boost fire",
-            "Four bosses  •  Credits unlock ships"
+            "Four bosses  •  Credits unlock gear"
         ]
         for line in instructions {
             let label = makeGameLabel(text: line, fontSize: 28, color: SKColor(white: 0.78, alpha: 1))

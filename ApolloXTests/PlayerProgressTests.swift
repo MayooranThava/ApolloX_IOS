@@ -45,6 +45,50 @@ final class PlayerProgressTests: XCTestCase {
         XCTAssertEqual(PlayerShipCatalog.all.count, 4)
     }
 
+    func testDefaultHardpointsAreOwned() {
+        XCTAssertTrue(PlayerProgress.isWeaponOwned(WeaponCatalog.pulseLaser.id))
+        XCTAssertTrue(PlayerProgress.isWeaponOwned(WeaponCatalog.plasmaGrenade.id))
+        XCTAssertEqual(PlayerProgress.equippedPrimaryWeaponId, WeaponCatalog.pulseLaser.id)
+        XCTAssertEqual(PlayerProgress.equippedSpecialWeaponId, WeaponCatalog.plasmaGrenade.id)
+        XCTAssertFalse(PlayerProgress.isWeaponOwned(WeaponCatalog.railSpike.id))
+        XCTAssertEqual(WeaponCatalog.all.count, 8)
+        XCTAssertEqual(WeaponCatalog.primaries.count, 4)
+        XCTAssertEqual(WeaponCatalog.specials.count, 4)
+    }
+
+    func testWeaponPurchaseAndEquip() {
+        PlayerProgress.addCredits(450)
+        XCTAssertEqual(
+            PlayerProgress.purchaseWeapon(WeaponCatalog.scatterBolts.id),
+            .purchased(remaining: 0)
+        )
+        XCTAssertEqual(PlayerProgress.equippedPrimaryWeaponId, WeaponCatalog.scatterBolts.id)
+        XCTAssertEqual(PlayerProgress.equipWeapon(WeaponCatalog.pulseLaser.id), .equipped)
+        XCTAssertEqual(PlayerProgress.equippedPrimaryWeaponId, WeaponCatalog.pulseLaser.id)
+
+        PlayerProgress.addCredits(500)
+        XCTAssertEqual(
+            PlayerProgress.purchaseWeapon(WeaponCatalog.seekerPod.id),
+            .purchased(remaining: 0)
+        )
+        XCTAssertEqual(PlayerProgress.equippedSpecialWeaponId, WeaponCatalog.seekerPod.id)
+        XCTAssertEqual(
+            PlayerProgress.purchaseWeapon(WeaponCatalog.seekerPod.id),
+            .alreadyOwned
+        )
+    }
+
+    func testWeaponPurchaseFailsWhenShort() {
+        PlayerProgress.addCredits(100)
+        XCTAssertEqual(
+            PlayerProgress.purchaseWeapon(WeaponCatalog.flakBurst.id),
+            .cannotAfford(needed: 550)
+        )
+        XCTAssertFalse(PlayerProgress.isWeaponOwned(WeaponCatalog.flakBurst.id))
+        XCTAssertEqual(PlayerProgress.equipWeapon(WeaponCatalog.flakBurst.id), .notOwned)
+        XCTAssertEqual(PlayerProgress.purchaseWeapon("missing"), .unknownWeapon)
+    }
+
     func testPurchaseDeductsCreditsOwnsAndEquips() {
         PlayerProgress.addCredits(500)
         XCTAssertEqual(

@@ -15,6 +15,8 @@ final class GameViewController: UIViewController {
         TextureCache.preload()
         AudioManager.preload()
         HapticManager.prepare()
+        PlayerShipCatalog.registerTextures()
+        WeaponCatalog.registerTextures()
         // Apple: set the Game Center authenticate handler at launch. Do not gate play on it.
         GameCenterService.authenticateAtLaunch()
 
