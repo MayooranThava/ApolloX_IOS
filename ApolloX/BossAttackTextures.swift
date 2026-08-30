@@ -37,97 +37,150 @@ enum BossAttackTextures {
     /// Legacy alias kept for older sanity checks / callers.
     static let nebulaFlame = voidPulse
 
+    private static var allNames: [String] {
+        [
+            voidPulse, tentacleOrb, gravityWell, voidMinion,
+            solarFlare, orbitalSpark, coreLaser, meteor,
+            realityShard, dimensionSlash, timeWarpOrb, portalMinion,
+            toxicSpray, sporeBomb, swarmMinion, infectedEgg
+        ]
+    }
+
     static func registerTextures() {
         guard TextureCache.optional(voidPulse) == nil else { return }
 
-        TextureCache.store(voidPulse, texture: makeFireball(
-            size: 80,
-            outer: SKColor(red: 0.52, green: 0.14, blue: 0.98, alpha: 1),
-            mid: SKColor(red: 0.78, green: 0.40, blue: 1.0, alpha: 1),
-            core: SKColor(red: 0.98, green: 0.88, blue: 1.0, alpha: 1)
-        ))
-        TextureCache.store(tentacleOrb, texture: makeGlowOrb(
-            size: 68,
-            fill: SKColor(red: 0.28, green: 0.04, blue: 0.48, alpha: 1),
-            core: SKColor(red: 0.92, green: 0.42, blue: 1.0, alpha: 1)
-        ))
-        TextureCache.store(gravityWell, texture: makeRingOrb(
-            size: 96,
-            outer: SKColor(red: 0.55, green: 0.18, blue: 0.95, alpha: 0.55),
-            ring: SKColor(red: 0.82, green: 0.48, blue: 1.0, alpha: 1),
-            core: SKColor(red: 0.18, green: 0.02, blue: 0.32, alpha: 1)
-        ))
-        TextureCache.store(voidMinion, texture: makeMinion(
-            size: 56,
-            body: SKColor(red: 0.42, green: 0.12, blue: 0.78, alpha: 1),
-            glow: SKColor(red: 0.88, green: 0.45, blue: 1.0, alpha: 1)
-        ))
+        // Prefer sliced sheet art from the asset catalog; fall back to procedural glow.
+        for name in allNames {
+            if let image = UIImage(named: name), image.size.width > 1 {
+                let texture = SKTexture(image: image)
+                texture.filteringMode = .linear
+                texture.usesMipmaps = true
+                TextureCache.store(name, texture: texture)
+            }
+        }
 
-        TextureCache.store(solarFlare, texture: makeFireball(
-            size: 78,
-            outer: SKColor(red: 0.95, green: 0.32, blue: 0.05, alpha: 1),
-            mid: SKColor(red: 1.0, green: 0.62, blue: 0.12, alpha: 1),
-            core: SKColor(red: 1.0, green: 0.92, blue: 0.55, alpha: 1)
-        ))
-        TextureCache.store(orbitalSpark, texture: makeGlowOrb(
-            size: 64,
-            fill: SKColor(red: 0.85, green: 0.28, blue: 0.05, alpha: 1),
-            core: SKColor(red: 1.0, green: 0.82, blue: 0.28, alpha: 1)
-        ))
-        TextureCache.store(coreLaser, texture: makeShard(
-            size: CGSize(width: 36, height: 110),
-            fill: SKColor(red: 1.0, green: 0.72, blue: 0.18, alpha: 1),
-            edge: SKColor(red: 1.0, green: 0.92, blue: 0.55, alpha: 1)
-        ))
-        TextureCache.store(meteor, texture: makeFireball(
-            size: 92,
-            outer: SKColor(red: 0.72, green: 0.18, blue: 0.04, alpha: 1),
-            mid: SKColor(red: 0.98, green: 0.48, blue: 0.08, alpha: 1),
-            core: SKColor(red: 1.0, green: 0.88, blue: 0.35, alpha: 1)
-        ))
+        ensure(voidPulse) {
+            makeFireball(
+                size: 80,
+                outer: SKColor(red: 0.52, green: 0.14, blue: 0.98, alpha: 1),
+                mid: SKColor(red: 0.78, green: 0.40, blue: 1.0, alpha: 1),
+                core: SKColor(red: 0.98, green: 0.88, blue: 1.0, alpha: 1)
+            )
+        }
+        ensure(tentacleOrb) {
+            makeGlowOrb(
+                size: 68,
+                fill: SKColor(red: 0.28, green: 0.04, blue: 0.48, alpha: 1),
+                core: SKColor(red: 0.92, green: 0.42, blue: 1.0, alpha: 1)
+            )
+        }
+        ensure(gravityWell) {
+            makeRingOrb(
+                size: 96,
+                outer: SKColor(red: 0.55, green: 0.18, blue: 0.95, alpha: 0.55),
+                ring: SKColor(red: 0.82, green: 0.48, blue: 1.0, alpha: 1),
+                core: SKColor(red: 0.18, green: 0.02, blue: 0.32, alpha: 1)
+            )
+        }
+        ensure(voidMinion) {
+            makeMinion(
+                size: 56,
+                body: SKColor(red: 0.42, green: 0.12, blue: 0.78, alpha: 1),
+                glow: SKColor(red: 0.88, green: 0.45, blue: 1.0, alpha: 1)
+            )
+        }
+        ensure(solarFlare) {
+            makeFireball(
+                size: 78,
+                outer: SKColor(red: 0.95, green: 0.32, blue: 0.05, alpha: 1),
+                mid: SKColor(red: 1.0, green: 0.62, blue: 0.12, alpha: 1),
+                core: SKColor(red: 1.0, green: 0.92, blue: 0.55, alpha: 1)
+            )
+        }
+        ensure(orbitalSpark) {
+            makeGlowOrb(
+                size: 64,
+                fill: SKColor(red: 0.85, green: 0.28, blue: 0.05, alpha: 1),
+                core: SKColor(red: 1.0, green: 0.82, blue: 0.28, alpha: 1)
+            )
+        }
+        ensure(coreLaser) {
+            makeShard(
+                size: CGSize(width: 36, height: 110),
+                fill: SKColor(red: 1.0, green: 0.72, blue: 0.18, alpha: 1),
+                edge: SKColor(red: 1.0, green: 0.92, blue: 0.55, alpha: 1)
+            )
+        }
+        ensure(meteor) {
+            makeFireball(
+                size: 92,
+                outer: SKColor(red: 0.72, green: 0.18, blue: 0.04, alpha: 1),
+                mid: SKColor(red: 0.98, green: 0.48, blue: 0.08, alpha: 1),
+                core: SKColor(red: 1.0, green: 0.88, blue: 0.35, alpha: 1)
+            )
+        }
+        ensure(realityShard) {
+            makeShard(
+                size: CGSize(width: 48, height: 100),
+                fill: SKColor(red: 0.35, green: 0.88, blue: 1.0, alpha: 1),
+                edge: SKColor(red: 0.85, green: 0.98, blue: 1.0, alpha: 1)
+            )
+        }
+        ensure(dimensionSlash) {
+            makeShard(
+                size: CGSize(width: 42, height: 108),
+                fill: SKColor(red: 0.22, green: 0.72, blue: 0.98, alpha: 1),
+                edge: SKColor(red: 0.70, green: 0.95, blue: 1.0, alpha: 1)
+            )
+        }
+        ensure(timeWarpOrb) {
+            makeRingOrb(
+                size: 88,
+                outer: SKColor(red: 0.25, green: 0.75, blue: 0.95, alpha: 0.45),
+                ring: SKColor(red: 0.55, green: 0.95, blue: 1.0, alpha: 1),
+                core: SKColor(red: 0.08, green: 0.28, blue: 0.42, alpha: 1)
+            )
+        }
+        ensure(portalMinion) {
+            makeMinion(
+                size: 54,
+                body: SKColor(red: 0.18, green: 0.62, blue: 0.88, alpha: 1),
+                glow: SKColor(red: 0.65, green: 0.95, blue: 1.0, alpha: 1)
+            )
+        }
+        ensure(toxicSpray) {
+            makeSlimeBlob(
+                size: 66,
+                fill: SKColor(red: 0.32, green: 0.92, blue: 0.18, alpha: 1),
+                highlight: SKColor(red: 0.72, green: 1.0, blue: 0.42, alpha: 0.9)
+            )
+        }
+        ensure(sporeBomb) {
+            makeSlimeBlob(
+                size: 108,
+                fill: SKColor(red: 0.22, green: 0.78, blue: 0.08, alpha: 1),
+                highlight: SKColor(red: 0.55, green: 0.98, blue: 0.22, alpha: 0.9)
+            )
+        }
+        ensure(swarmMinion) {
+            makeMinion(
+                size: 48,
+                body: SKColor(red: 0.28, green: 0.72, blue: 0.12, alpha: 1),
+                glow: SKColor(red: 0.72, green: 1.0, blue: 0.35, alpha: 1)
+            )
+        }
+        ensure(infectedEgg) {
+            makeGlowOrb(
+                size: 58,
+                fill: SKColor(red: 0.18, green: 0.48, blue: 0.08, alpha: 1),
+                core: SKColor(red: 0.55, green: 0.95, blue: 0.22, alpha: 1)
+            )
+        }
+    }
 
-        TextureCache.store(realityShard, texture: makeShard(
-            size: CGSize(width: 48, height: 100),
-            fill: SKColor(red: 0.35, green: 0.88, blue: 1.0, alpha: 1),
-            edge: SKColor(red: 0.85, green: 0.98, blue: 1.0, alpha: 1)
-        ))
-        TextureCache.store(dimensionSlash, texture: makeShard(
-            size: CGSize(width: 42, height: 108),
-            fill: SKColor(red: 0.22, green: 0.72, blue: 0.98, alpha: 1),
-            edge: SKColor(red: 0.70, green: 0.95, blue: 1.0, alpha: 1)
-        ))
-        TextureCache.store(timeWarpOrb, texture: makeRingOrb(
-            size: 88,
-            outer: SKColor(red: 0.25, green: 0.75, blue: 0.95, alpha: 0.45),
-            ring: SKColor(red: 0.55, green: 0.95, blue: 1.0, alpha: 1),
-            core: SKColor(red: 0.08, green: 0.28, blue: 0.42, alpha: 1)
-        ))
-        TextureCache.store(portalMinion, texture: makeMinion(
-            size: 54,
-            body: SKColor(red: 0.18, green: 0.62, blue: 0.88, alpha: 1),
-            glow: SKColor(red: 0.65, green: 0.95, blue: 1.0, alpha: 1)
-        ))
-
-        TextureCache.store(toxicSpray, texture: makeSlimeBlob(
-            size: 66,
-            fill: SKColor(red: 0.32, green: 0.92, blue: 0.18, alpha: 1),
-            highlight: SKColor(red: 0.72, green: 1.0, blue: 0.42, alpha: 0.9)
-        ))
-        TextureCache.store(sporeBomb, texture: makeSlimeBlob(
-            size: 108,
-            fill: SKColor(red: 0.22, green: 0.78, blue: 0.08, alpha: 1),
-            highlight: SKColor(red: 0.55, green: 0.98, blue: 0.22, alpha: 0.9)
-        ))
-        TextureCache.store(swarmMinion, texture: makeMinion(
-            size: 48,
-            body: SKColor(red: 0.28, green: 0.72, blue: 0.12, alpha: 1),
-            glow: SKColor(red: 0.72, green: 1.0, blue: 0.35, alpha: 1)
-        ))
-        TextureCache.store(infectedEgg, texture: makeGlowOrb(
-            size: 58,
-            fill: SKColor(red: 0.18, green: 0.48, blue: 0.08, alpha: 1),
-            core: SKColor(red: 0.55, green: 0.95, blue: 0.22, alpha: 1)
-        ))
+    private static func ensure(_ name: String, make: () -> SKTexture) {
+        if TextureCache.optional(name) != nil { return }
+        TextureCache.store(name, texture: make())
     }
 
     /// Classic dodgeable fireball: bright core, hot mid shell, soft outer glow.

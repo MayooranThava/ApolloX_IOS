@@ -209,6 +209,10 @@ final class GameRulesTests: XCTestCase {
         XCTAssertTrue(GameRules.isBossFullyVisible(centerY: 500, halfHeight: 100, playMinY: 200, playMaxY: 800))
         XCTAssertFalse(GameRules.isBossFullyVisible(centerY: 850, halfHeight: 100, playMinY: 200, playMaxY: 800))
         XCTAssertFalse(GameRules.isBossFullyVisible(centerY: 250, halfHeight: 100, playMinY: 200, playMaxY: 800))
+        // Oversized art (taller than the playfield) must still be engageable once the core is in view.
+        XCTAssertTrue(GameRules.isBossFullyVisible(centerY: 500, halfHeight: 900, playMinY: 200, playMaxY: 800))
+        XCTAssertEqual(GameRules.bossScale, 1.88, accuracy: 0.001)
+        XCTAssertLessThanOrEqual(GameRules.enemyHitboxFactor(for: .boss), 0.25)
     }
 
     func testSweptProjectileCatchesGrazingPath() {

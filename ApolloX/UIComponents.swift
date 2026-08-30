@@ -480,6 +480,7 @@ final class BossHealthBarNode: SKNode {
 
     private var barWidth: CGFloat = 420
     private var fillColor = SKColor(red: 0.95, green: 0.38, blue: 0.22, alpha: 1)
+    private var lastRatio: CGFloat = 1
 
     override init() {
         super.init()
@@ -563,9 +564,9 @@ final class BossHealthBarNode: SKNode {
         )
         track.position = CGPoint(x: 0, y: -8)
 
-        fill.size = track.size
+        fill.anchorPoint = CGPoint(x: 0, y: 0.5)
         fill.position = CGPoint(x: -barWidth * 0.5, y: -8)
-        refreshFillTexture()
+        applyFill(ratio: lastRatio)
     }
 
     func show(maxHP: Int, title: String = "SPACE MONSTER", accent: SKColor? = nil) {
@@ -574,7 +575,6 @@ final class BossHealthBarNode: SKNode {
         if let accent {
             fillColor = accent
             fill.color = accent
-            refreshFillTexture()
         }
         setHP(current: maxHP, maximum: maxHP)
         glow.removeAllActions()
@@ -592,25 +592,43 @@ final class BossHealthBarNode: SKNode {
 
     func setHP(current: Int, maximum: Int) {
         let ratio = maximum > 0 ? CGFloat(current) / CGFloat(maximum) : 0
-        fill.xScale = max(0, min(1, ratio))
+        lastRatio = max(0, min(1, ratio))
+        applyFill(ratio: lastRatio)
         hpLabel.text = "\(max(0, current))/\(max(0, maximum))"
     }
 
     func pulseDamage() {
         fill.run(.sequence([
             .colorize(with: .white, colorBlendFactor: 0.45, duration: 0.05),
-            .colorize(with: fillColor, colorBlendFactor: 0, duration: 0.12)
+            .run { [weak self] in
+                guard let self else { return }
+                self.fill.colorBlendFactor = 0
+                self.fill.color = .white
+            }
         ]))
     }
 
-    private func refreshFillTexture() {
+    /// Resize the fill sprite directly — Texture + xScale was rendering as an empty track on device.
+    private func applyFill(ratio: CGFloat) {
+        let width = max(barWidth * ratio, 0)
+        let height: CGFloat = 18
+        fill.xScale = 1
+        fill.yScale = 1
+        fill.alpha = ratio > 0.001 ? 1 : 0
+        guard width > 0.5 else {
+            fill.size = CGSize(width: 0.01, height: height)
+            return
+        }
+        fill.size = CGSize(width: width, height: height)
         fill.texture = ShapeTexture.roundedRect(
-            size: fill.size,
+            size: CGSize(width: width, height: height),
             cornerRadius: 9,
             fill: fillColor,
-            stroke: SKColor(white: 1, alpha: 0.12),
+            stroke: SKColor(white: 1, alpha: 0.18),
             lineWidth: 1
         )
+        fill.color = .white
+        fill.colorBlendFactor = 0
     }
 }
 
