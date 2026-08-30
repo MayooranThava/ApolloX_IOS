@@ -159,6 +159,21 @@ def main() -> int:
     check("bossMinionLifetime" in RULES and "spawnBossMinions" in SCENE, "temporary boss minions expected")
     check("activateSoftGravity" in SCENE and "activateSoftTimeWarp" in SCENE, "soft boss effect helpers expected")
     check(swift_number(RULES, "maxBossCount") == 4, "roster should be four bosses")
+    check(swift_number(RULES, "bossScale") <= 2.0, "bosses should be ~20% smaller than the old 2.35 scale")
+    check("attachTexturePhysics" in (ROOT / "ApolloX" / "NodePool.swift").read_text(),
+          "bosses should use alpha-masked physics so transparent padding does not hit")
+    check((ROOT / "ApolloX/Assets.xcassets/bossProj_voidPulse.imageset/bossProj_voidPulse.png").exists(),
+          "sheet-sliced void pulse attack art missing")
+    check((ROOT / "ApolloX/Assets.xcassets/bossNebula.imageset/bossNebula.png").exists(),
+          "void leviathan boss art missing")
+    # Boss PNG corners must be transparent (no baked checkerboard / white plate).
+    try:
+        from PIL import Image
+        boss_png = Image.open(ROOT / "ApolloX/Assets.xcassets/bossNebula.imageset/bossNebula.png").convert("RGBA")
+        corner_a = boss_png.getpixel((0, 0))[3]
+        check(corner_a == 0, "boss art corner must be transparent (got alpha %s)" % corner_a)
+    except ImportError:
+        pass
     check("setHighScore" in HUD and "BEST" in HUD, "in-game HUD should show dimmed high score")
     check("hud.setHighScore" in SCENE, "GameScene should push high score into the HUD")
     check("maxBossProjectiles" in RULES, "boss projectile soft-cap constant missing")
