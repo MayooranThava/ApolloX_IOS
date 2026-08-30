@@ -19,9 +19,11 @@ final class PlayerProgressTests: XCTestCase {
         defaults.removePersistentDomain(forName: suiteName)
         ScoreStore.storage = defaults
         ScoreStore.resetCurrentScore()
+        ScoreStore.highScoreReporter = { _ in }
     }
 
     override func tearDown() {
+        ScoreStore.highScoreReporter = { GameCenterService.reportScore($0) }
         ScoreStore.storage.removePersistentDomain(forName: suiteName)
         ScoreStore.storage = .standard
         ScoreStore.resetCurrentScore()

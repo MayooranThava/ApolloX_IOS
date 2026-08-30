@@ -12,9 +12,14 @@ enum ScoreStore {
     /// read or write the real high score on a simulator or device.
     static var storage: UserDefaults = .standard
 
+    /// Hook for Game Center (and tests). Default reports the local best to Game Center.
+    static var highScoreReporter: (Int) -> Void = { GameCenterService.reportScore($0) }
+
     private(set) static var currentScore = 0
     /// Prevents GameScene and GameOverScene from crediting the same run twice.
     private static var didCommitWalletForRun = false
+    /// Prevents double Game Center submits when GameScene and GameOverScene both commit.
+    private static var didReportGameCenterForRun = false
 
     static var highScore: Int {
         storage.integer(forKey: highScoreKey)
@@ -23,6 +28,7 @@ enum ScoreStore {
     static func resetCurrentScore() {
         currentScore = 0
         didCommitWalletForRun = false
+        didReportGameCenterForRun = false
     }
 
     @discardableResult
@@ -33,10 +39,20 @@ enum ScoreStore {
 
     @discardableResult
     static func commitHighScoreIfNeeded() -> Int {
-        let best = highScore
-        if currentScore > best {
+        let previousBest = highScore
+        let best: Int
+        if currentScore > previousBest {
             storage.set(currentScore, forKey: highScoreKey)
-            return currentScore
+            best = currentScore
+        } else {
+            best = previousBest
+        }
+
+        // Report the player's best once per run so Game Center stays in sync even when
+        // the run did not set a new device record (covers offline retry / first sign-in).
+        if !didReportGameCenterForRun, best > 0 {
+            didReportGameCenterForRun = true
+            highScoreReporter(best)
         }
         return best
     }

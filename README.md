@@ -22,7 +22,7 @@ Three layers, on purpose. SpriteKit combat is not a good XCUITest target.
 | Layer | What it covers | Command |
 |---|---|---|
 | Sanity (no Xcode) | UX contracts in source + a swept-combat microbench | `python3 scripts/sanity_tests.py` |
-| Unit (`ApolloXTests`) | `GameRules`, `ScoreStore`, pools, frame pacing | `xcodebuild test -scheme ApolloX -only-testing:ApolloXTests` |
+| Unit (`ApolloXTests`) | `GameRules`, `ScoreStore`, `GameCenterService`, pools, frame pacing | `xcodebuild test -scheme ApolloX -only-testing:ApolloXTests` |
 | UI smoke (`ApolloXUITests`) | Cold launch presents the title scene | `xcodebuild test -scheme ApolloX -only-testing:ApolloXUITests` |
 
 Example simulator run:
@@ -51,13 +51,38 @@ Repo-side prep for the first archive is done. Finish the Apple-side steps on you
 | Marketing version | `1.0.1` |
 | Build number | `1` (increment `CURRENT_PROJECT_VERSION` before each new upload) |
 | Export compliance | `ITSAppUsesNonExemptEncryption = NO` (standard HTTPS only) |
+| Game Center entitlement | `ApolloX/ApolloX.entitlements` (`com.apple.developer.game-center`) |
+| Classic leaderboard ID | `com.mayooran.ApolloX.classicHighScore` (top 5 in **Ranks**) |
 | Archive scheme | **ApolloX** → Release (`ArchiveAction` in scheme) |
 
 ### Apple Developer portal (one-time)
 
 1. Sign in at [developer.apple.com/account](https://developer.apple.com/account) with the paid membership.
-2. **Certificates, Identifiers & Profiles → Identifiers → +** → App IDs → App → register **`com.mayooran.ApolloX`** (explicit App ID, no extra capabilities needed).
-3. In Xcode → **ApolloX** target → **Signing & Capabilities**: Team = your account, **Automatically manage signing** on. Confirm the team ID is `2YJ478267N`.
+2. **Certificates, Identifiers & Profiles → Identifiers → +** → App IDs → App → register **`com.mayooran.ApolloX`** (explicit App ID).
+3. Edit the App ID and enable **Game Center**.
+4. In Xcode → **ApolloX** target → **Signing & Capabilities**: Team = your account, **Automatically manage signing** on. Confirm the team ID is `2YJ478267N` and **Game Center** is listed (entitlements file is already in the project).
+
+### Game Center leaderboard (App Store Connect)
+
+Do this before TestFlight if you want live ranks. The app stays playable without it; scores queue until Game Center is available.
+
+1. [App Store Connect](https://appstoreconnect.apple.com) → your app → **Services** / **Game Center** (or **Features → Game Center**).
+2. Enable Game Center for the app.
+3. **Leaderboards → +** and create:
+
+| Field | Value |
+|---|---|
+| Reference Name | Classic High Score |
+| Leaderboard ID | `com.mayooran.ApolloX.classicHighScore` |
+| Format | Integer |
+| Score Submission Type | Best Score |
+| Sort Order | High to Low |
+| Score Range (optional) | `0` – leave max blank or set a sane ceiling |
+
+4. Add a localization (at least English): name **High Score**.
+5. Save. Leaderboards go live with the app version that includes Game Center.
+
+**Device testing:** Settings → Game Center → sign in with a sandbox / real Apple ID. Simulator Game Center support is limited; prefer a physical iPhone.
 
 ### Archive and upload (each build)
 
@@ -84,32 +109,35 @@ After upload, open [App Store Connect](https://appstoreconnect.apple.com) → yo
 | Priority | Item | Owner | Status |
 |---|---|---|---|
 | 1 | Green CI (`ApolloXTests` + launch smoke) | Repo | In this PR |
-| 2 | Register Bundle ID + first archive/upload to TestFlight | Mac / App Store Connect | Next |
-| 3 | Internal TestFlight on iPhone 16/17 Pro **and** a 60 Hz iPhone | Device / App Store Connect | After upload |
-| 4 | Texture atlas + larger / @3x background | Repo | Not started |
-| 5 | App Store Connect: privacy nutrition label, 2026 age rating, 6.7" + 6.1" screenshots, support/privacy URLs | App Store Connect | Not started |
-| 6 | 15-minute play session, then check TestFlight / Organizer crashes | Device | After TestFlight |
+| 2 | Register Bundle ID + enable Game Center + first archive/upload to TestFlight | Mac / App Store Connect | Next |
+| 3 | Create classic high-score leaderboard ID (exact ID above) | App Store Connect | Next |
+| 4 | Internal TestFlight on iPhone 16/17 Pro **and** a 60 Hz iPhone | Device / App Store Connect | After upload |
+| 5 | Texture atlas + larger / @3x background | Repo | Not started |
+| 6 | App Store Connect: privacy nutrition label (include Game Center), 2026 age rating, 6.7" + 6.1" screenshots, support/privacy URLs | App Store Connect | Not started |
+| 7 | 15-minute play session, then check TestFlight / Organizer crashes | Device | After TestFlight |
 
-Do not add Game Center, IAP, or analytics until there is a product reason.
+Do not add IAP or third-party analytics until there is a product reason.
 
 ## Ship checklist (TestFlight → App Store)
 
-Do these on a real phone. The simulator cannot prove ProMotion, haptics, or thermal throttling.
+Do these on a real phone. The simulator cannot prove ProMotion, haptics, thermal throttling, or full Game Center.
 
 - [ ] Internal TestFlight build installs and launches to the title screen
 - [ ] Play: steer, pause / resume, background the app, confirm it stays paused
-- [ ] Boost, health pickup, mine (two hits), and game-over → Restart / Menu
+- [ ] Boost, health pickup, mine (two hits), and game-over → Restart / Ranks / Menu
+- [ ] Title → **Ranks** shows top 5 (or a clear signed-out / empty message)
+- [ ] After a run, best score appears on the Game Center leaderboard for a signed-in tester
 - [ ] iPhone 16/17 Pro: 120 Hz with `-ApolloXShowStats`; Low Power Mode: 60 Hz
 - [ ] A 60 Hz iPhone (non-Pro) still plays smoothly
 - [ ] Silent switch mutes SFX (`AVAudioSession` is `.ambient`)
 - [ ] Organizer / TestFlight crash reports are empty after a 15-minute session
-- [ ] App Store Connect: privacy nutrition label matches `PrivacyInfo.xcprivacy` (UserDefaults only, no tracking)
+- [ ] App Store Connect: privacy nutrition label matches `PrivacyInfo.xcprivacy` (UserDefaults + Game Center User ID / Product Interaction, no tracking)
 - [ ] Age rating questionnaire is current (Apple updated this in 2026)
 - [ ] Screenshots for 6.7" and 6.1" iPhone match *this* binary
 - [ ] Support URL and privacy policy URL load
 - [ ] Upload SDK is the one Apple currently requires (iOS 26 SDK as of April 2026)
 
-Leave Game Center, IAP, and analytics out until there is a product reason. Each SDK adds a privacy label and crash surface.
+Leave IAP and third-party analytics out until there is a product reason.
 
 ## Repo layout
 

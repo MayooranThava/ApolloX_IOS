@@ -23,6 +23,7 @@ xcodebuild test \
 |---|---|---|
 | `ApolloXTests` | `GameRulesTests.swift` | Pure gameplay rules |
 | `ApolloXTests` | `ScoreStoreTests.swift` | High score persistence (isolated `UserDefaults`) |
+| `ApolloXTests` | `GameCenterServiceTests.swift` | Pending score queue + fake Game Center backend |
 | `ApolloXUITests` | `LaunchSmokeTests.swift` | Cold launch shows the title scene |
 
 GitHub Actions runs both the Python gate and `xcodebuild test` on every pull request.
