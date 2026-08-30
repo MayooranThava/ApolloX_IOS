@@ -54,7 +54,23 @@ enum TextureCache {
             "bossNebula",
             "bossCrimson",
             "bossFrost",
-            "bossAcid"
+            "bossAcid",
+            BossAttackTextures.voidPulse,
+            BossAttackTextures.tentacleOrb,
+            BossAttackTextures.gravityWell,
+            BossAttackTextures.voidMinion,
+            BossAttackTextures.solarFlare,
+            BossAttackTextures.orbitalSpark,
+            BossAttackTextures.coreLaser,
+            BossAttackTextures.meteor,
+            BossAttackTextures.realityShard,
+            BossAttackTextures.dimensionSlash,
+            BossAttackTextures.timeWarpOrb,
+            BossAttackTextures.portalMinion,
+            BossAttackTextures.toxicSpray,
+            BossAttackTextures.sporeBomb,
+            BossAttackTextures.swarmMinion,
+            BossAttackTextures.infectedEgg
         ]
         SKTexture.preload(names.map(texture), withCompletionHandler: completion)
     }

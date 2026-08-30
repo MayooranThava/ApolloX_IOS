@@ -49,6 +49,21 @@ final class PooledSprite: SKSpriteNode {
         physicsBody = body
         physicsRadius = radius
     }
+
+    /// Alpha-masked body so transparent padding on boss / attack art does not hurt the player.
+    func attachTexturePhysics(texture: SKTexture, size: CGSize, category: UInt32, contact: UInt32) {
+        let body = SKPhysicsBody(texture: texture, alphaThreshold: 0.12, size: size)
+            ?? SKPhysicsBody(circleOfRadius: min(size.width, size.height) * 0.22)
+        body.isDynamic = true
+        body.affectedByGravity = false
+        body.allowsRotation = false
+        body.usesPreciseCollisionDetection = false
+        body.categoryBitMask = category
+        body.collisionBitMask = GameConstants.PhysicsCategory.none
+        body.contactTestBitMask = contact
+        physicsBody = body
+        physicsRadius = min(size.width, size.height) * 0.22
+    }
 }
 
 /// Simple reuse pool to avoid constant alloc/dealloc of short-lived sprites.

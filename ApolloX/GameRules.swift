@@ -59,7 +59,7 @@ enum GameRules {
 
     static let bossSpawnInterval: TimeInterval = 30.0
     static let maxBossCount = 4
-    static let bossScale: CGFloat = 2.35
+    static let bossScale: CGFloat = 1.88
     static let bossDescentDuration: TimeInterval = 9.0
     /// Boss ignores player shots until fully on-screen and at least this long has passed.
     static let bossVulnerableDelay: TimeInterval = 1.8
@@ -152,7 +152,7 @@ enum GameRules {
             points: 28,
             tintRed: 1, tintGreen: 1, tintBlue: 1, tintBlend: 0,
             fireInterval: 2.05,
-            scale: 2.35,
+            scale: 1.88,
             bannerRed: 0.78, bannerGreen: 0.32, bannerBlue: 1.0,
             attackPattern: .voidLeviathan
         ),
@@ -163,7 +163,7 @@ enum GameRules {
             points: 38,
             tintRed: 1, tintGreen: 1, tintBlue: 1, tintBlend: 0,
             fireInterval: 1.90,
-            scale: 2.35,
+            scale: 1.88,
             bannerRed: 1.0, bannerGreen: 0.55, bannerBlue: 0.18,
             attackPattern: .solarConclave
         ),
@@ -174,7 +174,7 @@ enum GameRules {
             points: 52,
             tintRed: 1, tintGreen: 1, tintBlue: 1, tintBlend: 0,
             fireInterval: 1.75,
-            scale: 2.40,
+            scale: 1.92,
             bannerRed: 0.35, bannerGreen: 0.88, bannerBlue: 1.0,
             attackPattern: .nexusSentinel
         ),
@@ -185,7 +185,7 @@ enum GameRules {
             points: 70,
             tintRed: 1, tintGreen: 1, tintBlue: 1, tintBlend: 0,
             fireInterval: 1.55,
-            scale: 2.40,
+            scale: 1.92,
             bannerRed: 0.42, bannerGreen: 0.95, bannerBlue: 0.22,
             attackPattern: .plagueBroodmother
         )
@@ -198,7 +198,8 @@ enum GameRules {
         case .asteroid, .asteroidAlt:
             return asteroidHitboxFactor
         case .boss:
-            return 0.32
+            // Body sits in the center of the art; keep the circle off transparent corners.
+            return 0.22
         default:
             return enemyHitboxFactor
         }
@@ -217,6 +218,7 @@ enum GameRules {
         case .asteroid, .asteroidAlt:
             return hypot(width, height) * 0.5 * asteroidHitboxFactor
         case .boss:
+            // Use the shorter axis so empty canvas / alpha padding does not inflate the hurtbox.
             return min(width, height) * enemyHitboxFactor(for: kind)
         default:
             return min(width, height) * enemyHitboxFactor
@@ -430,19 +432,23 @@ enum GameRules {
         return elapsed >= nextBossSpawnAt
     }
 
-    /// True when the entire boss sprite fits inside the play area vertically.
+    /// True when the boss core is inside the play area vertically.
+    /// Tall boss art often cannot fit entirely on-screen; requiring the full sprite
+    /// kept bosses permanently invulnerable. Cap the check to a core band.
     static func isBossFullyVisible(
         centerY: CGFloat,
         halfHeight: CGFloat,
         playMinY: CGFloat,
         playMaxY: CGFloat
     ) -> Bool {
-        let top = centerY + halfHeight
-        let bottom = centerY - halfHeight
+        let playHeight = max(1, playMaxY - playMinY)
+        let coreHalf = min(halfHeight, playHeight * 0.22)
+        let top = centerY + coreHalf
+        let bottom = centerY - coreHalf
         return top <= playMaxY && bottom >= playMinY
     }
 
-    /// Boss can be damaged once it has been on-screen long enough and is fully visible.
+    /// Boss can be damaged once it has been on-screen long enough and its core is visible.
     static func isBossVulnerable(elapsedSinceSpawn: TimeInterval, fullyVisible: Bool) -> Bool {
         elapsedSinceSpawn >= bossVulnerableDelay && fullyVisible
     }

@@ -1258,11 +1258,20 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         node.obstacleKind = kind
         node.obstacleHP = profile.maxHP
         node.hitRadius = radius
-        node.attachCirclePhysics(
-            radius: radius,
-            category: GameConstants.PhysicsCategory.enemy,
-            contact: GameConstants.PhysicsCategory.player
-        )
+        if let tex = node.texture {
+            node.attachTexturePhysics(
+                texture: tex,
+                size: node.size,
+                category: GameConstants.PhysicsCategory.enemy,
+                contact: GameConstants.PhysicsCategory.player
+            )
+        } else {
+            node.attachCirclePhysics(
+                radius: radius,
+                category: GameConstants.PhysicsCategory.enemy,
+                contact: GameConstants.PhysicsCategory.player
+            )
+        }
         addChild(node)
         liveEnemies.append(node)
         bossNode = node
@@ -1989,9 +1998,12 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         }
 
         if hp > 0 {
+            let baseScale = (kind == .boss)
+                ? (sprite?.xScale ?? GameRules.bossScale)
+                : kind.scale
             node.run(.sequence([
-                .scale(to: kind.scale * 1.15, duration: 0.06),
-                .scale(to: kind.scale, duration: 0.08)
+                .scale(to: baseScale * 1.08, duration: 0.06),
+                .scale(to: baseScale, duration: 0.08)
             ]))
             spawnExplosion(at: blastPoint, image: "mini_explosion", scale: kind == .boss ? 0.75 : 0.55)
             HapticManager.enemyDestroyed()
