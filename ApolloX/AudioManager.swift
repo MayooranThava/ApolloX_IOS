@@ -53,6 +53,8 @@ enum AudioManager {
     }
 
     static func play(_ cue: AudioCue, on node: SKNode? = nil) {
+        guard AppSettings.soundEnabled else { return }
+
         if let players = pools[cue], !players.isEmpty {
             let start = nextIndex[cue] ?? 0
             if let idle = players.first(where: { !$0.isPlaying }) {

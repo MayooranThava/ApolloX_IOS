@@ -11,6 +11,7 @@ final class GameTitleScene: SKScene {
     private var playButton: MenuButtonNode?
     private var ranksButton: MenuButtonNode?
     private var storeButton: MenuButtonNode?
+    private var settingsButton: MenuButtonNode?
     private let titleLabel = SKLabelNode()
     private let subtitleLabel = SKLabelNode()
     private let bestLabel = SKLabelNode()
@@ -43,13 +44,11 @@ final class GameTitleScene: SKScene {
         subtitleLabel.zPosition = GameConstants.Z.hud
         addChild(subtitleLabel)
 
+        // Short tips only — full teach is OnboardingScene on first Play.
         let instructions = [
-            "Drag to steer your rocket",
-            "Blast asteroids and mines",
-            "Six bosses — 30 seconds between each defeat",
-            "Mines take two hits — stay clear",
-            "Star boosts are rare — make them count",
-            "Shoot the green + for an extra life"
+            "Drag to steer  •  Auto-fire",
+            "Mines take two hits  •  Stars boost fire",
+            "Six bosses  •  Credits unlock ships"
         ]
         for line in instructions {
             let label = makeGameLabel(text: line, fontSize: 28, color: SKColor(white: 0.78, alpha: 1))
@@ -73,17 +72,21 @@ final class GameTitleScene: SKScene {
         creditsLabel.zPosition = GameConstants.Z.hud
         addChild(creditsLabel)
 
-        let button = MenuButtonNode(title: "Play", width: 420, height: 110, fontSize: 56, emphasized: true)
+        let button = MenuButtonNode(title: "Play", width: 420, height: 104, fontSize: 52, emphasized: true)
         playButton = button
         addChild(button)
 
-        let ranks = MenuButtonNode(title: "Ranks", width: 420, height: 88, fontSize: 40, emphasized: false)
+        let ranks = MenuButtonNode(title: "Ranks", width: 200, height: 80, fontSize: 34, emphasized: false)
         ranksButton = ranks
         addChild(ranks)
 
-        let store = MenuButtonNode(title: "Store", width: 420, height: 88, fontSize: 40, emphasized: false)
+        let store = MenuButtonNode(title: "Store", width: 200, height: 80, fontSize: 34, emphasized: false)
         storeButton = store
         addChild(store)
+
+        let settings = MenuButtonNode(title: "Settings", width: 420, height: 80, fontSize: 34, emphasized: false)
+        settingsButton = settings
+        addChild(settings)
 
         titleLabel.alpha = 0
         subtitleLabel.alpha = 0
@@ -92,13 +95,15 @@ final class GameTitleScene: SKScene {
         button.alpha = 0
         ranks.alpha = 0
         store.alpha = 0
+        settings.alpha = 0
         titleLabel.run(.fadeIn(withDuration: 0.45))
         subtitleLabel.run(.sequence([.wait(forDuration: 0.08), .fadeIn(withDuration: 0.4)]))
         bestLabel.run(.sequence([.wait(forDuration: 0.16), .fadeIn(withDuration: 0.4)]))
         creditsLabel.run(.sequence([.wait(forDuration: 0.18), .fadeIn(withDuration: 0.4)]))
         button.run(.sequence([.wait(forDuration: 0.22), .fadeIn(withDuration: 0.4)]))
         ranks.run(.sequence([.wait(forDuration: 0.26), .fadeIn(withDuration: 0.4)]))
-        store.run(.sequence([.wait(forDuration: 0.30), .fadeIn(withDuration: 0.4)]))
+        store.run(.sequence([.wait(forDuration: 0.26), .fadeIn(withDuration: 0.4)]))
+        settings.run(.sequence([.wait(forDuration: 0.30), .fadeIn(withDuration: 0.4)]))
 
         whenSafeAreaReady { [weak self] in
             self?.relayout()
@@ -116,25 +121,34 @@ final class GameTitleScene: SKScene {
         relayoutProductionBackground()
         let safe = playfield.safeRect
 
-        titleLabel.position = CGPoint(x: safe.midX, y: safe.maxY - 120)
+        titleLabel.position = CGPoint(x: safe.midX, y: safe.maxY - 130)
         subtitleLabel.position = CGPoint(x: safe.midX, y: titleLabel.position.y - 84)
 
-        var lineY = safe.midY + 150
+        var lineY = safe.midY + 160
         for label in instructionLabels {
             label.position = CGPoint(x: safe.midX, y: lineY)
-            lineY -= 40
+            lineY -= 44
         }
 
         bestLabel.position = CGPoint(x: safe.midX, y: safe.minY + 430)
         creditsLabel.position = CGPoint(x: safe.midX, y: safe.minY + 382)
-        playButton?.position = CGPoint(x: safe.midX, y: safe.minY + 268)
-        ranksButton?.position = CGPoint(x: safe.midX, y: safe.minY + 168)
-        storeButton?.position = CGPoint(x: safe.midX, y: safe.minY + 72)
+        playButton?.position = CGPoint(x: safe.midX, y: safe.minY + 280)
+        ranksButton?.position = CGPoint(x: safe.midX - 120, y: safe.minY + 178)
+        storeButton?.position = CGPoint(x: safe.midX + 120, y: safe.minY + 178)
+        settingsButton?.position = CGPoint(x: safe.midX, y: safe.minY + 78)
     }
 
     override func didChangeSize(_ oldSize: CGSize) {
         relayoutProductionBackground()
         relayout()
+    }
+
+    private func startPlay() {
+        if AppSettings.hasCompletedOnboarding {
+            presentScene(GameScene(size: size))
+        } else {
+            presentScene(OnboardingScene(size: size))
+        }
     }
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -144,7 +158,7 @@ final class GameTitleScene: SKScene {
             playButton.pulse()
             AudioManager.play(.uiTap)
             HapticManager.fire()
-            presentScene(GameScene(size: size))
+            startPlay()
             return
         }
         if let ranksButton, ranksButton.containsTouch(point) {
@@ -159,6 +173,13 @@ final class GameTitleScene: SKScene {
             AudioManager.play(.uiTap)
             HapticManager.fire()
             presentScene(StoreScene(size: size))
+            return
+        }
+        if let settingsButton, settingsButton.containsTouch(point) {
+            settingsButton.pulse()
+            AudioManager.play(.uiTap)
+            HapticManager.fire()
+            presentScene(SettingsScene(size: size))
         }
     }
 }

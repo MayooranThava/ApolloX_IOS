@@ -22,7 +22,7 @@ Three layers, on purpose. SpriteKit combat is not a good XCUITest target.
 | Layer | What it covers | Command |
 |---|---|---|
 | Sanity (no Xcode) | UX contracts in source + a swept-combat microbench | `python3 scripts/sanity_tests.py` |
-| Unit (`ApolloXTests`) | `GameRules`, `ScoreStore`, `GameCenterService`, pools, frame pacing | `xcodebuild test -scheme ApolloX -only-testing:ApolloXTests` |
+| Unit (`ApolloXTests`) | `GameRules`, `ScoreStore`, `GameCenterService`, `AppSettings`, pools, frame pacing | `xcodebuild test -scheme ApolloX -only-testing:ApolloXTests` |
 | UI smoke (`ApolloXUITests`) | Cold launch presents the title scene | `xcodebuild test -scheme ApolloX -only-testing:ApolloXUITests` |
 
 Example simulator run:
@@ -79,10 +79,24 @@ Do this before TestFlight if you want live ranks. The app stays playable without
 | Sort Order | High to Low |
 | Score Range (optional) | `0` – leave max blank or set a sane ceiling |
 
-4. Add a localization (at least English): name **High Score**.
-5. Save. Leaderboards go live with the app version that includes Game Center.
+4. Add a localization (required — fixes “*MISSING TITLE*” in Game Center):
+   - Language: English
+   - **Name:** `High Score` (must match `AppSettings.classicLeaderboardDisplayName`)
+5. Save. On your **app version** (Distribution): enable Game Center, **add this leaderboard** as a component, then save.
+6. Leaderboards stay **Pre-release** until that version is submitted / the component is attached. Scores can still work in sandbox TestFlight.
 
-**Device testing:** Settings → Game Center → sign in with a sandbox / real Apple ID. Simulator Game Center support is limited; prefer a physical iPhone.
+**Device testing:** Settings → Game Center → sign in with a sandbox / real Apple ID. Prefer the in-app **Ranks** screen; Apple’s dashboard shows your localized name once step 4–5 are done.
+
+### App Store legal URLs
+
+Host `docs/privacy-policy.html` and `docs/support.html` (GitHub Pages from `/docs` is fine). Then set:
+
+| Field | URL |
+|---|---|
+| Privacy Policy | `https://mayooranthava.github.io/ApolloX_IOS/privacy-policy.html` |
+| Support | `https://mayooranthava.github.io/ApolloX_IOS/support.html` |
+
+See `docs/README.md`. If the Pages URL differs, update `AppSettings.swift` to match.
 
 ### Archive and upload (each build)
 
@@ -108,13 +122,14 @@ After upload, open [App Store Connect](https://appstoreconnect.apple.com) → yo
 
 | Priority | Item | Owner | Status |
 |---|---|---|---|
-| 1 | Green CI (`ApolloXTests` + launch smoke) | Repo | In this PR |
-| 2 | Register Bundle ID + enable Game Center + first archive/upload to TestFlight | Mac / App Store Connect | Next |
-| 3 | Create classic high-score leaderboard ID (exact ID above) | App Store Connect | Next |
-| 4 | Internal TestFlight on iPhone 16/17 Pro **and** a 60 Hz iPhone | Device / App Store Connect | After upload |
-| 5 | Texture atlas + larger / @3x background | Repo | Not started |
-| 6 | App Store Connect: privacy nutrition label (include Game Center), 2026 age rating, 6.7" + 6.1" screenshots, support/privacy URLs | App Store Connect | Not started |
-| 7 | 15-minute play session, then check TestFlight / Organizer crashes | Device | After TestFlight |
+| P0 | Settings (sound/haptics) + first-run onboarding | Repo | This PR |
+| P0 | Privacy + support HTTPS pages (`docs/`) + App Store Connect URLs | You | Enable GitHub Pages |
+| P0 | Leaderboard EN localization **High Score** + attach to version (fixes *MISSING TITLE* / Pre-release) | App Store Connect | Do on phone |
+| P0 | Privacy nutrition label + 2026 age rating | App Store Connect | Before submit |
+| P0 | 6.7" + 6.1" screenshots / preview video | Device / ASC | Before submit |
+| P0 | 15–30 min soak on Pro + 60 Hz iPhone; empty crash reports | Device | Before submit |
+| P1 | Texture atlas + larger / @3x background | Repo | Not started |
+| P1 | Music + achievements | Repo | Not started |
 
 Do not add IAP or third-party analytics until there is a product reason.
 
@@ -123,13 +138,16 @@ Do not add IAP or third-party analytics until there is a product reason.
 Do these on a real phone. The simulator cannot prove ProMotion, haptics, thermal throttling, or full Game Center.
 
 - [ ] Internal TestFlight build installs and launches to the title screen
+- [ ] First launch: **Play** opens onboarding → Play starts a run
+- [ ] **Settings**: Sound / Haptics toggle; How to Play; Privacy / Support open in Safari
 - [ ] Play: steer, pause / resume, background the app, confirm it stays paused
 - [ ] Boost, health pickup, mine (two hits), and game-over → Restart / Ranks / Menu
 - [ ] Title → **Ranks** shows top 5 (or a clear signed-out / empty message)
+- [ ] Apple Game Center UI shows **High Score** (not *MISSING TITLE*); Pre-release gone after version attach
 - [ ] After a run, best score appears on the Game Center leaderboard for a signed-in tester
 - [ ] iPhone 16/17 Pro: 120 Hz with `-ApolloXShowStats`; Low Power Mode: 60 Hz
 - [ ] A 60 Hz iPhone (non-Pro) still plays smoothly
-- [ ] Silent switch mutes SFX (`AVAudioSession` is `.ambient`)
+- [ ] Silent switch mutes SFX (`AVAudioSession` is `.ambient`); Settings Sound Off mutes too
 - [ ] Organizer / TestFlight crash reports are empty after a 15-minute session
 - [ ] App Store Connect: privacy nutrition label matches `PrivacyInfo.xcprivacy` (UserDefaults + Game Center User ID / Product Interaction, no tracking)
 - [ ] Age rating questionnaire is current (Apple updated this in 2026)
@@ -146,6 +164,7 @@ ApolloX/           app target
 ApolloXTests/      unit tests (host: ApolloX.app)
 ApolloXUITests/    launch smoke only
 scripts/           sanity checks + archive-for-testflight.sh
+docs/              privacy + support pages for App Store URLs
 ExportOptions.plist  App Store Connect export settings
 demo/              browser art preview (not the shipping game)
 ```

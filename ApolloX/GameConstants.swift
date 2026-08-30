@@ -113,6 +113,8 @@ enum GameConstants {
         static let titleScene = "titleScene"
         static let storeScene = "storeScene"
         static let leaderboardScene = "leaderboardScene"
+        static let settingsScene = "settingsScene"
+        static let onboardingScene = "onboardingScene"
     }
 
     enum PhysicsCategory {

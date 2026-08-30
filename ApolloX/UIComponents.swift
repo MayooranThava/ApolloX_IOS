@@ -393,3 +393,84 @@ final class MenuButtonNode: SKNode {
         isAccessibilityElement = true
     }
 }
+
+/// Settings row with an ON/OFF pill — used for Sound and Haptics.
+final class SettingsToggleNode: SKNode {
+    private let panel = SKSpriteNode()
+    private let titleLabel = SKLabelNode()
+    private let valueLabel = SKLabelNode()
+    private var isOn: Bool
+    private var rowWidth: CGFloat = 900
+    private let rowHeight: CGFloat = 100
+    private(set) var hitSize = CGSize.zero
+
+    init(title: String, isOn: Bool) {
+        self.isOn = isOn
+        super.init()
+        zPosition = GameConstants.Z.hud
+
+        addChild(panel)
+
+        titleLabel.fontName = GameFont.resolved(size: 40)
+        titleLabel.text = title
+        titleLabel.fontSize = 40
+        titleLabel.fontColor = .white
+        titleLabel.verticalAlignmentMode = .center
+        titleLabel.horizontalAlignmentMode = .left
+        titleLabel.zPosition = 1
+        addChild(titleLabel)
+
+        valueLabel.fontName = GameFont.resolved(size: 34)
+        valueLabel.fontSize = 34
+        valueLabel.verticalAlignmentMode = .center
+        valueLabel.horizontalAlignmentMode = .right
+        valueLabel.zPosition = 1
+        addChild(valueLabel)
+
+        isAccessibilityElement = true
+        accessibilityTraits = .button
+        applyValue()
+        layout(width: rowWidth)
+    }
+
+    required init?(coder aDecoder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    func layout(width: CGFloat) {
+        rowWidth = width
+        hitSize = CGSize(width: width + 40, height: rowHeight + 28)
+        panel.size = CGSize(width: width, height: rowHeight)
+        panel.texture = ShapeTexture.roundedRect(
+            size: panel.size,
+            cornerRadius: 28,
+            fill: GameTheme.panel,
+            stroke: SKColor(white: 1, alpha: 0.14),
+            lineWidth: 2
+        )
+        titleLabel.position = CGPoint(x: -width * 0.5 + 36, y: 0)
+        valueLabel.position = CGPoint(x: width * 0.5 - 36, y: 0)
+    }
+
+    func setOn(_ on: Bool) {
+        isOn = on
+        applyValue()
+    }
+
+    func containsTouch(_ point: CGPoint) -> Bool {
+        let rect = CGRect(
+            x: position.x - hitSize.width * 0.5,
+            y: position.y - hitSize.height * 0.5,
+            width: hitSize.width,
+            height: hitSize.height
+        )
+        return rect.contains(point)
+    }
+
+    private func applyValue() {
+        valueLabel.text = isOn ? "ON" : "OFF"
+        valueLabel.fontColor = isOn ? GameTheme.credit : SKColor(white: 0.55, alpha: 1)
+        accessibilityLabel = "\(titleLabel.text ?? "Setting"), \(isOn ? "on" : "off")"
+        name = titleLabel.text
+    }
+}

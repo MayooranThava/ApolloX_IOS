@@ -136,6 +136,7 @@ final class GameCenterServiceTests: XCTestCase {
             GameCenterService.classicHighScoreLeaderboardID,
             "com.mayooran.ApolloX.classicHighScore"
         )
+        XCTAssertEqual(GameCenterService.classicHighScoreDisplayName, "High Score")
         XCTAssertEqual(GameCenterService.topEntryCount, 5)
     }
 }
