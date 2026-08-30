@@ -21,6 +21,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private var engineFlame: SKNode?
 
     private var lives = GameRules.startingLives
+    private var killCombo = 0
     private var level = 0
     private var starCharge = 0
     private var poweredShotsRemaining = 0
@@ -256,7 +257,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         visibleMaxY = layout.visibleRect.maxY
         relayoutProductionBackground()
         hud.layout(in: layout.safeRect)
-        bossHealthBar.layout(in: layout.safeRect, below: 108)
+        bossHealthBar.layout(in: layout.safeRect, below: 148)
 
         if player.parent != nil {
             player.position.x = GameRules.clampPlayerX(
@@ -315,6 +316,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private func updateHUD() {
         hud.setScore(ScoreStore.currentScore)
         hud.setHighScore(ScoreStore.highScore)
+        hud.setCombo(killCombo)
         hud.setLives(lives)
         if poweredShotsRemaining > 0 {
             hud.setStatus("Fire: Boost")
@@ -673,11 +675,19 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         }
     }
 
+    private func registerKillCombo() {
+        killCombo = GameRules.comboAfterKill(current: killCombo)
+        hud.setCombo(killCombo)
+        hud.pulseCombo()
+    }
+
     private func lostALife(fromContact: Bool) {
         guard currentState == .playing else { return }
         let outcome = GameRules.resolvePlayerHit(lives: lives)
         lives = outcome.livesRemaining
+        killCombo = GameRules.comboAfterPlayerHit()
         hud.setLives(lives)
+        hud.setCombo(killCombo)
         hud.pulseLives()
         HapticManager.lifeLost()
         AudioManager.play(.lifeLost)
@@ -1812,6 +1822,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             spawnExplosion(at: blastPoint, image: "explosion", scale: 1.45)
             HapticManager.enemyDestroyed()
             addScore(currentBossPoints)
+            registerKillCombo()
             onBossDefeated(at: blastPoint)
             return
         }
@@ -1829,6 +1840,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         spawnExplosion(at: blastPoint, image: "explosion", scale: points >= 3 ? 1.25 : 1.05)
         HapticManager.enemyDestroyed()
         addScore(points)
+        registerKillCombo()
     }
 
     // MARK: - Yellow clear mine
@@ -1841,6 +1853,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             node.removeFromParent()
         }
         addScore(GameRules.clearMinePoints)
+        registerKillCombo()
         HapticManager.upgrade()
         AudioManager.play(.explosion)
 
@@ -1882,6 +1895,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             spawnExplosion(at: defeatPoint, image: "explosion", scale: 1.45)
             HapticManager.enemyDestroyed()
             addScore(currentBossPoints)
+            registerKillCombo()
             onBossDefeated(at: blastPoint)
         }
     }
@@ -2036,6 +2050,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
                     self.obstaclePool.recycle(enemy)
                     self.spawnExplosion(at: pos, image: "mini_explosion", scale: 0.92, playSound: index == 0)
                     self.addScore(points)
+                    self.registerKillCombo()
                     if index % 3 == 0 {
                         HapticManager.enemyDestroyed()
                     }

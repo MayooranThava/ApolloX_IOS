@@ -339,6 +339,13 @@ enum GameRules {
         )
     }
 
+    /// Kill-streak combo: +1 on destroy, reset to 0 when the player is hit.
+    static func comboAfterKill(current: Int) -> Int {
+        max(0, current) + 1
+    }
+
+    static func comboAfterPlayerHit() -> Int { 0 }
+
     // MARK: - Boost
 
     struct BoostOutcome: Equatable {

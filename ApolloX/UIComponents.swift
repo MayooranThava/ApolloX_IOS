@@ -16,8 +16,9 @@ enum GameTheme {
     static let buttonFill = SKColor(red: 0.10, green: 0.22, blue: 0.42, alpha: 0.98)
     static let buttonFillTop = SKColor(red: 0.16, green: 0.32, blue: 0.58, alpha: 1)
     static let buttonStroke = SKColor(red: 1.0, green: 0.84, blue: 0.38, alpha: 0.85)
-    static let buttonMuted = SKColor(red: 0.06, green: 0.10, blue: 0.18, alpha: 0.92)
-    static let buttonMutedStroke = SKColor(red: 1.0, green: 0.84, blue: 0.38, alpha: 0.40)
+    /// Secondary muted fill — solid dark navy (never a translucent white wash).
+    static let buttonMuted = SKColor(red: 0.07, green: 0.11, blue: 0.20, alpha: 0.96)
+    static let buttonMutedStroke = SKColor(red: 1.0, green: 0.84, blue: 0.38, alpha: 0.55)
     static let buttonText = SKColor.white
     static let buttonTextShadow = SKColor(white: 0, alpha: 0.55)
     static let credit = SKColor(red: 0.42, green: 0.94, blue: 0.72, alpha: 1)
@@ -84,7 +85,7 @@ enum ShapeTexture {
         return texture
     }
 
-    /// Soft-rect with a lighter top band so HUD slabs read as beveled cockpit panels.
+    /// Cockpit slab: soft chamfered rect, solid fill, gold rim — no top bar (that caused grey bands).
     static func hudSlab(
         size: CGSize,
         cornerRadius: CGFloat,
@@ -93,8 +94,9 @@ enum ShapeTexture {
         stroke: SKColor,
         lineWidth: CGFloat
     ) -> SKTexture {
+        // `topHighlight` kept for call-site compatibility; bevel is a thin inner top edge only.
         let key = String(
-            format: "slab-%.0fx%.0f-r%.0f-lw%.0f-%@-%@-%@",
+            format: "slab2-%.0fx%.0f-r%.0f-lw%.0f-%@-%@-%@",
             size.width, size.height, cornerRadius, lineWidth,
             fill.debugDescription, topHighlight.debugDescription, stroke.debugDescription
         )
@@ -109,16 +111,29 @@ enum ShapeTexture {
         let image = renderer.image { _ in
             let inset = lineWidth * 0.5
             let rect = CGRect(origin: .zero, size: size).insetBy(dx: inset, dy: inset)
-            let path = UIBezierPath(roundedRect: rect, cornerRadius: max(0, cornerRadius - inset))
+            // Slight chamfer (cut corners) like the reference pause buttons.
+            let cut = max(8, min(cornerRadius, min(rect.width, rect.height) * 0.18))
+            let path = UIBezierPath()
+            path.move(to: CGPoint(x: rect.minX + cut, y: rect.minY))
+            path.addLine(to: CGPoint(x: rect.maxX - cut, y: rect.minY))
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY + cut))
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - cut))
+            path.addLine(to: CGPoint(x: rect.maxX - cut, y: rect.maxY))
+            path.addLine(to: CGPoint(x: rect.minX + cut, y: rect.maxY))
+            path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY - cut))
+            path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + cut))
+            path.close()
+
             fill.setFill()
             path.fill()
 
-            // Top bevel — clipped to the same rounded rect.
-            let highlightHeight = max(6, size.height * 0.38)
-            let highlightRect = CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: highlightHeight)
-            path.addClip()
-            topHighlight.withAlphaComponent(0.55).setFill()
-            UIBezierPath(rect: highlightRect).fill()
+            // Hairline inner highlight along the top edge only (not a filled band).
+            let edge = UIBezierPath()
+            edge.move(to: CGPoint(x: rect.minX + cut + 2, y: rect.minY + lineWidth + 1))
+            edge.addLine(to: CGPoint(x: rect.maxX - cut - 2, y: rect.minY + lineWidth + 1))
+            topHighlight.withAlphaComponent(0.22).setStroke()
+            edge.lineWidth = 1.5
+            edge.stroke()
 
             if lineWidth > 0 {
                 stroke.setStroke()
@@ -181,7 +196,10 @@ enum ShapeTexture {
 
 final class HUDBarNode: SKNode {
     private let panel = SKSpriteNode()
-    private let scoreLabel = SKLabelNode()
+    private let scoreCaption = SKLabelNode()
+    private let scoreValue = SKLabelNode()
+    private let comboCaption = SKLabelNode()
+    private let comboValue = SKLabelNode()
     private let highScoreLabel = SKLabelNode()
     private let hpCaption = SKLabelNode()
     private let shieldCaption = SKLabelNode()
@@ -192,7 +210,8 @@ final class HUDBarNode: SKNode {
     private let shieldMeter = SKNode()
     private var hpBlocks: [SKSpriteNode] = []
     private var shieldBlocks: [SKSpriteNode] = []
-    private var blockSize = CGSize(width: 34, height: 22)
+    /// Large enough to read at a glance during combat.
+    private var blockSize = CGSize(width: 52, height: 34)
 
     /// Scene-space hit rect for the pause control (updated in `layout`).
     private(set) var pauseHitRect = CGRect.zero
@@ -204,14 +223,22 @@ final class HUDBarNode: SKNode {
         panel.color = GameTheme.panel
         addChild(panel)
 
-        style(scoreLabel, alignment: .left, color: .white)
-        style(highScoreLabel, alignment: .left, color: SKColor(white: 1, alpha: 0.38))
+        style(scoreCaption, alignment: .left, color: GameTheme.hudCyan)
+        style(scoreValue, alignment: .left, color: GameTheme.shieldGold)
+        style(comboCaption, alignment: .left, color: GameTheme.hudCyan)
+        style(comboValue, alignment: .left, color: GameTheme.hudCyan)
+        style(highScoreLabel, alignment: .left, color: SKColor(white: 1, alpha: 0.42))
         style(hpCaption, alignment: .left, color: GameTheme.hudCyan)
         style(shieldCaption, alignment: .left, color: GameTheme.shieldGold)
         style(statusLabel, alignment: .center, color: GameTheme.accent)
+        scoreCaption.text = "SCORE"
+        comboCaption.text = "COMBO"
         hpCaption.text = "HP"
         shieldCaption.text = "SHIELD"
-        addChild(scoreLabel)
+        addChild(scoreCaption)
+        addChild(scoreValue)
+        addChild(comboCaption)
+        addChild(comboValue)
         addChild(highScoreLabel)
         addChild(hpCaption)
         addChild(shieldCaption)
@@ -235,6 +262,10 @@ final class HUDBarNode: SKNode {
         pauseGlyph.horizontalAlignmentMode = .center
         pauseGlyph.name = GameConstants.NodeName.pauseButton
         pauseButton.addChild(pauseGlyph)
+
+        setScore(0)
+        setCombo(0)
+        setHighScore(0)
     }
 
     required init?(coder aDecoder: NSCoder) {
@@ -242,40 +273,50 @@ final class HUDBarNode: SKNode {
     }
 
     func layout(in safeRect: CGRect) {
-        let height: CGFloat = 118
+        let height: CGFloat = 148
         let width = safeRect.width
         panel.size = CGSize(width: width, height: height)
         panel.texture = ShapeTexture.roundedRect(
             size: panel.size,
-            cornerRadius: 26,
+            cornerRadius: 24,
             fill: GameTheme.panel,
             stroke: SKColor(white: 1, alpha: 0.12),
             lineWidth: 2
         )
 
-        position = CGPoint(x: safeRect.midX, y: safeRect.maxY - height * 0.5 - 8)
+        position = CGPoint(x: safeRect.midX, y: safeRect.maxY - height * 0.5 - 6)
 
-        let sidePad: CGFloat = 36
-        scoreLabel.fontSize = 34
-        highScoreLabel.fontSize = 20
-        hpCaption.fontSize = 18
-        shieldCaption.fontSize = 18
-        statusLabel.fontSize = 24
+        let sidePad: CGFloat = 32
+        let leftX = -width * 0.5 + sidePad
 
-        scoreLabel.position = CGPoint(x: -width * 0.5 + sidePad, y: 28)
-        highScoreLabel.position = CGPoint(x: -width * 0.5 + sidePad, y: 2)
-        statusLabel.position = CGPoint(x: 0, y: -40)
+        scoreCaption.fontSize = 18
+        scoreValue.fontSize = 40
+        comboCaption.fontSize = 18
+        comboValue.fontSize = 28
+        highScoreLabel.fontSize = 18
+        hpCaption.fontSize = 22
+        shieldCaption.fontSize = 22
+        statusLabel.fontSize = 22
 
-        let pauseSize: CGFloat = 52
+        // Left stack — SCORE / value / COMBO / BEST (reference cockpit layout).
+        scoreCaption.position = CGPoint(x: leftX, y: 48)
+        scoreValue.position = CGPoint(x: leftX, y: 18)
+        comboCaption.position = CGPoint(x: leftX, y: -10)
+        comboValue.position = CGPoint(x: leftX + 96, y: -10)
+        highScoreLabel.position = CGPoint(x: leftX, y: -40)
+        statusLabel.position = CGPoint(x: 0, y: -58)
+
+        let pauseSize: CGFloat = 56
         pauseButton.size = CGSize(width: pauseSize, height: pauseSize)
-        pauseButton.texture = ShapeTexture.roundedRect(
+        pauseButton.texture = ShapeTexture.hudSlab(
             size: pauseButton.size,
             cornerRadius: 14,
             fill: GameTheme.buttonMuted,
-            stroke: GameTheme.hudCyan.withAlphaComponent(0.7),
+            topHighlight: GameTheme.hudCyan,
+            stroke: GameTheme.hudCyan.withAlphaComponent(0.75),
             lineWidth: 2
         )
-        pauseButton.position = CGPoint(x: width * 0.5 - sidePad - 4, y: 10)
+        pauseButton.position = CGPoint(x: width * 0.5 - sidePad - 4, y: 18)
 
         let pauseCenterInScene = convert(pauseButton.position, to: parent ?? self)
         let hitPad: CGFloat = 28
@@ -286,26 +327,29 @@ final class HUDBarNode: SKNode {
             height: pauseSize + hitPad * 2
         )
 
-        // Right cluster: HP / SHIELD meters left of the pause control.
-        let meterRight = pauseButton.position.x - pauseSize * 0.5 - 28
+        let meterRight = pauseButton.position.x - pauseSize * 0.5 - 22
         layoutMeterRow(
             caption: hpCaption,
             meter: hpMeter,
             blocks: hpBlocks,
             rightX: meterRight,
-            y: 28
+            y: 36
         )
         layoutMeterRow(
             caption: shieldCaption,
             meter: shieldMeter,
             blocks: shieldBlocks,
             rightX: meterRight,
-            y: 0
+            y: -6
         )
     }
 
     func setScore(_ value: Int) {
-        scoreLabel.text = "SCORE  \(value)"
+        scoreValue.text = Self.formattedScore(value)
+    }
+
+    func setCombo(_ value: Int) {
+        comboValue.text = "x \(max(0, value))"
     }
 
     func setHighScore(_ value: Int) {
@@ -320,18 +364,20 @@ final class HUDBarNode: SKNode {
             block.texture = ShapeTexture.parallelogramBlock(
                 size: blockSize,
                 fill: filled ? GameTheme.hudCyan : GameTheme.hudCyanDim,
-                stroke: filled ? GameTheme.hudCyan : GameTheme.hudCyan.withAlphaComponent(0.35)
+                stroke: filled ? GameTheme.hudCyan : GameTheme.hudCyan.withAlphaComponent(0.35),
+                skew: 12
             )
-            block.alpha = filled ? 1 : 0.85
+            block.alpha = 1
         }
         for (index, block) in shieldBlocks.enumerated() {
             let filled = index < split.shield
             block.texture = ShapeTexture.parallelogramBlock(
                 size: blockSize,
                 fill: filled ? GameTheme.shieldGold : GameTheme.shieldGoldDim,
-                stroke: filled ? GameTheme.shieldGold : GameTheme.shieldGold.withAlphaComponent(0.35)
+                stroke: filled ? GameTheme.shieldGold : GameTheme.shieldGold.withAlphaComponent(0.35),
+                skew: 12
             )
-            block.alpha = filled ? 1 : 0.85
+            block.alpha = 1
         }
         isAccessibilityElement = true
         accessibilityLabel = "Score and vitals. Hull \(split.hull) of \(GameRules.baseHullCapacity), shield \(split.shield)"
@@ -363,6 +409,15 @@ final class HUDBarNode: SKNode {
         shieldMeter.run(pulse)
     }
 
+    func pulseCombo() {
+        comboValue.removeAction(forKey: "pulseCombo")
+        comboValue.setScale(1)
+        comboValue.run(.sequence([
+            .scale(to: 1.2, duration: 0.08),
+            .scale(to: 1.0, duration: 0.12)
+        ]), withKey: "pulseCombo")
+    }
+
     private func rebuildMeters() {
         hpBlocks.forEach { $0.removeFromParent() }
         shieldBlocks.forEach { $0.removeFromParent() }
@@ -386,7 +441,7 @@ final class HUDBarNode: SKNode {
         rightX: CGFloat,
         y: CGFloat
     ) {
-        let spacing: CGFloat = 6
+        let spacing: CGFloat = 8
         let totalWidth = CGFloat(blocks.count) * blockSize.width + CGFloat(max(0, blocks.count - 1)) * spacing
         meter.position = CGPoint(x: rightX - totalWidth * 0.5, y: y)
         for (index, block) in blocks.enumerated() {
@@ -394,8 +449,8 @@ final class HUDBarNode: SKNode {
             let x = -totalWidth * 0.5 + blockSize.width * 0.5 + CGFloat(index) * (blockSize.width + spacing)
             block.position = CGPoint(x: x, y: 0)
         }
-        caption.position = CGPoint(x: rightX - totalWidth - 18, y: y)
         caption.horizontalAlignmentMode = .right
+        caption.position = CGPoint(x: rightX - totalWidth - 16, y: y)
     }
 
     private func style(_ label: SKLabelNode, alignment: SKLabelHorizontalAlignmentMode, color: SKColor) {
@@ -403,6 +458,14 @@ final class HUDBarNode: SKNode {
         label.fontColor = color
         label.horizontalAlignmentMode = alignment
         label.verticalAlignmentMode = .center
+    }
+
+    /// Reference-style padded score: `002 350`.
+    static func formattedScore(_ value: Int) -> String {
+        let clamped = max(0, min(value, 999_999))
+        let raw = String(format: "%06d", clamped)
+        let index = raw.index(raw.startIndex, offsetBy: 3)
+        return "\(raw[..<index]) \(raw[index...])"
     }
 }
 
@@ -584,7 +647,7 @@ final class MenuButtonNode: SKNode {
                 size: buttonSize,
                 cornerRadius: corner,
                 fill: GameTheme.buttonMuted,
-                topHighlight: SKColor(white: 1, alpha: 0.10),
+                topHighlight: GameTheme.buttonFillTop,
                 stroke: GameTheme.buttonMutedStroke,
                 lineWidth: 2
             )
