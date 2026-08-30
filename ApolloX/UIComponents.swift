@@ -9,14 +9,23 @@ import UIKit
 enum GameTheme {
     static let title = SKColor.white
     static let secondary = SKColor(white: 0.82, alpha: 1)
+    /// Gold accent used for BEST, shields, secondary button labels.
     static let accent = SKColor(red: 1.0, green: 0.84, blue: 0.38, alpha: 1)
-    static let panel = SKColor(red: 0.04, green: 0.07, blue: 0.14, alpha: 0.62)
-    static let buttonFill = SKColor(red: 0.18, green: 0.36, blue: 0.66, alpha: 0.98)
-    static let buttonStroke = SKColor(white: 1, alpha: 0.38)
-    static let buttonMuted = SKColor(white: 1, alpha: 0.14)
+    static let panel = SKColor(red: 0.04, green: 0.07, blue: 0.14, alpha: 0.72)
+    /// Primary HUD-slab fill (cockpit navy).
+    static let buttonFill = SKColor(red: 0.10, green: 0.22, blue: 0.42, alpha: 0.98)
+    static let buttonFillTop = SKColor(red: 0.16, green: 0.32, blue: 0.58, alpha: 1)
+    static let buttonStroke = SKColor(red: 1.0, green: 0.84, blue: 0.38, alpha: 0.85)
+    static let buttonMuted = SKColor(red: 0.06, green: 0.10, blue: 0.18, alpha: 0.92)
+    static let buttonMutedStroke = SKColor(red: 1.0, green: 0.84, blue: 0.38, alpha: 0.40)
     static let buttonText = SKColor.white
     static let buttonTextShadow = SKColor(white: 0, alpha: 0.55)
     static let credit = SKColor(red: 0.42, green: 0.94, blue: 0.72, alpha: 1)
+    /// Techno HUD cyan for HP blocks / labels (reference-style cockpit UI).
+    static let hudCyan = SKColor(red: 0.55, green: 0.82, blue: 1.0, alpha: 1)
+    static let hudCyanDim = SKColor(red: 0.55, green: 0.82, blue: 1.0, alpha: 0.22)
+    static let shieldGold = SKColor(red: 1.0, green: 0.84, blue: 0.38, alpha: 1)
+    static let shieldGoldDim = SKColor(red: 1.0, green: 0.84, blue: 0.38, alpha: 0.22)
 }
 
 enum GameFont {
@@ -74,16 +83,116 @@ enum ShapeTexture {
         cache[key] = texture
         return texture
     }
+
+    /// Soft-rect with a lighter top band so HUD slabs read as beveled cockpit panels.
+    static func hudSlab(
+        size: CGSize,
+        cornerRadius: CGFloat,
+        fill: SKColor,
+        topHighlight: SKColor,
+        stroke: SKColor,
+        lineWidth: CGFloat
+    ) -> SKTexture {
+        let key = String(
+            format: "slab-%.0fx%.0f-r%.0f-lw%.0f-%@-%@-%@",
+            size.width, size.height, cornerRadius, lineWidth,
+            fill.debugDescription, topHighlight.debugDescription, stroke.debugDescription
+        )
+        if let cached = cache[key] {
+            return cached
+        }
+
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 2
+        format.opaque = false
+        let renderer = UIGraphicsImageRenderer(size: size, format: format)
+        let image = renderer.image { _ in
+            let inset = lineWidth * 0.5
+            let rect = CGRect(origin: .zero, size: size).insetBy(dx: inset, dy: inset)
+            let path = UIBezierPath(roundedRect: rect, cornerRadius: max(0, cornerRadius - inset))
+            fill.setFill()
+            path.fill()
+
+            // Top bevel — clipped to the same rounded rect.
+            let highlightHeight = max(6, size.height * 0.38)
+            let highlightRect = CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: highlightHeight)
+            path.addClip()
+            topHighlight.withAlphaComponent(0.55).setFill()
+            UIBezierPath(rect: highlightRect).fill()
+
+            if lineWidth > 0 {
+                stroke.setStroke()
+                path.lineWidth = lineWidth
+                path.stroke()
+            }
+        }
+        let texture = SKTexture(image: image)
+        texture.filteringMode = .linear
+        texture.usesMipmaps = true
+        cache[key] = texture
+        return texture
+    }
+
+    /// Slanted parallelogram block for HP / shield meters.
+    static func parallelogramBlock(
+        size: CGSize,
+        fill: SKColor,
+        stroke: SKColor,
+        lineWidth: CGFloat = 1.5,
+        skew: CGFloat = 10
+    ) -> SKTexture {
+        let key = String(
+            format: "para-%.0fx%.0f-s%.0f-lw%.0f-%@-%@",
+            size.width, size.height, skew, lineWidth,
+            fill.debugDescription, stroke.debugDescription
+        )
+        if let cached = cache[key] {
+            return cached
+        }
+
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 2
+        format.opaque = false
+        let renderer = UIGraphicsImageRenderer(size: size, format: format)
+        let image = renderer.image { _ in
+            let inset = lineWidth * 0.5 + 0.5
+            let path = UIBezierPath()
+            // Bottom-left → bottom-right → top-right → top-left, skewed like the reference HUD.
+            path.move(to: CGPoint(x: inset + skew, y: size.height - inset))
+            path.addLine(to: CGPoint(x: size.width - inset, y: size.height - inset))
+            path.addLine(to: CGPoint(x: size.width - inset - skew, y: inset))
+            path.addLine(to: CGPoint(x: inset, y: inset))
+            path.close()
+            fill.setFill()
+            path.fill()
+            if lineWidth > 0 {
+                stroke.setStroke()
+                path.lineWidth = lineWidth
+                path.stroke()
+            }
+        }
+        let texture = SKTexture(image: image)
+        texture.filteringMode = .linear
+        texture.usesMipmaps = true
+        cache[key] = texture
+        return texture
+    }
 }
 
 final class HUDBarNode: SKNode {
     private let panel = SKSpriteNode()
     private let scoreLabel = SKLabelNode()
     private let highScoreLabel = SKLabelNode()
-    private let livesLabel = SKLabelNode()
+    private let hpCaption = SKLabelNode()
+    private let shieldCaption = SKLabelNode()
     private let statusLabel = SKLabelNode()
     private let pauseButton = SKSpriteNode()
     private let pauseGlyph = SKLabelNode()
+    private let hpMeter = SKNode()
+    private let shieldMeter = SKNode()
+    private var hpBlocks: [SKSpriteNode] = []
+    private var shieldBlocks: [SKSpriteNode] = []
+    private var blockSize = CGSize(width: 34, height: 22)
 
     /// Scene-space hit rect for the pause control (updated in `layout`).
     private(set) var pauseHitRect = CGRect.zero
@@ -97,12 +206,22 @@ final class HUDBarNode: SKNode {
 
         style(scoreLabel, alignment: .left, color: .white)
         style(highScoreLabel, alignment: .left, color: SKColor(white: 1, alpha: 0.38))
-        style(livesLabel, alignment: .right, color: .white)
+        style(hpCaption, alignment: .left, color: GameTheme.hudCyan)
+        style(shieldCaption, alignment: .left, color: GameTheme.shieldGold)
         style(statusLabel, alignment: .center, color: GameTheme.accent)
+        hpCaption.text = "HP"
+        shieldCaption.text = "SHIELD"
         addChild(scoreLabel)
         addChild(highScoreLabel)
-        addChild(livesLabel)
+        addChild(hpCaption)
+        addChild(shieldCaption)
         addChild(statusLabel)
+
+        hpMeter.zPosition = 1
+        shieldMeter.zPosition = 1
+        addChild(hpMeter)
+        addChild(shieldMeter)
+        rebuildMeters()
 
         pauseButton.color = GameTheme.buttonMuted
         pauseButton.name = GameConstants.NodeName.pauseButton
@@ -111,7 +230,7 @@ final class HUDBarNode: SKNode {
         pauseGlyph.fontName = GameFont.resolved(size: 28)
         pauseGlyph.text = "II"
         pauseGlyph.fontSize = 26
-        pauseGlyph.fontColor = .white
+        pauseGlyph.fontColor = GameTheme.hudCyan
         pauseGlyph.verticalAlignmentMode = .center
         pauseGlyph.horizontalAlignmentMode = .center
         pauseGlyph.name = GameConstants.NodeName.pauseButton
@@ -123,12 +242,12 @@ final class HUDBarNode: SKNode {
     }
 
     func layout(in safeRect: CGRect) {
-        let height: CGFloat = 108
+        let height: CGFloat = 118
         let width = safeRect.width
         panel.size = CGSize(width: width, height: height)
         panel.texture = ShapeTexture.roundedRect(
             size: panel.size,
-            cornerRadius: 30,
+            cornerRadius: 26,
             fill: GameTheme.panel,
             stroke: SKColor(white: 1, alpha: 0.12),
             lineWidth: 2
@@ -136,31 +255,28 @@ final class HUDBarNode: SKNode {
 
         position = CGPoint(x: safeRect.midX, y: safeRect.maxY - height * 0.5 - 8)
 
-        let sidePad: CGFloat = 40
-        scoreLabel.fontSize = 36
-        highScoreLabel.fontSize = 22
-        livesLabel.fontSize = 36
-        statusLabel.fontSize = 26
+        let sidePad: CGFloat = 36
+        scoreLabel.fontSize = 34
+        highScoreLabel.fontSize = 20
+        hpCaption.fontSize = 18
+        shieldCaption.fontSize = 18
+        statusLabel.fontSize = 24
 
-        // Top-left: current score bright, best score dimmed underneath so the player
-        // always sees the number they need to beat.
-        scoreLabel.position = CGPoint(x: -width * 0.5 + sidePad, y: 22)
-        highScoreLabel.position = CGPoint(x: -width * 0.5 + sidePad, y: -6)
-        livesLabel.position = CGPoint(x: width * 0.5 - sidePad - 70, y: 14)
-        statusLabel.position = CGPoint(x: 0, y: -34)
+        scoreLabel.position = CGPoint(x: -width * 0.5 + sidePad, y: 28)
+        highScoreLabel.position = CGPoint(x: -width * 0.5 + sidePad, y: 2)
+        statusLabel.position = CGPoint(x: 0, y: -40)
 
-        let pauseSize: CGFloat = 56
+        let pauseSize: CGFloat = 52
         pauseButton.size = CGSize(width: pauseSize, height: pauseSize)
         pauseButton.texture = ShapeTexture.roundedRect(
             size: pauseButton.size,
-            cornerRadius: 16,
+            cornerRadius: 14,
             fill: GameTheme.buttonMuted,
-            stroke: GameTheme.buttonStroke,
+            stroke: GameTheme.hudCyan.withAlphaComponent(0.7),
             lineWidth: 2
         )
-        pauseButton.position = CGPoint(x: width * 0.5 - sidePad - 8, y: 4)
+        pauseButton.position = CGPoint(x: width * 0.5 - sidePad - 4, y: 10)
 
-        // Convert local pause button center to scene space for hit testing.
         let pauseCenterInScene = convert(pauseButton.position, to: parent ?? self)
         let hitPad: CGFloat = 28
         pauseHitRect = CGRect(
@@ -168,6 +284,23 @@ final class HUDBarNode: SKNode {
             y: pauseCenterInScene.y - pauseSize * 0.5 - hitPad,
             width: pauseSize + hitPad * 2,
             height: pauseSize + hitPad * 2
+        )
+
+        // Right cluster: HP / SHIELD meters left of the pause control.
+        let meterRight = pauseButton.position.x - pauseSize * 0.5 - 28
+        layoutMeterRow(
+            caption: hpCaption,
+            meter: hpMeter,
+            blocks: hpBlocks,
+            rightX: meterRight,
+            y: 28
+        )
+        layoutMeterRow(
+            caption: shieldCaption,
+            meter: shieldMeter,
+            blocks: shieldBlocks,
+            rightX: meterRight,
+            y: 0
         )
     }
 
@@ -179,8 +312,29 @@ final class HUDBarNode: SKNode {
         highScoreLabel.text = "BEST  \(value)"
     }
 
+    /// Maps total lives → HP blocks (up to base) + shield blocks (overflow).
     func setLives(_ value: Int) {
-        livesLabel.text = "LIVES  \(value)"
+        let split = GameRules.hullAndShield(fromLives: value)
+        for (index, block) in hpBlocks.enumerated() {
+            let filled = index < split.hull
+            block.texture = ShapeTexture.parallelogramBlock(
+                size: blockSize,
+                fill: filled ? GameTheme.hudCyan : GameTheme.hudCyanDim,
+                stroke: filled ? GameTheme.hudCyan : GameTheme.hudCyan.withAlphaComponent(0.35)
+            )
+            block.alpha = filled ? 1 : 0.85
+        }
+        for (index, block) in shieldBlocks.enumerated() {
+            let filled = index < split.shield
+            block.texture = ShapeTexture.parallelogramBlock(
+                size: blockSize,
+                fill: filled ? GameTheme.shieldGold : GameTheme.shieldGoldDim,
+                stroke: filled ? GameTheme.shieldGold : GameTheme.shieldGold.withAlphaComponent(0.35)
+            )
+            block.alpha = filled ? 1 : 0.85
+        }
+        isAccessibilityElement = true
+        accessibilityLabel = "Score and vitals. Hull \(split.hull) of \(GameRules.baseHullCapacity), shield \(split.shield)"
     }
 
     func setStatus(_ text: String) {
@@ -201,10 +355,47 @@ final class HUDBarNode: SKNode {
     }
 
     func pulseLives() {
-        livesLabel.run(.sequence([
+        let pulse = SKAction.sequence([
             .scale(to: 1.12, duration: 0.1),
             .scale(to: 1.0, duration: 0.12)
-        ]))
+        ])
+        hpMeter.run(pulse)
+        shieldMeter.run(pulse)
+    }
+
+    private func rebuildMeters() {
+        hpBlocks.forEach { $0.removeFromParent() }
+        shieldBlocks.forEach { $0.removeFromParent() }
+        hpBlocks = (0..<GameRules.baseHullCapacity).map { _ in makeBlock() }
+        shieldBlocks = (0..<GameRules.maxShieldCapacity).map { _ in makeBlock() }
+        hpBlocks.forEach { hpMeter.addChild($0) }
+        shieldBlocks.forEach { shieldMeter.addChild($0) }
+        setLives(GameRules.startingLives)
+    }
+
+    private func makeBlock() -> SKSpriteNode {
+        let node = SKSpriteNode(color: .white, size: blockSize)
+        node.anchorPoint = CGPoint(x: 0.5, y: 0.5)
+        return node
+    }
+
+    private func layoutMeterRow(
+        caption: SKLabelNode,
+        meter: SKNode,
+        blocks: [SKSpriteNode],
+        rightX: CGFloat,
+        y: CGFloat
+    ) {
+        let spacing: CGFloat = 6
+        let totalWidth = CGFloat(blocks.count) * blockSize.width + CGFloat(max(0, blocks.count - 1)) * spacing
+        meter.position = CGPoint(x: rightX - totalWidth * 0.5, y: y)
+        for (index, block) in blocks.enumerated() {
+            block.size = blockSize
+            let x = -totalWidth * 0.5 + blockSize.width * 0.5 + CGFloat(index) * (blockSize.width + spacing)
+            block.position = CGPoint(x: x, y: 0)
+        }
+        caption.position = CGPoint(x: rightX - totalWidth - 18, y: y)
+        caption.horizontalAlignmentMode = .right
     }
 
     private func style(_ label: SKLabelNode, alignment: SKLabelHorizontalAlignmentMode, color: SKColor) {
@@ -376,17 +567,31 @@ final class MenuButtonNode: SKNode {
 
     private func applyChrome(title: String, emphasized: Bool) {
         self.emphasized = emphasized
-        let fill = emphasized ? GameTheme.buttonFill : GameTheme.buttonMuted
-        background.texture = ShapeTexture.roundedRect(
-            size: buttonSize,
-            cornerRadius: buttonSize.height * 0.5,
-            fill: fill,
-            stroke: GameTheme.buttonStroke,
-            lineWidth: 2
-        )
+        // HUD slab: soft rectangle (not a full pill) with gold rim + top bevel.
+        let corner = buttonSize.height * 0.22
+        if emphasized {
+            background.texture = ShapeTexture.hudSlab(
+                size: buttonSize,
+                cornerRadius: corner,
+                fill: GameTheme.buttonFill,
+                topHighlight: GameTheme.buttonFillTop,
+                stroke: GameTheme.buttonStroke,
+                lineWidth: 2.5
+            )
+            label.fontColor = GameTheme.buttonText
+        } else {
+            background.texture = ShapeTexture.hudSlab(
+                size: buttonSize,
+                cornerRadius: corner,
+                fill: GameTheme.buttonMuted,
+                topHighlight: SKColor(white: 1, alpha: 0.10),
+                stroke: GameTheme.buttonMutedStroke,
+                lineWidth: 2
+            )
+            label.fontColor = GameTheme.accent
+        }
         label.text = title
         shadowLabel.text = title
-        label.fontColor = emphasized ? GameTheme.buttonText : GameTheme.accent
         name = title
         accessibilityLabel = title
         accessibilityTraits = .button
