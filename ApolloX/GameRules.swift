@@ -591,10 +591,10 @@ enum GameRules {
         switch id {
         case .plasmaGrenade:
             return SpecialFireProfile(
-                cooldown: 4.5,
-                maxLive: 3,
-                aoeRadius: 160,
-                travelDuration: 0.85,
+                cooldown: 4.2,
+                maxLive: 2,
+                aoeRadius: 175,
+                travelDuration: 0.55,
                 damage: 2,
                 textureName: WeaponTextures.plasmaGrenade
             )
@@ -603,25 +603,26 @@ enum GameRules {
                 cooldown: 5.5,
                 maxLive: 2,
                 aoeRadius: 0,
-                travelDuration: 2.4,
+                travelDuration: 2.6,
                 damage: 3,
                 textureName: WeaponTextures.seekerPod
             )
         case .flakBurst:
             return SpecialFireProfile(
-                cooldown: 6.0,
+                cooldown: 5.8,
                 maxLive: 1,
-                aoeRadius: 210,
+                aoeRadius: 230,
                 travelDuration: 0,
                 damage: 1,
                 textureName: WeaponTextures.plasmaGrenade
             )
         case .cooldownMine:
+            // Sky Mine: deploys ahead in-lane, arms, waits for enemies to fall into it.
             return SpecialFireProfile(
-                cooldown: 7.0,
+                cooldown: 6.5,
                 maxLive: 2,
-                aoeRadius: 150,
-                travelDuration: 5.0,
+                aoeRadius: 130,
+                travelDuration: 6.5,
                 damage: 2,
                 textureName: WeaponTextures.cooldownMine
             )

@@ -266,6 +266,10 @@ def main() -> int:
     check("WeaponCatalog" in (ROOT / "ApolloX" / "WeaponCatalog.swift").read_text(), "weapon hardpoint catalog missing")
     check("equippedPrimaryWeaponId" in progress and "equippedSpecialWeaponId" in progress, "hardpoint loadout should persist")
     check("plasmaGrenade" in (ROOT / "ApolloX" / "WeaponCatalog.swift").read_text(), "plasma grenade hardpoint expected")
+    check("Sky Mine" in (ROOT / "ApolloX" / "WeaponCatalog.swift").read_text(), "sky mine should replace rear cooldown mine")
+    check("smartGrenadeTarget" in SCENE and "preferredSeekerTarget" in SCENE, "specials should aim at live threats")
+    check("hardpointPlasmaGrenade_hd" in (ROOT / "ApolloX" / "WeaponCatalog.swift").read_text(),
+          "combat hardpoint textures should use HD authored keys")
     check("scatterBolts" in (ROOT / "ApolloX" / "WeaponCatalog.swift").read_text(), "scatter bolts primary expected")
     check("fireSpecial" in SCENE and "SpecialWeaponButton" in SCENE, "GameScene needs special hardpoint trigger")
     check("liveSpecials" in SCENE and "specialPool" in SCENE, "specials should use pooled live lists")

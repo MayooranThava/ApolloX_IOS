@@ -469,8 +469,13 @@ final class GameRulesTests: XCTestCase {
 
         let grenade = GameRules.specialProfile(for: .plasmaGrenade)
         let flak = GameRules.specialProfile(for: .flakBurst)
+        let mine = GameRules.specialProfile(for: .cooldownMine)
         XCTAssertGreaterThan(grenade.aoeRadius, 0)
         XCTAssertGreaterThan(flak.aoeRadius, grenade.aoeRadius)
+        XCTAssertGreaterThan(mine.travelDuration, 1.0, "sky mine should linger in-lane")
+        XCTAssertEqual(WeaponCatalog.cooldownMine.name, "Sky Mine")
+        XCTAssertTrue(WeaponCatalog.plasmaGrenade.blurb.lowercased().contains("nearest")
+            || WeaponCatalog.plasmaGrenade.blurb.lowercased().contains("threat"))
         XCTAssertLessThanOrEqual(GameRules.maxLiveSpecialProjectiles, 6)
     }
 
