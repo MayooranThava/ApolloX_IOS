@@ -114,6 +114,8 @@ def main() -> int:
     check("didEnterBackgroundNotification" in SCENE, "background pause should use didEnterBackground")
     check("requiresManualResume" in SCENE, "track manual resume after true backgrounding")
     check("freezeGameplay" in SCENE and "unfreezeGameplay" in SCENE, "manual pause should not freeze SKView touches")
+    check("gameplayFrozen" in SCENE and "speed = 0" in SCENE, "pause should freeze scene actions via speed=0")
+    check("!gameplayFrozen" in SCENE, "update/combat must not advance while gameplay is frozen")
     check("bossProfiles" in RULES and "maxBossCount" in RULES, "multi-boss roster expected")
     check("starPickupSpawnInterval" in RULES and "shouldSpawnStar" in RULES, "star spawn rarity helpers expected")
     check("clearMine" in CONSTANTS and "yellowClearMine" in (ROOT / "ApolloX" / "GameplayTextures.swift").read_text(),
@@ -324,6 +326,12 @@ def main() -> int:
     check(pacing.exists(), "FramePacing.swift missing")
     pacing_src = pacing.read_text()
     check("lowPowerMode" in pacing_src and "thermalState" in pacing_src, "frame pacing must honor Low Power Mode and thermal state")
+    check("setOverlayFrameCapActive" in SCENE and "setOverlayFrameCapActive" in pacing_src,
+          "pause should drop to overlay FPS and restore on resume")
+    check("clampedDelta" in SCENE and "maxSimulationDelta" in pacing_src,
+          "update loop must clamp post-pause hitch deltas")
+    check("reportFrameDuration" in SCENE and "hitchDemotionSteps" in pacing_src,
+          "frame pacing should demote VFX when frames overrun budget")
     check("liveBullets" in SCENE, "combat should keep live bullet lists instead of enumerating the scene graph")
     check("usesPreciseCollisionDetection = true" not in SCENE, "physics CCD should stay off; swept tests already cover tunneling")
     check("SKShapeNode()" not in HUD and "SKShapeNode()" not in (ROOT / "ApolloX" / "GameOverScene.swift").read_text(), "HUD/game-over chrome should use sprite-batched rounded rects")

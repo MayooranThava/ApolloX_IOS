@@ -383,6 +383,25 @@ final class GameRulesTests: XCTestCase {
         XCTAssertEqual(FramePacing.effectsQuality(thermalState: .fair, lowPowerMode: false, hardwareMaxFPS: 60), .conservative)
         XCTAssertEqual(FramePacing.effectsQuality(thermalState: .serious, lowPowerMode: false, hardwareMaxFPS: 60), .conservative)
         XCTAssertEqual(FramePacing.effectsQuality(thermalState: .nominal, lowPowerMode: true, hardwareMaxFPS: 120), .conservative)
+        XCTAssertEqual(
+            FramePacing.effectsQuality(
+                thermalState: .nominal,
+                lowPowerMode: false,
+                hardwareMaxFPS: 120,
+                hitchDemotionSteps: 1
+            ),
+            .balanced
+        )
+        XCTAssertEqual(
+            FramePacing.effectsQuality(
+                thermalState: .nominal,
+                lowPowerMode: false,
+                hardwareMaxFPS: 120,
+                hitchDemotionSteps: 2
+            ),
+            .conservative
+        )
+        XCTAssertEqual(EffectsQuality.high.demoted(by: 1), .balanced)
         XCTAssertGreaterThan(EffectsQuality.high.engineBirthRate, EffectsQuality.conservative.engineBirthRate)
         XCTAssertEqual(EffectsQuality.conservative.starDustBirthRate, 0)
         XCTAssertEqual(EffectsQuality.balanced.engineBirthRate, 0, "sprite flames carry exhaust on 60 Hz phones")
@@ -391,6 +410,39 @@ final class GameRulesTests: XCTestCase {
         XCTAssertGreaterThan(EffectsQuality.high.parallaxStarCount, EffectsQuality.conservative.parallaxStarCount)
         XCTAssertGreaterThan(EffectsQuality.high.maxBossProjectiles, EffectsQuality.balanced.maxBossProjectiles)
         XCTAssertEqual(EffectsQuality.balanced.rocketTailSmokeBirthRate, 0)
+    }
+
+    func testClampedDeltaCapsPostPauseHitches() {
+        XCTAssertEqual(FramePacing.clampedDelta(1.0 / 120.0), 1.0 / 120.0, accuracy: 0.0001)
+        XCTAssertEqual(FramePacing.clampedDelta(0.5), FramePacing.maxSimulationDelta, accuracy: 0.0001)
+        XCTAssertEqual(FramePacing.clampedDelta(-1), 0, accuracy: 0.0001)
+        XCTAssertEqual(FramePacing.clampedDelta(.infinity), 0, accuracy: 0.0001)
+    }
+
+    func testHitchReportingDemotesThenRecoversQuality() {
+        FramePacing.resetAdaptiveStateForTests()
+        FramePacing.apply()
+        // Overrun a 60 Hz budget repeatedly (~25 ms frames).
+        for _ in 0..<8 {
+            FramePacing.reportFrameDuration(0.025)
+        }
+        XCTAssertGreaterThan(FramePacing.hitchDemotionSteps, 0)
+
+        FramePacing.resetAdaptiveStateForTests()
+        FramePacing.apply()
+        XCTAssertEqual(FramePacing.hitchDemotionSteps, 0)
+    }
+
+    func testOverlayFrameCapClearsHitchDebtOnResume() {
+        FramePacing.resetAdaptiveStateForTests()
+        for _ in 0..<12 {
+            FramePacing.reportFrameDuration(0.03)
+        }
+        XCTAssertGreaterThan(FramePacing.hitchDemotionSteps, 0)
+        FramePacing.setOverlayFrameCapActive(true)
+        FramePacing.setOverlayFrameCapActive(false)
+        XCTAssertEqual(FramePacing.hitchDemotionSteps, 0)
+        FramePacing.resetAdaptiveStateForTests()
     }
 
     func testScaledBirthRateHalvesAt120Hz() {
