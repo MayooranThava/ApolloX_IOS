@@ -28,6 +28,10 @@
 		C1B80001208A000100BD3501 /* GameCenterService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B80000208A000100BD3501 /* GameCenterService.swift */; };
 		C1B80003208A000100BD3501 /* LeaderboardScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B80002208A000100BD3501 /* LeaderboardScene.swift */; };
 		C1B80011208A000100BD3501 /* GameCenterServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B80010208A000100BD3501 /* GameCenterServiceTests.swift */; };
+		C1B90001208A000100BD3501 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B90000208A000100BD3501 /* AppSettings.swift */; };
+		C1B90003208A000100BD3501 /* SettingsScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B90002208A000100BD3501 /* SettingsScene.swift */; };
+		C1B90005208A000100BD3501 /* OnboardingScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B90004208A000100BD3501 /* OnboardingScene.swift */; };
+		C1B90011208A000100BD3501 /* AppSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B90010208A000100BD3501 /* AppSettingsTests.swift */; };
 		C1B10005208A000100BD3501 /* HapticManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B10004208A000100BD3501 /* HapticManager.swift */; };
 		C1B10007208A000100BD3501 /* SceneHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B10006208A000100BD3501 /* SceneHelpers.swift */; };
 		C1B50001208A000100BD3501 /* ScrollingBackgroundNode.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B50000208A000100BD3501 /* ScrollingBackgroundNode.swift */; };
@@ -79,6 +83,10 @@
 		C1B80002208A000100BD3501 /* LeaderboardScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeaderboardScene.swift; sourceTree = "<group>"; };
 		C1B80004208A000100BD3501 /* ApolloX.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ApolloX.entitlements; sourceTree = "<group>"; };
 		C1B80010208A000100BD3501 /* GameCenterServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameCenterServiceTests.swift; sourceTree = "<group>"; };
+		C1B90000208A000100BD3501 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
+		C1B90002208A000100BD3501 /* SettingsScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsScene.swift; sourceTree = "<group>"; };
+		C1B90004208A000100BD3501 /* OnboardingScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingScene.swift; sourceTree = "<group>"; };
+		C1B90010208A000100BD3501 /* AppSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettingsTests.swift; sourceTree = "<group>"; };
 		C1B10004208A000100BD3501 /* HapticManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticManager.swift; sourceTree = "<group>"; };
 		C1B10006208A000100BD3501 /* SceneHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneHelpers.swift; sourceTree = "<group>"; };
 		C1B50000208A000100BD3501 /* ScrollingBackgroundNode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScrollingBackgroundNode.swift; sourceTree = "<group>"; };
@@ -168,6 +176,7 @@
 				C1B40010208A000100BD3501 /* ScoreStoreTests.swift */,
 				C1B70010208A000100BD3501 /* PlayerProgressTests.swift */,
 				C1B80010208A000100BD3501 /* GameCenterServiceTests.swift */,
+				C1B90010208A000100BD3501 /* AppSettingsTests.swift */,
 			);
 			path = ApolloXTests;
 			sourceTree = "<group>";
@@ -212,6 +221,7 @@
 				C1B20000208A000100BD3501 /* GameRules.swift */,
 				C1B10002208A000100BD3501 /* ScoreStore.swift */,
 				C1B80000208A000100BD3501 /* GameCenterService.swift */,
+				C1B90000208A000100BD3501 /* AppSettings.swift */,
 				C1B70000208A000100BD3501 /* PlayerProgress.swift */,
 				C1B70002208A000100BD3501 /* PlayerShipCatalog.swift */,
 				C1B10004208A000100BD3501 /* HapticManager.swift */,
@@ -229,6 +239,8 @@
 				C1A7408129DA6EFC00A6F9AE /* GameTitle.swift */,
 				C1B70004208A000100BD3501 /* StoreScene.swift */,
 				C1B80002208A000100BD3501 /* LeaderboardScene.swift */,
+				C1B90002208A000100BD3501 /* SettingsScene.swift */,
+				C1B90004208A000100BD3501 /* OnboardingScene.swift */,
 				C15432AF28C645C5000611A5 /* GameOverScene.swift */,
 				C18A0A7328B4334100B2965A /* GameViewController.swift */,
 				C18A0A7528B4334100B2965A /* Main.storyboard */,
@@ -386,6 +398,7 @@
 				C1B20001208A000100BD3501 /* GameRules.swift in Sources */,
 				C1B10003208A000100BD3501 /* ScoreStore.swift in Sources */,
 				C1B80001208A000100BD3501 /* GameCenterService.swift in Sources */,
+				C1B90001208A000100BD3501 /* AppSettings.swift in Sources */,
 				C1B70001208A000100BD3501 /* PlayerProgress.swift in Sources */,
 				C1B70003208A000100BD3501 /* PlayerShipCatalog.swift in Sources */,
 				C1B10005208A000100BD3501 /* HapticManager.swift in Sources */,
@@ -402,6 +415,8 @@
 				C1A7408229DA6EFC00A6F9AE /* GameTitle.swift in Sources */,
 				C1B70005208A000100BD3501 /* StoreScene.swift in Sources */,
 				C1B80003208A000100BD3501 /* LeaderboardScene.swift in Sources */,
+				C1B90003208A000100BD3501 /* SettingsScene.swift in Sources */,
+				C1B90005208A000100BD3501 /* OnboardingScene.swift in Sources */,
 				C18A0A7228B4334100B2965A /* GameScene.swift in Sources */,
 				C18A0A7428B4334100B2965A /* GameViewController.swift in Sources */,
 				C15432B028C645C5000611A5 /* GameOverScene.swift in Sources */,
@@ -417,6 +432,7 @@
 				C1B40011208A000100BD3501 /* ScoreStoreTests.swift in Sources */,
 				C1B70011208A000100BD3501 /* PlayerProgressTests.swift in Sources */,
 				C1B80011208A000100BD3501 /* GameCenterServiceTests.swift in Sources */,
+				C1B90011208A000100BD3501 /* AppSettingsTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -39,7 +39,7 @@ final class LeaderboardScene: SKScene {
         addChild(titleLabel)
 
         subtitleLabel.fontName = GameFont.resolved(size: 28)
-        subtitleLabel.text = "Top \(GameCenterService.topEntryCount)  •  Game Center"
+        subtitleLabel.text = "\(GameCenterService.classicHighScoreDisplayName)  •  Top \(GameCenterService.topEntryCount)"
         subtitleLabel.fontSize = 28
         subtitleLabel.fontColor = GameTheme.secondary
         subtitleLabel.verticalAlignmentMode = .center
@@ -167,7 +167,7 @@ final class LeaderboardScene: SKScene {
             switch result {
             case .success(let entries):
                 if entries.isEmpty {
-                    self.statusLabel.text = "No scores yet — be the first on the board."
+                    self.statusLabel.text = "No scores yet — be the first on the board.\nIf Game Center shows Pre-release, submit the leaderboard with this app version."
                     self.statusLabel.fontColor = GameTheme.accent
                 } else {
                     self.statusLabel.alpha = 0

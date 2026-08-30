@@ -24,6 +24,9 @@ enum GameCenterService {
     /// Must match the leaderboard ID created in App Store Connect → Game Center.
     static let classicHighScoreLeaderboardID = "com.mayooran.ApolloX.classicHighScore"
 
+    /// Must match the App Store Connect localization name (avoids "*MISSING TITLE*").
+    static let classicHighScoreDisplayName = AppSettings.classicLeaderboardDisplayName
+
     /// Public top-N shown in `LeaderboardScene`.
     static let topEntryCount = 5
 
