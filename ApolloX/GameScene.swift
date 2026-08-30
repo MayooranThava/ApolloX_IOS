@@ -65,6 +65,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     private var pauseOverlay: SKNode?
     private var resumeButton: MenuButtonNode?
+    private var menuButton: MenuButtonNode?
     private var gameplayFrozen = false
 
     private var liveBullets: [PooledSprite] = []
@@ -831,24 +832,39 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         title.fontSize = 64
         title.fontColor = .white
         title.verticalAlignmentMode = .center
-        title.position = CGPoint(x: 0, y: 80)
+        title.position = CGPoint(x: 0, y: 120)
         title.zPosition = 1
         root.addChild(title)
 
-        let resume = MenuButtonNode(title: "Resume", width: 420, height: 110, fontSize: 48, emphasized: true)
-        resume.position = CGPoint(x: 0, y: -40)
+        let resume = MenuButtonNode(title: "Resume", width: 440, height: 108, fontSize: 48, emphasized: true)
+        resume.position = CGPoint(x: 0, y: -10)
         resume.zPosition = 1
         root.addChild(resume)
+
+        let menu = MenuButtonNode(title: "Menu", width: 440, height: 96, fontSize: 40, emphasized: false)
+        menu.position = CGPoint(x: 0, y: -140)
+        menu.zPosition = 1
+        root.addChild(menu)
 
         addChild(root)
         pauseOverlay = root
         resumeButton = resume
+        menuButton = menu
     }
 
     private func dismissPauseOverlay() {
         pauseOverlay?.removeFromParent()
         pauseOverlay = nil
         resumeButton = nil
+        menuButton = nil
+    }
+
+    private func exitToTitleFromPause() {
+        guard currentState == .paused else { return }
+        AudioManager.play(.uiTap)
+        HapticManager.fire()
+        dismissPauseOverlay()
+        presentScene(GameTitleScene(size: size))
     }
 
     // MARK: - Spawning
@@ -2114,7 +2130,14 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             )
             if let resumeButton, resumeButton.containsTouch(overlayPoint) {
                 resumeButton.pulse()
+                AudioManager.play(.uiTap)
+                HapticManager.fire()
                 resumeFromPause()
+                return
+            }
+            if let menuButton, menuButton.containsTouch(overlayPoint) {
+                menuButton.pulse()
+                exitToTitleFromPause()
             }
             return
         }

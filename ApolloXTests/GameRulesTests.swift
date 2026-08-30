@@ -294,6 +294,30 @@ final class GameRulesTests: XCTestCase {
         }
     }
 
+    func testHullAndShieldSplitFromLives() {
+        XCTAssertEqual(GameRules.baseHullCapacity, 3)
+        XCTAssertEqual(GameRules.maxShieldCapacity, 2)
+
+        XCTAssertEqual(GameRules.hullAndShield(fromLives: 0).hull, 0)
+        XCTAssertEqual(GameRules.hullAndShield(fromLives: 0).shield, 0)
+
+        let fullHull = GameRules.hullAndShield(fromLives: 3)
+        XCTAssertEqual(fullHull.hull, 3)
+        XCTAssertEqual(fullHull.shield, 0)
+
+        let oneShield = GameRules.hullAndShield(fromLives: 4)
+        XCTAssertEqual(oneShield.hull, 3)
+        XCTAssertEqual(oneShield.shield, 1)
+
+        let maxed = GameRules.hullAndShield(fromLives: 5)
+        XCTAssertEqual(maxed.hull, 3)
+        XCTAssertEqual(maxed.shield, 2)
+
+        let over = GameRules.hullAndShield(fromLives: 99)
+        XCTAssertEqual(over.hull, 3)
+        XCTAssertEqual(over.shield, 2)
+    }
+
     func testProMotionFramePacingHonorsApplePolicy() {
         XCTAssertEqual(
             FramePacing.preferredFramesPerSecond(hardwareMax: 120, thermalState: .nominal, lowPowerMode: false),

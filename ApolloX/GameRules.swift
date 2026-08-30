@@ -15,6 +15,11 @@ enum GameRules {
     static let starsNeededForUpgrade = 1
     static let poweredShotCount = 28
 
+    /// Core hull capacity shown as cyan HP blocks. Lives beyond this become shields.
+    static let baseHullCapacity = startingLives
+    static let maxLives = 5
+    static var maxShieldCapacity: Int { max(0, maxLives - baseHullCapacity) }
+
     /// ~10% under the prior 0.72 so the starter ship sits smaller on playfield.
     static let playerScale: CGFloat = 0.65
     /// Hull center above playfield bottom: keep thruster flames fully visible.
@@ -41,7 +46,6 @@ enum GameRules {
 
     static let healthPickupScale: CGFloat = 0.52
     static let healthPickupPulseScale: CGFloat = 0.60
-    static let maxLives = 5
     static let healthPickupMinInterval: TimeInterval = 15.0
     static let healthPickupMaxInterval: TimeInterval = 20.0
 
@@ -298,6 +302,14 @@ enum GameRules {
 
     static func livesAfterHealthPickup(current: Int) -> Int {
         min(current + 1, maxLives)
+    }
+
+    /// Splits total lives into hull HP (first `baseHullCapacity`) and stacked shields.
+    static func hullAndShield(fromLives lives: Int) -> (hull: Int, shield: Int) {
+        let clamped = max(0, lives)
+        let hull = min(clamped, baseHullCapacity)
+        let shield = min(max(0, clamped - baseHullCapacity), maxShieldCapacity)
+        return (hull, shield)
     }
 
     static func obstacleScale(for kind: GameConstants.ObstacleKind) -> CGFloat {
