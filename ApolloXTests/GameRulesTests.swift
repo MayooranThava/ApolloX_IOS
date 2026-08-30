@@ -194,9 +194,9 @@ final class GameRulesTests: XCTestCase {
         XCTAssertLessThan(mineRadius, asteroidRadius)
     }
 
-    func testBossHasFifteenHP() {
-        XCTAssertEqual(GameRules.bossProfile(at: 0).maxHP, 15)
-        XCTAssertEqual(GameRules.bossMaxHP, 15)
+    func testBossHasEighteenHP() {
+        XCTAssertEqual(GameRules.bossProfile(at: 0).maxHP, 18)
+        XCTAssertEqual(GameRules.bossMaxHP, 18)
     }
 
     func testBossVulnerabilityRequiresVisibilityAndDelay() {
