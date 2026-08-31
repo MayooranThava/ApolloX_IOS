@@ -319,6 +319,10 @@ def main() -> int:
     check("AppSettings.hapticsEnabled" in haptics, "HapticManager must honor haptics setting")
     check("privacyPolicyURL" in settings_src and "supportURL" in settings_src, "App Store legal URLs missing")
     check("How to Play" in title, "title menu needs How to Play")
+    check("TitleHeroShip" in title or "heroShip" in title or "heroRoot" in title,
+          "title should feature a hero ship visual")
+    check("playLaunchThenPresent" in title or "isLaunching" in title,
+          "Play should animate a rocket launch before starting a run")
     check((ROOT / "ApolloX" / "GameCenterAchievementService.swift").exists(), "GameCenterAchievementService missing")
     achievements = (ROOT / "ApolloX" / "GameCenterAchievementService.swift").read_text()
     check("firstBoss" in achievements and "score500" in achievements and "fiveLives" in achievements,
