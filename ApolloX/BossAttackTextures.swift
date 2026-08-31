@@ -37,6 +37,8 @@ enum BossAttackTextures {
     /// Legacy alias kept for older sanity checks / callers.
     static let nebulaFlame = voidPulse
 
+    /// Cached procedural lava animation frames for Solar Conclave attacks.
+    private static var lavaAnimationFrames: [String: [SKTexture]] = [:]
 
     static func lavaFrames(for name: String) -> [SKTexture]? {
         lavaAnimationFrames[name]
