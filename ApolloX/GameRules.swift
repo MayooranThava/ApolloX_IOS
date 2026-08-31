@@ -587,14 +587,19 @@ enum GameRules {
         }
     }
 
+    /// Plasma grenade detonation radius — half the visible playfield.
+    static func plasmaGrenadeAOERadius(playAreaSize: CGSize) -> CGFloat {
+        min(playAreaSize.width, playAreaSize.height) * 0.5
+    }
+
     static func specialProfile(for id: SpecialWeaponID) -> SpecialFireProfile {
         switch id {
         case .plasmaGrenade:
             return SpecialFireProfile(
                 cooldown: 4.2,
                 maxLive: 2,
-                aoeRadius: 175,
-                travelDuration: 0.55,
+                aoeRadius: 0,
+                travelDuration: 1.4,
                 damage: 2,
                 textureName: WeaponTextures.plasmaGrenade
             )

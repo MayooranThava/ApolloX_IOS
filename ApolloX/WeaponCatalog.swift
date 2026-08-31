@@ -90,7 +90,7 @@ enum WeaponCatalog {
     static let plasmaGrenade = WeaponItem(
         id: SpecialWeaponID.plasmaGrenade.rawValue,
         name: "Plasma Grenade",
-        blurb: "Smart lob — tracks the nearest threat",
+        blurb: "Homing blast — locks onto threats and clears half the screen",
         price: 0,
         slot: .special,
         textureName: "weaponPlasmaGrenade",
