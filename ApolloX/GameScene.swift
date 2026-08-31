@@ -1126,29 +1126,19 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             glowColor: SKColor(red: 0.45, green: 1.0, blue: 0.35, alpha: 0.55)
         )
         node.isArmed = true
+        node.flightSpeed = 820
         node.position = CGPoint(x: player.position.x, y: player.position.y + 40)
         node.lastPosition = node.position
         addChild(node)
         liveSpecials.append(node)
 
-        let target = smartGrenadeTarget()
-        let control = CGPoint(
-            x: (node.position.x + target.x) * 0.5 + CGFloat.random(in: -40...40),
-            y: max(node.position.y, target.y) + 90
-        )
-        let path = UIBezierPath()
-        path.move(to: node.position)
-        path.addQuadCurve(to: target, controlPoint: control)
-        let follow = SKAction.follow(path.cgPath, asOffset: false, orientToPath: false, duration: profile.travelDuration)
+        node.run(.repeatForever(.sequence([
+            .rotate(byAngle: .pi * 2, duration: 0.45),
+            .rotate(byAngle: -.pi * 2, duration: 0.45)
+        ])))
+
         node.run(.sequence([
-            .group([
-                follow,
-                .rotate(byAngle: .pi * 2.2, duration: profile.travelDuration),
-                .sequence([
-                    .scale(to: 1.12, duration: profile.travelDuration * 0.45),
-                    .scale(to: 0.95, duration: profile.travelDuration * 0.55)
-                ])
-            ]),
+            .wait(forDuration: profile.travelDuration),
             .run { [weak self, weak node] in
                 guard let self, let node, node.parent != nil else { return }
                 self.detonateSpecial(node, at: node.position)
@@ -1317,26 +1307,41 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     private func smartGrenadeTarget() -> CGPoint {
-        if let enemy = nearestThreatForGrenade() {
+        if let enemy = preferredGrenadeTarget(from: player.position) {
             return enemy.position
         }
-        // No contacts yet — lob into the approach lane where the next wave enters.
         return CGPoint(
             x: player.position.x,
             y: min(playArea.maxY - 100, player.position.y + playArea.height * 0.42)
         )
     }
 
-    private func nearestThreatForGrenade() -> PooledSprite? {
+    private func preferredGrenadeTarget(from point: CGPoint) -> PooledSprite? {
+        if bossVulnerable, let boss = bossNode, boss.parent != nil {
+            return boss
+        }
+        if let mine = liveEnemies.first(where: { $0.obstacleKind == .clearMine && $0.parent != nil }) {
+            return mine
+        }
+        return nearestThreatForGrenade(from: point)
+    }
+
+    private func nearestThreatForGrenade(from point: CGPoint? = nil) -> PooledSprite? {
+        let origin = point ?? player.position
         var best: PooledSprite?
         var bestScore = CGFloat.greatestFiniteMagnitude
         for enemy in liveEnemies where enemy.parent != nil {
-            // Prefer threats above the ship; ignore anything already behind the nose.
-            guard enemy.position.y > player.position.y - 20 else { continue }
-            let dx = enemy.position.x - player.position.x
-            let dy = enemy.position.y - player.position.y
-            // Weight vertical distance a bit less so clustered mid-lane targets win.
-            let score = dx * dx + dy * dy * 0.65
+            guard enemy.obstacleKind != nil else { continue }
+            let dx = enemy.position.x - origin.x
+            let dy = enemy.position.y - origin.y
+            var score = dx * dx + dy * dy * 0.6
+            if dy < -24 { score += 60_000 }
+            switch enemy.obstacleKind {
+            case .clearMine: score *= 0.25
+            case .mine: score *= 0.45
+            case .boss: score *= 0.15
+            default: break
+            }
             if score < bestScore {
                 bestScore = score
                 best = enemy
@@ -1362,7 +1367,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
                     continue
                 }
             case .plasmaGrenade:
-                if node.isArmed, specialProximityDetonate(node, triggerFactor: 0.55) {
+                steerPlasmaGrenade(node, delta: delta)
+                if node.isArmed, specialProximityDetonate(node, triggerFactor: 0.72) {
                     continue
                 }
             case .cooldownMine:
@@ -1374,6 +1380,20 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             }
             index += 1
         }
+    }
+
+    private func steerPlasmaGrenade(_ node: PooledSprite, delta: TimeInterval) {
+        guard let target = preferredGrenadeTarget(from: node.position) else {
+            node.position.y += node.flightSpeed * CGFloat(delta)
+            return
+        }
+        let dx = target.position.x - node.position.x
+        let dy = target.position.y - node.position.y
+        let length = max(0.001, hypot(dx, dy))
+        let step = node.flightSpeed * CGFloat(delta)
+        node.position.x += dx / length * step
+        node.position.y += dy / length * step
+        node.zRotation = atan2(dx, dy)
     }
 
     private func steerSeeker(_ node: PooledSprite, delta: TimeInterval) {
@@ -1443,7 +1463,13 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     private func detonateSpecial(_ node: PooledSprite, at point: CGPoint) {
         let damage = node.projectileDamage
-        let radius = max(40, node.hitRadius)
+        let radius: CGFloat
+        switch node.specialKind {
+        case .plasmaGrenade:
+            radius = GameRules.plasmaGrenadeAOERadius(playAreaSize: playArea.size)
+        default:
+            radius = max(40, node.hitRadius)
+        }
         let tint: SKColor
         switch node.specialKind {
         case .plasmaGrenade:
@@ -1458,9 +1484,9 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         if FramePacing.currentQuality != .conservative {
             spawnShockwaveRing(
                 at: point,
-                startScale: 0.2,
-                endScale: max(3.2, radius / 40),
-                duration: 0.34,
+                startScale: 0.15,
+                endScale: max(4.0, radius / 32),
+                duration: 0.42,
                 color: tint,
                 lineWidth: 7
             )
@@ -1888,19 +1914,20 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         let mode = bossVolleyIndex % 4
         bossVolleyIndex += 1
         switch mode {
-        case 0: // Solar Flare
+        case 0: // Lava Spit
             let spreads: [CGFloat] = [-100, -35, 35, 100]
             for spread in spreads {
                 spawnBossProjectile(
                     textureName: BossAttackTextures.solarFlare,
-                    scale: 0.86,
+                    scale: 0.92,
                     speed: 620,
-                    hitboxFactor: 0.34,
+                    hitboxFactor: 0.36,
                     from: origin,
-                    targetX: player.position.x + spread
+                    targetX: player.position.x + spread,
+                    wobble: true
                 )
             }
-        case 1: // Orbital Ring
+        case 1: // Molten Ring
             fireRingWithGap(
                 textureName: BossAttackTextures.orbitalSpark,
                 center: CGPoint(x: playArea.midX, y: origin.y - 90),
@@ -1909,21 +1936,22 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
                 segmentCount: 16,
                 gapSegments: 3,
                 travelDuration: 1.5,
-                scale: 0.74,
+                scale: 0.78,
                 hitboxFactor: 0.34,
                 expandOutward: true
             )
-        case 2: // Core Laser
+        case 2: // Lava Fountain
             fireDescendingWallWithGap(
                 textureName: BossAttackTextures.coreLaser,
                 fromY: origin.y - 40,
-                count: 8,
+                count: 6,
                 gapSlots: 2,
-                speed: 700,
-                scale: 0.70,
-                hitboxFactor: 0.28
+                speed: 580,
+                scale: 0.82,
+                hitboxFactor: 0.30,
+                wobble: true
             )
-        default: // Meteor Shower
+        default: // Magma Rain
             let baseX = player.position.x
             for index in 0..<5 {
                 let delay = Double(index) * 0.12
@@ -2269,6 +2297,12 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         )
         addChild(projectile)
         liveFireballs.append(projectile)
+
+        if let frames = BossAttackTextures.lavaFrames(for: textureName), frames.count > 1 {
+            projectile.run(.repeatForever(
+                .animate(with: frames, timePerFrame: 0.09, resize: false, restore: false)
+            ))
+        }
 
         if wobble {
             projectile.run(.repeatForever(.sequence([
