@@ -27,3 +27,11 @@ Those match `AppSettings.privacyPolicyURL` / `supportURL` in the app. If your Pa
 6. Submit the version (or next TestFlight build with the component) so the board leaves **Pre-release**
 
 The numeric ID (e.g. `56560239`) is Apple’s internal id — ignore it once the localized name is set.
+
+## Game Center achievements
+
+Create the ten achievement IDs listed in `docs/app-review-notes.md`, then attach them to the app version before submit. The app reports unlocks when signed in to Game Center.
+
+## App Review notes
+
+Copy from `docs/app-review-notes.md` into App Store Connect → App Review Information → Notes.

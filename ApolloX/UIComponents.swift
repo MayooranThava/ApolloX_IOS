@@ -808,6 +808,107 @@ final class SettingsToggleNode: SKNode {
     }
 }
 
+/// Settings row with a tap-to-adjust volume bar (0…100%).
+final class SettingsVolumeRow: SKNode {
+    private let panel = SKSpriteNode()
+    private let titleLabel = SKLabelNode()
+    private let valueLabel = SKLabelNode()
+    private let fill = SKSpriteNode()
+    private let track = SKSpriteNode()
+    private var volume: Float
+    private var rowWidth: CGFloat = 900
+    private let rowHeight: CGFloat = 100
+    private(set) var hitSize = CGSize.zero
+    private let onChange: (Float) -> Void
+
+    init(title: String, volume: Float, onChange: @escaping (Float) -> Void) {
+        self.volume = min(1, max(0, volume))
+        self.onChange = onChange
+        super.init()
+        zPosition = GameConstants.Z.hud
+
+        addChild(panel)
+        track.color = SKColor(white: 1, alpha: 0.12)
+        track.zPosition = 1
+        addChild(track)
+        fill.color = GameTheme.accent
+        fill.zPosition = 2
+        addChild(fill)
+
+        titleLabel.fontName = GameFont.resolved(size: 40)
+        titleLabel.text = title
+        titleLabel.fontSize = 40
+        titleLabel.fontColor = .white
+        titleLabel.verticalAlignmentMode = .center
+        titleLabel.horizontalAlignmentMode = .left
+        titleLabel.zPosition = 3
+        addChild(titleLabel)
+
+        valueLabel.fontName = GameFont.resolved(size: 30)
+        valueLabel.fontSize = 30
+        valueLabel.fontColor = GameTheme.secondary
+        valueLabel.verticalAlignmentMode = .center
+        valueLabel.horizontalAlignmentMode = .right
+        valueLabel.zPosition = 3
+        addChild(valueLabel)
+
+        isAccessibilityElement = true
+        accessibilityTraits = .adjustable
+        layout(width: rowWidth)
+    }
+
+    required init?(coder aDecoder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    func layout(width: CGFloat) {
+        rowWidth = width
+        hitSize = CGSize(width: width + 40, height: rowHeight + 28)
+        panel.size = CGSize(width: width, height: rowHeight)
+        panel.texture = ShapeTexture.roundedRect(
+            size: panel.size,
+            cornerRadius: 28,
+            fill: GameTheme.panel,
+            stroke: SKColor(white: 1, alpha: 0.14),
+            lineWidth: 2
+        )
+        titleLabel.position = CGPoint(x: -width * 0.5 + 36, y: 14)
+        valueLabel.position = CGPoint(x: width * 0.5 - 36, y: 14)
+
+        let trackWidth = width - 72
+        let trackHeight: CGFloat = 14
+        track.size = CGSize(width: trackWidth, height: trackHeight)
+        track.position = CGPoint(x: 0, y: -22)
+        fill.size = CGSize(width: max(8, trackWidth * CGFloat(volume)), height: trackHeight - 2)
+        fill.position = CGPoint(x: -trackWidth * 0.5 + fill.size.width * 0.5, y: track.position.y)
+        accessibilityLabel = "\(titleLabel.text ?? "Volume"), \(Int(volume * 100)) percent"
+    }
+
+    func setVolume(_ value: Float) {
+        volume = min(1, max(0, value))
+        layout(width: rowWidth)
+    }
+
+    func containsTouch(_ point: CGPoint) -> Bool {
+        let rect = CGRect(
+            x: position.x - hitSize.width * 0.5,
+            y: position.y - hitSize.height * 0.5,
+            width: hitSize.width,
+            height: hitSize.height
+        )
+        return rect.contains(point)
+    }
+
+    func adjust(at point: CGPoint) {
+        let localX = point.x - position.x
+        let trackWidth = rowWidth - 72
+        let normalized = (localX + trackWidth * 0.5) / trackWidth
+        volume = Float(min(1, max(0, normalized)))
+        layout(width: rowWidth)
+        onChange(volume)
+    }
+}
+
 /// Thumb-side hardpoint trigger with cooldown fill.
 final class SpecialWeaponButton: SKNode {
     private let plate = SKSpriteNode()

@@ -12,6 +12,7 @@ final class GameTitleScene: SKScene {
     private var ranksButton: MenuButtonNode?
     private var storeButton: MenuButtonNode?
     private var settingsButton: MenuButtonNode?
+    private var howToPlayButton: MenuButtonNode?
     private let titleLabel = SKLabelNode()
     private let subtitleLabel = SKLabelNode()
     private let bestLabel = SKLabelNode()
@@ -24,6 +25,8 @@ final class GameTitleScene: SKScene {
         view.accessibilityLabel = "ApolloX"
         HapticManager.prepare()
         GameCenterService.authenticateAtLaunch()
+        GameCenterService.loadLocalPlayerRank { _ in }
+        AudioManager.startBackgroundMusicIfNeeded()
         addProductionBackground()
 
         titleLabel.fontName = GameFont.resolved(size: 120)
@@ -85,9 +88,13 @@ final class GameTitleScene: SKScene {
         storeButton = store
         addChild(store)
 
-        let settings = MenuButtonNode(title: "Settings", width: 420, height: 80, fontSize: 34, emphasized: false)
+        let settings = MenuButtonNode(title: "Settings", width: 200, height: 80, fontSize: 34, emphasized: false)
         settingsButton = settings
         addChild(settings)
+
+        let howTo = MenuButtonNode(title: "How to Play", width: 420, height: 72, fontSize: 32, emphasized: false)
+        howToPlayButton = howTo
+        addChild(howTo)
 
         titleLabel.alpha = 0
         subtitleLabel.alpha = 0
@@ -97,6 +104,7 @@ final class GameTitleScene: SKScene {
         ranks.alpha = 0
         store.alpha = 0
         settings.alpha = 0
+        howTo.alpha = 0
         titleLabel.run(.fadeIn(withDuration: 0.45))
         subtitleLabel.run(.sequence([.wait(forDuration: 0.08), .fadeIn(withDuration: 0.4)]))
         bestLabel.run(.sequence([.wait(forDuration: 0.16), .fadeIn(withDuration: 0.4)]))
@@ -105,6 +113,7 @@ final class GameTitleScene: SKScene {
         ranks.run(.sequence([.wait(forDuration: 0.26), .fadeIn(withDuration: 0.4)]))
         store.run(.sequence([.wait(forDuration: 0.26), .fadeIn(withDuration: 0.4)]))
         settings.run(.sequence([.wait(forDuration: 0.30), .fadeIn(withDuration: 0.4)]))
+        howTo.run(.sequence([.wait(forDuration: 0.34), .fadeIn(withDuration: 0.4)]))
 
         whenSafeAreaReady { [weak self] in
             self?.relayout()
@@ -136,7 +145,8 @@ final class GameTitleScene: SKScene {
         playButton?.position = CGPoint(x: safe.midX, y: safe.minY + 280)
         ranksButton?.position = CGPoint(x: safe.midX - 120, y: safe.minY + 178)
         storeButton?.position = CGPoint(x: safe.midX + 120, y: safe.minY + 178)
-        settingsButton?.position = CGPoint(x: safe.midX, y: safe.minY + 78)
+        settingsButton?.position = CGPoint(x: safe.midX - 110, y: safe.minY + 78)
+        howToPlayButton?.position = CGPoint(x: safe.midX + 110, y: safe.minY + 78)
     }
 
     override func didChangeSize(_ oldSize: CGSize) {
@@ -181,6 +191,13 @@ final class GameTitleScene: SKScene {
             AudioManager.play(.uiTap)
             HapticManager.fire()
             presentScene(SettingsScene(size: size))
+            return
+        }
+        if let howToPlayButton, howToPlayButton.containsTouch(point) {
+            howToPlayButton.pulse()
+            AudioManager.play(.uiTap)
+            HapticManager.fire()
+            presentScene(OnboardingScene(size: size))
         }
     }
 }

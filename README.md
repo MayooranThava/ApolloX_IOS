@@ -96,7 +96,7 @@ Host `docs/privacy-policy.html` and `docs/support.html` (GitHub Pages from `/doc
 | Privacy Policy | `https://mayooranthava.github.io/ApolloX_IOS/privacy-policy.html` |
 | Support | `https://mayooranthava.github.io/ApolloX_IOS/support.html` |
 
-See `docs/README.md`. If the Pages URL differs, update `AppSettings.swift` to match.
+See `docs/README.md`. App Review copy: `docs/app-review-notes.md`. If the Pages URL differs, update `AppSettings.swift` to match.
 
 ### Archive and upload (each build)
 
@@ -122,14 +122,20 @@ After upload, open [App Store Connect](https://appstoreconnect.apple.com) → yo
 
 | Priority | Item | Owner | Status |
 |---|---|---|---|
-| P0 | Settings (sound/haptics) + first-run onboarding | Repo | This PR |
+| P0 | Settings (sound/haptics) + first-run onboarding | Repo | **Done** |
 | P0 | Privacy + support HTTPS pages (`docs/`) + App Store Connect URLs | You | Enable GitHub Pages |
 | P0 | Leaderboard EN localization **High Score** + attach to version (fixes *MISSING TITLE* / Pre-release) | App Store Connect | Do on phone |
 | P0 | Privacy nutrition label + 2026 age rating | App Store Connect | Before submit |
 | P0 | 6.7" + 6.1" screenshots / preview video | Device / ASC | Before submit |
 | P0 | 15–30 min soak on Pro + 60 Hz iPhone; empty crash reports | Device | Before submit |
-| P1 | Texture atlas + larger / @3x background | Repo | Not started |
-| P1 | Music + achievements | Repo | Not started |
+| P0 | Game Center end-to-end on production build | Device | Verify on TestFlight |
+| P1 | Texture atlas + @3x background | Repo | Partial — texture batch preload done; true @3x BG art still needs artist |
+| P1 | Music loop + music/SFX volume sliders | Repo | **Done** |
+| P1 | Game Center achievements (10) | Repo + ASC | Code done — create IDs in ASC |
+| P1 | Run summary (rank delta, credits, new best) | Repo | **Done** |
+| P1 | How to Play from title | Repo | **Done** |
+| P1 | Crash reports (Apple Organizer only) | Automatic | No third-party SDK |
+| P1 | App Review notes | Repo | **Done** (`docs/app-review-notes.md`) |
 
 Do not add IAP or third-party analytics until there is a product reason.
 
@@ -139,12 +145,14 @@ Do these on a real phone. The simulator cannot prove ProMotion, haptics, thermal
 
 - [ ] Internal TestFlight build installs and launches to the title screen
 - [ ] First launch: **Play** opens onboarding → Play starts a run
-- [ ] **Settings**: Sound / Haptics toggle; How to Play; Privacy / Support open in Safari
+- [ ] **Settings**: Sound / Music / SFX & Music volume / Haptics; How to Play; Privacy / Support open in Safari
+- [ ] Title → **How to Play** opens the onboarding cards without starting a run
 - [ ] Play: steer, pause / resume, background the app, confirm it stays paused
 - [ ] Boost, health pickup, mine (two hits), and game-over → Restart / Ranks / Menu
 - [ ] Title → **Ranks** shows top 5 (or a clear signed-out / empty message)
 - [ ] Apple Game Center UI shows **High Score** (not *MISSING TITLE*); Pre-release gone after version attach
-- [ ] After a run, best score appears on the Game Center leaderboard for a signed-in tester
+- [ ] After a run, game over shows credits, **NEW BEST** when applicable, and rank delta when signed in
+- [ ] Background music loops on the title screen; volume sliders work in Settings
 - [ ] iPhone 16/17 Pro: 120 Hz with `-ApolloXShowStats`; Low Power Mode: 60 Hz
 - [ ] A 60 Hz iPhone (non-Pro) still plays smoothly
 - [ ] Silent switch mutes SFX (`AVAudioSession` is `.ambient`); Settings Sound Off mutes too

@@ -11,10 +11,12 @@ final class GameOverScene: SKScene {
     private let dim = SKSpriteNode(color: SKColor(white: 0, alpha: 0.45), size: .zero)
     private let card = SKSpriteNode()
     private let titleLabel = SKLabelNode()
+    private let newBestBanner = SKLabelNode()
     private let scoreLabel = SKLabelNode()
     private let earnedLabel = SKLabelNode()
     private let walletLabel = SKLabelNode()
     private let bestLabel = SKLabelNode()
+    private let rankDeltaLabel = SKLabelNode()
     private let ranksHintLabel = SKLabelNode()
     private var restartButton: MenuButtonNode?
     private var ranksButton: MenuButtonNode?
@@ -26,6 +28,8 @@ final class GameOverScene: SKScene {
         let finalScore = ScoreStore.currentScore
         let best = ScoreStore.commitHighScoreIfNeeded()
         let wallet = ScoreStore.commitWalletIfNeeded()
+        let isNewBest = ScoreStore.lastCommitWasNewBest
+        GameCenterAchievementService.checkWallet(wallet)
 
         dim.zPosition = GameConstants.Z.hud - 2
         addChild(dim)
@@ -41,6 +45,15 @@ final class GameOverScene: SKScene {
         titleLabel.verticalAlignmentMode = .center
         titleLabel.zPosition = GameConstants.Z.hud
         addChild(titleLabel)
+
+        newBestBanner.fontName = GameFont.resolved(size: 44)
+        newBestBanner.text = "★  NEW BEST  ★"
+        newBestBanner.fontSize = 44
+        newBestBanner.fontColor = GameTheme.accent
+        newBestBanner.verticalAlignmentMode = .center
+        newBestBanner.zPosition = GameConstants.Z.hud
+        newBestBanner.isHidden = !isNewBest
+        addChild(newBestBanner)
 
         scoreLabel.fontName = GameFont.resolved(size: 54)
         scoreLabel.text = "SCORE  \(finalScore)"
@@ -67,12 +80,24 @@ final class GameOverScene: SKScene {
         addChild(walletLabel)
 
         bestLabel.fontName = GameFont.resolved(size: 44)
-        bestLabel.text = "BEST  \(best)"
+        if isNewBest, ScoreStore.lastCommitPreviousBest > 0 {
+            bestLabel.text = "BEST  \(ScoreStore.lastCommitPreviousBest) → \(best)"
+        } else {
+            bestLabel.text = "BEST  \(best)"
+        }
         bestLabel.fontSize = 44
-        bestLabel.fontColor = GameTheme.accent
+        bestLabel.fontColor = isNewBest ? GameTheme.accent : GameTheme.secondary
         bestLabel.verticalAlignmentMode = .center
         bestLabel.zPosition = GameConstants.Z.hud
         addChild(bestLabel)
+
+        rankDeltaLabel.fontName = GameFont.resolved(size: 28)
+        rankDeltaLabel.fontSize = 28
+        rankDeltaLabel.fontColor = SKColor(white: 0.78, alpha: 1)
+        rankDeltaLabel.verticalAlignmentMode = .center
+        rankDeltaLabel.zPosition = GameConstants.Z.hud
+        rankDeltaLabel.text = "Checking rank…"
+        addChild(rankDeltaLabel)
 
         ranksHintLabel.fontName = GameFont.resolved(size: 26)
         ranksHintLabel.text = GameCenterService.isAuthenticated
@@ -97,27 +122,71 @@ final class GameOverScene: SKScene {
         // Entrance
         card.alpha = 0
         titleLabel.alpha = 0
+        newBestBanner.alpha = 0
         scoreLabel.alpha = 0
         earnedLabel.alpha = 0
         walletLabel.alpha = 0
         bestLabel.alpha = 0
+        rankDeltaLabel.alpha = 0
         ranksHintLabel.alpha = 0
         restart.alpha = 0
         ranks.alpha = 0
         menu.alpha = 0
         card.run(.fadeIn(withDuration: 0.3))
         titleLabel.run(.sequence([.wait(forDuration: 0.05), .fadeIn(withDuration: 0.3)]))
+        if isNewBest {
+            newBestBanner.run(.sequence([
+                .wait(forDuration: 0.08),
+                .fadeIn(withDuration: 0.25),
+                .repeatForever(.sequence([
+                    .scale(to: 1.06, duration: 0.45),
+                    .scale(to: 1.0, duration: 0.45)
+                ]))
+            ]))
+        }
         scoreLabel.run(.sequence([.wait(forDuration: 0.1), .fadeIn(withDuration: 0.3)]))
         earnedLabel.run(.sequence([.wait(forDuration: 0.12), .fadeIn(withDuration: 0.3)]))
         walletLabel.run(.sequence([.wait(forDuration: 0.14), .fadeIn(withDuration: 0.3)]))
         bestLabel.run(.sequence([.wait(forDuration: 0.16), .fadeIn(withDuration: 0.3)]))
-        ranksHintLabel.run(.sequence([.wait(forDuration: 0.18), .fadeIn(withDuration: 0.3)]))
-        restart.run(.sequence([.wait(forDuration: 0.2), .fadeIn(withDuration: 0.3)]))
-        ranks.run(.sequence([.wait(forDuration: 0.24), .fadeIn(withDuration: 0.3)]))
-        menu.run(.sequence([.wait(forDuration: 0.28), .fadeIn(withDuration: 0.3)]))
+        rankDeltaLabel.run(.sequence([.wait(forDuration: 0.18), .fadeIn(withDuration: 0.3)]))
+        ranksHintLabel.run(.sequence([.wait(forDuration: 0.2), .fadeIn(withDuration: 0.3)]))
+        restart.run(.sequence([.wait(forDuration: 0.22), .fadeIn(withDuration: 0.3)]))
+        ranks.run(.sequence([.wait(forDuration: 0.26), .fadeIn(withDuration: 0.3)]))
+        menu.run(.sequence([.wait(forDuration: 0.30), .fadeIn(withDuration: 0.3)]))
 
         whenSafeAreaReady { [weak self] in
             self?.relayout()
+        }
+        refreshRankDelta()
+    }
+
+    private func refreshRankDelta() {
+        guard GameCenterService.isAuthenticated else {
+            rankDeltaLabel.text = ""
+            rankDeltaLabel.alpha = 0
+            relayout()
+            return
+        }
+
+        let previousRank = AppSettings.lastKnownGameCenterRank
+        GameCenterService.loadLocalPlayerRank { [weak self] newRank in
+            guard let self else { return }
+            if let newRank, let previousRank, previousRank != newRank {
+                if newRank < previousRank {
+                    self.rankDeltaLabel.text = "RANK  #\(previousRank) → #\(newRank)  ▲"
+                    self.rankDeltaLabel.fontColor = GameTheme.credit
+                } else {
+                    self.rankDeltaLabel.text = "RANK  #\(newRank)"
+                    self.rankDeltaLabel.fontColor = SKColor(white: 0.78, alpha: 1)
+                }
+            } else if let newRank {
+                self.rankDeltaLabel.text = "RANK  #\(newRank)"
+                self.rankDeltaLabel.fontColor = GameTheme.accent
+            } else {
+                self.rankDeltaLabel.text = "RANK  —"
+                self.rankDeltaLabel.fontColor = SKColor(white: 0.65, alpha: 1)
+            }
+            self.relayout()
         }
     }
 
@@ -127,7 +196,7 @@ final class GameOverScene: SKScene {
         dim.position = CGPoint(x: size.width * 0.5, y: size.height * 0.5)
 
         let cardWidth = min(safe.width, 980)
-        let cardHeight: CGFloat = 980
+        let cardHeight: CGFloat = newBestBanner.isHidden ? 980 : 1040
         card.size = CGSize(width: cardWidth, height: cardHeight)
         card.texture = ShapeTexture.roundedRect(
             size: card.size,
@@ -138,15 +207,21 @@ final class GameOverScene: SKScene {
         )
         card.position = CGPoint(x: safe.midX, y: safe.midY + 10)
 
-        titleLabel.position = CGPoint(x: safe.midX, y: card.position.y + 360)
+        var y = card.position.y + 360
+        titleLabel.position = CGPoint(x: safe.midX, y: y)
+        if !newBestBanner.isHidden {
+            y -= 72
+            newBestBanner.position = CGPoint(x: safe.midX, y: y)
+        }
         scoreLabel.position = CGPoint(x: safe.midX, y: card.position.y + 220)
         earnedLabel.position = CGPoint(x: safe.midX, y: card.position.y + 152)
         walletLabel.position = CGPoint(x: safe.midX, y: card.position.y + 98)
-        bestLabel.position = CGPoint(x: safe.midX, y: card.position.y + 30)
-        ranksHintLabel.position = CGPoint(x: safe.midX, y: card.position.y - 40)
-        restartButton?.position = CGPoint(x: safe.midX, y: card.position.y - 150)
-        ranksButton?.position = CGPoint(x: safe.midX, y: card.position.y - 268)
-        menuButton?.position = CGPoint(x: safe.midX, y: card.position.y - 380)
+        bestLabel.position = CGPoint(x: safe.midX, y: card.position.y + 38)
+        rankDeltaLabel.position = CGPoint(x: safe.midX, y: card.position.y - 18)
+        ranksHintLabel.position = CGPoint(x: safe.midX, y: card.position.y - 62)
+        restartButton?.position = CGPoint(x: safe.midX, y: card.position.y - 168)
+        ranksButton?.position = CGPoint(x: safe.midX, y: card.position.y - 286)
+        menuButton?.position = CGPoint(x: safe.midX, y: card.position.y - 398)
     }
 
     override func didChangeSize(_ oldSize: CGSize) {

@@ -172,6 +172,9 @@ final class LeaderboardScene: SKScene {
                 } else {
                     self.statusLabel.alpha = 0
                     self.show(entries: entries)
+                    if let local = entries.first(where: \.isLocalPlayer) {
+                        AppSettings.lastKnownGameCenterRank = local.rank
+                    }
                 }
             case .failure(let error):
                 self.statusLabel.alpha = 1

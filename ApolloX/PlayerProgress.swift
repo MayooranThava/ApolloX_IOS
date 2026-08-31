@@ -87,6 +87,9 @@ enum PlayerProgress {
         owned.insert(shipId)
         persistOwned(owned)
         _ = equip(shipId)
+        if shipId != PlayerShipCatalog.defaultShip.id {
+            GameCenterAchievementService.unlock(.buyShip)
+        }
         return .purchased(remaining: credits)
     }
 

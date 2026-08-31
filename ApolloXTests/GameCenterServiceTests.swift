@@ -169,6 +169,12 @@ private final class FakeGameCenterBackend: GameCenterBackend {
         completion(.success(Array(entries.prefix(limit))))
     }
 
+    var localPlayerRank: Int?
+
+    func loadLocalPlayerRank(leaderboardID: String, completion: @escaping (Int?) -> Void) {
+        completion(localPlayerRank)
+    }
+
     func makeLeaderboardViewController(leaderboardID: String) -> UIViewController {
         UIViewController()
     }

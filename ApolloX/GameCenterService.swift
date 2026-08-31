@@ -130,6 +130,25 @@ enum GameCenterService {
         }
     }
 
+    /// Fetches the signed-in player's global rank on the classic board (nil when unranked).
+    static func loadLocalPlayerRank(completion: @escaping (Int?) -> Void) {
+        guard isAuthenticated || backend.isAuthenticated else {
+            DispatchQueue.main.async { completion(nil) }
+            return
+        }
+        isAuthenticated = true
+
+        backend.loadLocalPlayerRank(leaderboardID: classicHighScoreLeaderboardID) { rank in
+            DispatchQueue.main.async {
+                if let rank, rank > 0 {
+                    AppSettings.lastKnownGameCenterRank = rank
+                    GameCenterAchievementService.checkRank(rank)
+                }
+                completion(rank)
+            }
+        }
+    }
+
     // MARK: - Apple dashboard
 
     /// Presents Apple's Game Center leaderboard UI (App Review–friendly escape hatch).
@@ -208,6 +227,7 @@ protocol GameCenterBackend: AnyObject {
         limit: Int,
         completion: @escaping (Result<[LeaderboardEntry], Error>) -> Void
     )
+    func loadLocalPlayerRank(leaderboardID: String, completion: @escaping (Int?) -> Void)
     func makeLeaderboardViewController(leaderboardID: String) -> UIViewController
 }
 
@@ -260,6 +280,25 @@ final class LiveGameCenterBackend: GameCenterBackend {
                 completion(.success(mapped))
             } catch {
                 completion(.failure(error))
+            }
+        }
+    }
+
+    func loadLocalPlayerRank(leaderboardID: String, completion: @escaping (Int?) -> Void) {
+        Task {
+            do {
+                let boards = try await GKLeaderboard.loadLeaderboards(IDs: [leaderboardID])
+                guard let board = boards.first else {
+                    completion(nil)
+                    return
+                }
+                let (_, entry, _) = try await board.loadEntries(
+                    for: [GKLocalPlayer.local],
+                    timeScope: .allTime
+                )
+                completion(entry?.rank)
+            } catch {
+                completion(nil)
             }
         }
     }
