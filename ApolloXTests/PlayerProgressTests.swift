@@ -66,7 +66,7 @@ final class PlayerProgressTests: XCTestCase {
         XCTAssertEqual(PlayerProgress.equipWeapon(WeaponCatalog.pulseLaser.id), .equipped)
         XCTAssertEqual(PlayerProgress.equippedPrimaryWeaponId, WeaponCatalog.pulseLaser.id)
 
-        PlayerProgress.addCredits(500)
+        PlayerProgress.addCredits(750)
         XCTAssertEqual(
             PlayerProgress.purchaseWeapon(WeaponCatalog.seekerPod.id),
             .purchased(remaining: 0)
