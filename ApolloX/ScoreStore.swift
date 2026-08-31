@@ -16,6 +16,9 @@ enum ScoreStore {
     static var highScoreReporter: (Int) -> Void = { GameCenterService.reportScore($0) }
 
     private(set) static var currentScore = 0
+    /// Set by `commitHighScoreIfNeeded()` for the run-summary card.
+    private(set) static var lastCommitWasNewBest = false
+    private(set) static var lastCommitPreviousBest = 0
     /// Prevents GameScene and GameOverScene from crediting the same run twice.
     private static var didCommitWalletForRun = false
     /// Prevents double Game Center submits when GameScene and GameOverScene both commit.
@@ -27,6 +30,8 @@ enum ScoreStore {
 
     static func resetCurrentScore() {
         currentScore = 0
+        lastCommitWasNewBest = false
+        lastCommitPreviousBest = 0
         didCommitWalletForRun = false
         didReportGameCenterForRun = false
     }
@@ -34,14 +39,17 @@ enum ScoreStore {
     @discardableResult
     static func addPoint(_ amount: Int = 1) -> Int {
         currentScore += amount
+        GameCenterAchievementService.checkScoreMilestones(currentScore)
         return currentScore
     }
 
     @discardableResult
     static func commitHighScoreIfNeeded() -> Int {
         let previousBest = highScore
+        lastCommitPreviousBest = previousBest
+        lastCommitWasNewBest = currentScore > previousBest
         let best: Int
-        if currentScore > previousBest {
+        if lastCommitWasNewBest {
             storage.set(currentScore, forKey: highScoreKey)
             best = currentScore
         } else {

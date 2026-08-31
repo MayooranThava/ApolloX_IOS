@@ -49,7 +49,9 @@
 		C1B1001B208A000100BD3501 /* minePulse.wav in Resources */ = {isa = PBXBuildFile; fileRef = C1B1001A208A000100BD3501 /* minePulse.wav */; };
 		C1B1001D208A000100BD3501 /* uiTap.wav in Resources */ = {isa = PBXBuildFile; fileRef = C1B1001C208A000100BD3501 /* uiTap.wav */; };
 		C1B60001208A000100BD3501 /* GameplayTextures.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B60000208A000100BD3501 /* GameplayTextures.swift */; };
-		C1B60003208A000100BD3501 /* rocketWarning.wav in Resources */ = {isa = PBXBuildFile; fileRef = C1B60002208A000100BD3501 /* rocketWarning.wav */; };
+        C1B60003208A000100BD3501 /* rocketWarning.wav in Resources */ = {isa = PBXBuildFile; fileRef = C1B60002208A000100BD3501 /* rocketWarning.wav */; };
+		C1BA0003208A000100BD3501 /* backgroundMusicLoop.wav in Resources */ = {isa = PBXBuildFile; fileRef = C1BA0002208A000100BD3501 /* backgroundMusicLoop.wav */; };
+		C1BA0005208A000100BD3501 /* GameCenterAchievementService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1BA0004208A000100BD3501 /* GameCenterAchievementService.swift */; };
 		C1B60005208A000100BD3501 /* BossAttackTextures.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B60004208A000100BD3501 /* BossAttackTextures.swift */; };
 		C1B20001208A000100BD3501 /* GameRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B20000208A000100BD3501 /* GameRules.swift */; };
 		C1B20011208A000100BD3501 /* GameRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B20010208A000100BD3501 /* GameRulesTests.swift */; };
@@ -107,6 +109,8 @@
 		C1B1001C208A000100BD3501 /* uiTap.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = uiTap.wav; sourceTree = "<group>"; };
 		C1B60000208A000100BD3501 /* GameplayTextures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameplayTextures.swift; sourceTree = "<group>"; };
 		C1B60002208A000100BD3501 /* rocketWarning.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = rocketWarning.wav; sourceTree = "<group>"; };
+		C1BA0002208A000100BD3501 /* backgroundMusicLoop.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = backgroundMusicLoop.wav; sourceTree = "<group>"; };
+		C1BA0004208A000100BD3501 /* GameCenterAchievementService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameCenterAchievementService.swift; sourceTree = "<group>"; };
 		C1B60004208A000100BD3501 /* BossAttackTextures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BossAttackTextures.swift; sourceTree = "<group>"; };
 		C1B20000208A000100BD3501 /* GameRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameRules.swift; sourceTree = "<group>"; };
 		C1B20010208A000100BD3501 /* GameRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameRulesTests.swift; sourceTree = "<group>"; };
@@ -218,11 +222,13 @@
 				C1B1001A208A000100BD3501 /* minePulse.wav */,
 				C1B1001C208A000100BD3501 /* uiTap.wav */,
 				C1B60002208A000100BD3501 /* rocketWarning.wav */,
+				C1BA0002208A000100BD3501 /* backgroundMusicLoop.wav */,
 				C15432AC28C5C48F000611A5 /* THEBOLDFONT.ttf */,
 				C1B10000208A000100BD3501 /* GameConstants.swift */,
 				C1B20000208A000100BD3501 /* GameRules.swift */,
 				C1B10002208A000100BD3501 /* ScoreStore.swift */,
 				C1B80000208A000100BD3501 /* GameCenterService.swift */,
+				C1BA0004208A000100BD3501 /* GameCenterAchievementService.swift */,
 				C1B90000208A000100BD3501 /* AppSettings.swift */,
 				C1B70000208A000100BD3501 /* PlayerProgress.swift */,
 				C1B70002208A000100BD3501 /* PlayerShipCatalog.swift */,
@@ -371,6 +377,7 @@
 				C1B1001B208A000100BD3501 /* minePulse.wav in Resources */,
 				C1B1001D208A000100BD3501 /* uiTap.wav in Resources */,
 				C1B60003208A000100BD3501 /* rocketWarning.wav in Resources */,
+				C1BA0003208A000100BD3501 /* backgroundMusicLoop.wav in Resources */,
 
 				C1B10009208A000100BD3501 /* PrivacyInfo.xcprivacy in Resources */,
 			);
@@ -401,6 +408,7 @@
 				C1B20001208A000100BD3501 /* GameRules.swift in Sources */,
 				C1B10003208A000100BD3501 /* ScoreStore.swift in Sources */,
 				C1B80001208A000100BD3501 /* GameCenterService.swift in Sources */,
+				C1BA0005208A000100BD3501 /* GameCenterAchievementService.swift in Sources */,
 				C1B90001208A000100BD3501 /* AppSettings.swift in Sources */,
 				C1B70001208A000100BD3501 /* PlayerProgress.swift in Sources */,
 				C1B70003208A000100BD3501 /* PlayerShipCatalog.swift in Sources */,

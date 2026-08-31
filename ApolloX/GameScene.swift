@@ -41,6 +41,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     private var lastUpdateTime: TimeInterval = 0
     private var lastFrameDelta: TimeInterval = 1.0 / 60.0
     private var bossesSpawnedCount = 0
+    private var bossesDefeatedCount = 0
     private var currentBossMaxHP = GameRules.bossMaxHP
     private var currentBossPoints = GameRules.bossPoints
     private var bossActive = false
@@ -2308,6 +2309,13 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     private func onBossDefeated(at position: CGPoint) {
+        bossesDefeatedCount += 1
+        if bossesDefeatedCount == 1 {
+            GameCenterAchievementService.unlock(.firstBoss)
+        }
+        if bossesDefeatedCount >= GameRules.maxBossCount {
+            GameCenterAchievementService.unlock(.allBosses)
+        }
         bossActive = false
         bossVulnerable = false
         bossNode = nil
@@ -2387,6 +2395,9 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         spawnExplosion(at: position, image: "mini_explosion", scale: 0.75)
         hud.setLives(lives)
         hud.pulseLives()
+        if lives >= GameRules.maxLives {
+            GameCenterAchievementService.unlock(.fiveLives)
+        }
         if lives > previous {
             showStatusBanner(text: "+1 LIFE", color: SKColor(red: 0.35, green: 0.95, blue: 0.55, alpha: 1))
         } else {

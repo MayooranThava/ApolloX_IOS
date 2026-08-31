@@ -31,16 +31,25 @@ final class AppSettingsTests: XCTestCase {
     func testDefaultsAreEnabledAndOnboardingIncomplete() {
         XCTAssertTrue(AppSettings.soundEnabled)
         XCTAssertTrue(AppSettings.hapticsEnabled)
+        XCTAssertTrue(AppSettings.musicEnabled)
+        XCTAssertEqual(AppSettings.musicVolume, 0.55, accuracy: 0.01)
+        XCTAssertEqual(AppSettings.sfxVolume, 1.0, accuracy: 0.01)
         XCTAssertFalse(AppSettings.hasCompletedOnboarding)
     }
 
     func testTogglesPersist() {
         AppSettings.soundEnabled = false
         AppSettings.hapticsEnabled = false
+        AppSettings.musicEnabled = false
+        AppSettings.musicVolume = 0.25
+        AppSettings.sfxVolume = 0.5
         AppSettings.hasCompletedOnboarding = true
 
         XCTAssertFalse(AppSettings.soundEnabled)
         XCTAssertFalse(AppSettings.hapticsEnabled)
+        XCTAssertFalse(AppSettings.musicEnabled)
+        XCTAssertEqual(AppSettings.musicVolume, 0.25, accuracy: 0.01)
+        XCTAssertEqual(AppSettings.sfxVolume, 0.5, accuracy: 0.01)
         XCTAssertTrue(AppSettings.hasCompletedOnboarding)
     }
 

@@ -178,8 +178,8 @@ final class OnboardingScene: SKScene {
         if firstRun {
             presentScene(playNow ? GameScene(size: size) : GameTitleScene(size: size))
         } else {
-            // Replayed from Settings → How to Play
-            presentScene(SettingsScene(size: size))
+            // Replayed from title / Settings → How to Play
+            presentScene(GameTitleScene(size: size))
         }
     }
 

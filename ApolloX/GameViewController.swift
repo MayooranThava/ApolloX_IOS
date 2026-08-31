@@ -14,6 +14,7 @@ final class GameViewController: UIViewController {
         configureAudioSession()
         TextureCache.preload()
         AudioManager.preload()
+        AudioManager.startBackgroundMusicIfNeeded()
         HapticManager.prepare()
         PlayerShipCatalog.registerTextures()
         WeaponCatalog.registerTextures()

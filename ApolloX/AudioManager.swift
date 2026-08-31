@@ -30,6 +30,7 @@ enum AudioCue: String, CaseIterable {
 enum AudioManager {
     private static var pools: [AudioCue: [AVAudioPlayer]] = [:]
     private static var nextIndex: [AudioCue: Int] = [:]
+    private static var musicPlayer: AVAudioPlayer?
 
     static func preload() {
         guard pools.isEmpty else { return }
@@ -50,20 +51,70 @@ enum AudioManager {
                 nextIndex[cue] = 0
             }
         }
+        preloadMusicIfNeeded()
+    }
+
+    private static func preloadMusicIfNeeded() {
+        guard musicPlayer == nil else { return }
+        guard let url = Bundle.main.url(forResource: "backgroundMusicLoop", withExtension: "wav") else {
+            return
+        }
+        guard let player = try? AVAudioPlayer(contentsOf: url) else { return }
+        player.numberOfLoops = -1
+        player.prepareToPlay()
+        musicPlayer = player
+        applyMusicVolume()
+    }
+
+    static func startBackgroundMusicIfNeeded() {
+        preloadMusicIfNeeded()
+        guard AppSettings.musicEnabled else {
+            musicPlayer?.stop()
+            return
+        }
+        applyMusicVolume()
+        guard let player = musicPlayer, !player.isPlaying else { return }
+        player.currentTime = 0
+        player.play()
+    }
+
+    static func stopBackgroundMusic() {
+        musicPlayer?.stop()
+    }
+
+    static func refreshMusicVolume() {
+        applyMusicVolume()
+        if AppSettings.musicEnabled {
+            startBackgroundMusicIfNeeded()
+        } else {
+            musicPlayer?.stop()
+        }
+    }
+
+    private static func applyMusicVolume() {
+        let volume = AppSettings.musicEnabled ? AppSettings.musicVolume : 0
+        musicPlayer?.volume = volume
+    }
+
+    private static var effectiveSFXVolume: Float {
+        AppSettings.soundEnabled ? AppSettings.sfxVolume : 0
     }
 
     static func play(_ cue: AudioCue, on node: SKNode? = nil) {
-        guard AppSettings.soundEnabled else { return }
+        guard effectiveSFXVolume > 0 else { return }
 
         if let players = pools[cue], !players.isEmpty {
+            let volume = effectiveSFXVolume
             let start = nextIndex[cue] ?? 0
             if let idle = players.first(where: { !$0.isPlaying }) {
+                idle.volume = volume
                 idle.currentTime = 0
                 idle.play()
                 return
             }
             let player = players[start % players.count]
             nextIndex[cue] = start + 1
+            player.volume = volume
             player.currentTime = 0
             player.play()
             return

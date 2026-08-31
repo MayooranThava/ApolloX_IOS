@@ -2,7 +2,7 @@
 //  SettingsScene.swift
 //  ApolloX
 //
-//  Sound / haptics toggles, how-to-play, and App Store legal links.
+//  Sound / music / haptics toggles, volume sliders, how-to-play, and App Store legal links.
 //
 
 import SpriteKit
@@ -12,6 +12,9 @@ final class SettingsScene: SKScene {
 
     private let titleLabel = SKLabelNode()
     private var soundToggle: SettingsToggleNode?
+    private var musicToggle: SettingsToggleNode?
+    private var sfxVolumeRow: SettingsVolumeRow?
+    private var musicVolumeRow: SettingsVolumeRow?
     private var hapticsToggle: SettingsToggleNode?
     private var howToPlayButton: MenuButtonNode?
     private var privacyButton: MenuButtonNode?
@@ -37,6 +40,23 @@ final class SettingsScene: SKScene {
         let sound = SettingsToggleNode(title: "Sound", isOn: AppSettings.soundEnabled)
         soundToggle = sound
         addChild(sound)
+
+        let sfxVol = SettingsVolumeRow(title: "SFX Volume", volume: AppSettings.sfxVolume) { value in
+            AppSettings.sfxVolume = value
+        }
+        sfxVolumeRow = sfxVol
+        addChild(sfxVol)
+
+        let music = SettingsToggleNode(title: "Music", isOn: AppSettings.musicEnabled)
+        musicToggle = music
+        addChild(music)
+
+        let musicVol = SettingsVolumeRow(title: "Music Volume", volume: AppSettings.musicVolume) { value in
+            AppSettings.musicVolume = value
+            AudioManager.refreshMusicVolume()
+        }
+        musicVolumeRow = musicVol
+        addChild(musicVol)
 
         let haptics = SettingsToggleNode(title: "Haptics", isOn: AppSettings.hapticsEnabled)
         hapticsToggle = haptics
@@ -88,15 +108,27 @@ final class SettingsScene: SKScene {
     private func relayout() {
         relayoutProductionBackground()
         let safe = playfield.safeRect
+        let rowWidth = min(safe.width - 80, 920)
 
-        titleLabel.position = CGPoint(x: safe.midX, y: safe.maxY - 120)
-        soundToggle?.position = CGPoint(x: safe.midX, y: safe.midY + 180)
-        soundToggle?.layout(width: min(safe.width - 80, 920))
-        hapticsToggle?.position = CGPoint(x: safe.midX, y: safe.midY + 60)
-        hapticsToggle?.layout(width: min(safe.width - 80, 920))
-        howToPlayButton?.position = CGPoint(x: safe.midX, y: safe.midY - 80)
-        privacyButton?.position = CGPoint(x: safe.midX, y: safe.midY - 200)
-        supportButton?.position = CGPoint(x: safe.midX, y: safe.midY - 310)
+        titleLabel.position = CGPoint(x: safe.midX, y: safe.maxY - 100)
+        var y = safe.midY + 280
+        soundToggle?.position = CGPoint(x: safe.midX, y: y)
+        soundToggle?.layout(width: rowWidth)
+        y -= 118
+        sfxVolumeRow?.position = CGPoint(x: safe.midX, y: y)
+        sfxVolumeRow?.layout(width: rowWidth)
+        y -= 118
+        musicToggle?.position = CGPoint(x: safe.midX, y: y)
+        musicToggle?.layout(width: rowWidth)
+        y -= 118
+        musicVolumeRow?.position = CGPoint(x: safe.midX, y: y)
+        musicVolumeRow?.layout(width: rowWidth)
+        y -= 118
+        hapticsToggle?.position = CGPoint(x: safe.midX, y: y)
+        hapticsToggle?.layout(width: rowWidth)
+        howToPlayButton?.position = CGPoint(x: safe.midX, y: safe.midY - 120)
+        privacyButton?.position = CGPoint(x: safe.midX, y: safe.midY - 230)
+        supportButton?.position = CGPoint(x: safe.midX, y: safe.midY - 330)
         backButton?.position = CGPoint(x: safe.midX, y: safe.minY + 88)
         versionLabel.position = CGPoint(x: safe.midX, y: safe.minY + 28)
     }
@@ -112,6 +144,30 @@ final class SettingsScene: SKScene {
         if let soundToggle, soundToggle.containsTouch(point) {
             AppSettings.soundEnabled.toggle()
             soundToggle.setOn(AppSettings.soundEnabled)
+            AudioManager.play(.uiTap)
+            HapticManager.fire()
+            return
+        }
+
+        if let musicToggle, musicToggle.containsTouch(point) {
+            AppSettings.musicEnabled.toggle()
+            musicToggle.setOn(AppSettings.musicEnabled)
+            AudioManager.refreshMusicVolume()
+            AudioManager.play(.uiTap)
+            HapticManager.fire()
+            return
+        }
+
+        if let sfxVolumeRow, sfxVolumeRow.containsTouch(point) {
+            sfxVolumeRow.adjust(at: point)
+            AudioManager.play(.uiTap)
+            HapticManager.fire()
+            return
+        }
+
+        if let musicVolumeRow, musicVolumeRow.containsTouch(point) {
+            musicVolumeRow.adjust(at: point)
+            AudioManager.refreshMusicVolume()
             AudioManager.play(.uiTap)
             HapticManager.fire()
             return
