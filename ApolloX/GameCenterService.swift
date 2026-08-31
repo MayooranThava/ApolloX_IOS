@@ -292,11 +292,11 @@ final class LiveGameCenterBackend: GameCenterBackend {
                     completion(nil)
                     return
                 }
-                let (_, entry, _) = try await board.loadEntries(
+                let (localEntry, _) = try await board.loadEntries(
                     for: [GKLocalPlayer.local],
                     timeScope: .allTime
                 )
-                completion(entry?.rank)
+                completion(localEntry?.rank)
             } catch {
                 completion(nil)
             }
