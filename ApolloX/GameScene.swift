@@ -2319,7 +2319,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         addChild(projectile)
         liveFireballs.append(projectile)
 
-        if let frames = BossAttackTextures.lavaFrames(for: textureName), frames.count > 1 {
+        if let frames = BossAttackTextures.animationFrames(for: textureName), frames.count > 1 {
             projectile.run(.repeatForever(
                 .animate(with: frames, timePerFrame: 0.09, resize: false, restore: false)
             ))

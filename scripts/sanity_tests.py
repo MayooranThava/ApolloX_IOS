@@ -153,6 +153,12 @@ def main() -> int:
           "animated engine flame node missing")
     check("engineFlame" in SCENE, "GameScene should attach animated engine flames")
     check("BossAttackTextures" in (ROOT / "ApolloX" / "BossAttackTextures.swift").read_text(), "boss projectile textures missing")
+    boss_tex = (ROOT / "ApolloX" / "BossAttackTextures.swift").read_text()
+    check("animationFrames" in boss_tex and "registerAttackAnimation" in boss_tex,
+          "boss attacks should use procedural animated textures")
+    check("registerVoidAnimations" in boss_tex and "registerNexusAnimations" in boss_tex
+          and "registerPlagueAnimations" in boss_tex,
+          "all four bosses should have procedural attack art")
     check("fireRingWithGap" in SCENE and "nebulaFlame" in (ROOT / "ApolloX" / "BossAttackTextures.swift").read_text(),
           "glowing ring dodge attack expected")
     check("fireDescendingWallWithGap" in SCENE, "boss wall-with-gap signature attacks expected")
