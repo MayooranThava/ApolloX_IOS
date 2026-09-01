@@ -475,6 +475,8 @@ final class GameRulesTests: XCTestCase {
         XCTAssertGreaterThan(grenadeRadius, 0)
         XCTAssertGreaterThan(grenadeRadius, flak.aoeRadius * 0.5)
         XCTAssertGreaterThan(flak.aoeRadius, 0)
+        XCTAssertEqual(GameRules.plasmaGrenadeFlightSpeed, 1025, accuracy: 0.1)
+        XCTAssertGreaterThan(grenade.travelDuration, 2.0, "plasma grenade should not use a short mid-screen fuse")
         XCTAssertGreaterThan(mine.travelDuration, 1.0, "sky mine should linger in-lane")
         XCTAssertEqual(WeaponCatalog.cooldownMine.name, "Sky Mine")
         XCTAssertTrue(WeaponCatalog.plasmaGrenade.blurb.lowercased().contains("nearest")

@@ -123,7 +123,7 @@ After upload, open [App Store Connect](https://appstoreconnect.apple.com) → yo
 | Priority | Item | Owner | Status |
 |---|---|---|---|
 | P0 | Settings (sound/haptics) + first-run onboarding | Repo | **Done** |
-| P0 | Privacy + support HTTPS pages (`docs/`) + App Store Connect URLs | You | Enable GitHub Pages |
+| P0 | Privacy + support HTTPS pages (`docs/`) + App Store Connect URLs | You | Enable GitHub Pages (workflow in `.github/workflows/pages.yml`) |
 | P0 | Leaderboard EN localization **High Score** + attach to version (fixes *MISSING TITLE* / Pre-release) | App Store Connect | Do on phone |
 | P0 | Privacy nutrition label + 2026 age rating | App Store Connect | Before submit |
 | P0 | 6.7" + 6.1" screenshots / preview video | Device / ASC | Before submit |
@@ -136,6 +136,8 @@ After upload, open [App Store Connect](https://appstoreconnect.apple.com) → yo
 | P1 | How to Play from title | Repo | **Done** |
 | P1 | Crash reports (Apple Organizer only) | Automatic | No third-party SDK |
 | P1 | App Review notes | Repo | **Done** (`docs/app-review-notes.md`) |
+| P2 | Plasma grenade speed + top-lane clear when no on-screen targets | Repo | **Done** |
+| P2 | Preload hangar weapon hardpoint textures at launch | Repo | **Done** |
 
 Do not add IAP or third-party analytics until there is a product reason.
 

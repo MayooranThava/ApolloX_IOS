@@ -25,6 +25,8 @@ final class PooledSprite: SKSpriteNode {
     var flightSpeed: CGFloat = 0
     /// Sky mines arm after reaching hover; grenades always live-proximate.
     var isArmed: Bool = false
+    /// Run timestamp when this node was spawned (special fuse / lifetime checks).
+    var spawnedAt: TimeInterval = 0
 
     func resetGameplayState() {
         lastPosition = .zero
@@ -38,6 +40,7 @@ final class PooledSprite: SKSpriteNode {
         specialKind = nil
         flightSpeed = 0
         isArmed = false
+        spawnedAt = 0
         name = nil
         userData = nil
     }

@@ -592,6 +592,14 @@ enum GameRules {
         min(playAreaSize.width, playAreaSize.height) * 0.5
     }
 
+    /// Homing speed in points per second (was 820; +25% for snappier clears).
+    static let plasmaGrenadeFlightSpeed: CGFloat = 1025
+    /// Detonate when the grenade reaches this inset below the top of the playfield.
+    static let plasmaGrenadeTopInset: CGFloat = 64
+    /// Safety fuse so a lost grenade cannot fly forever.
+    static let plasmaGrenadeMaxLifetime: TimeInterval = 5.0
+    static let plasmaGrenadeProximityFactor: CGFloat = 0.72
+
     static func specialProfile(for id: SpecialWeaponID) -> SpecialFireProfile {
         switch id {
         case .plasmaGrenade:
@@ -599,7 +607,7 @@ enum GameRules {
                 cooldown: 4.2,
                 maxLive: 2,
                 aoeRadius: 0,
-                travelDuration: 1.4,
+                travelDuration: plasmaGrenadeMaxLifetime,
                 damage: 2,
                 textureName: WeaponTextures.plasmaGrenade
             )
