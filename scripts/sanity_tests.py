@@ -268,6 +268,8 @@ def main() -> int:
     check("plasmaGrenade" in (ROOT / "ApolloX" / "WeaponCatalog.swift").read_text(), "plasma grenade hardpoint expected")
     check("Sky Mine" in (ROOT / "ApolloX" / "WeaponCatalog.swift").read_text(), "sky mine should replace rear cooldown mine")
     check("smartGrenadeTarget" in SCENE and "preferredSeekerTarget" in SCENE, "specials should aim at live threats")
+    check("plasmaGrenadeFlightSpeed" in RULES and "enemyIsVisibleInPlayArea" in SCENE,
+          "plasma grenade should use tuned speed and on-screen targeting")
     check("hardpointPlasmaGrenade_hd" in (ROOT / "ApolloX" / "WeaponCatalog.swift").read_text(),
           "combat hardpoint textures should use HD authored keys")
     check("scatterBolts" in (ROOT / "ApolloX" / "WeaponCatalog.swift").read_text(), "scatter bolts primary expected")

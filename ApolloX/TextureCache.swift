@@ -32,6 +32,7 @@ enum TextureCache {
     static func preload(completion: @escaping () -> Void = {}) {
         GameplayTextures.registerProceduralTextures()
         PlayerShipCatalog.registerTextures()
+        WeaponCatalog.registerTextures()
         let names = [
             GameplayTextures.fallingRocketName,
             GameplayTextures.warningBadgeName,
@@ -70,7 +71,14 @@ enum TextureCache {
             BossAttackTextures.toxicSpray,
             BossAttackTextures.sporeBomb,
             BossAttackTextures.swarmMinion,
-            BossAttackTextures.infectedEgg
+            BossAttackTextures.infectedEgg,
+            WeaponTextures.plasmaGrenade,
+            WeaponTextures.seekerPod,
+            WeaponTextures.cooldownMine,
+            WeaponTextures.scatterBolt,
+            WeaponTextures.railSpike,
+            WeaponTextures.ionNeedle,
+            WeaponTextures.softGlow
         ]
         SKTexture.preload(names.map(texture), withCompletionHandler: completion)
     }

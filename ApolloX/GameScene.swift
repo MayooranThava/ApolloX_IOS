@@ -1126,7 +1126,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             glowColor: SKColor(red: 0.45, green: 1.0, blue: 0.35, alpha: 0.55)
         )
         node.isArmed = true
-        node.flightSpeed = 820
+        node.flightSpeed = GameRules.plasmaGrenadeFlightSpeed
+        node.spawnedAt = runElapsed
         node.position = CGPoint(x: player.position.x, y: player.position.y + 40)
         node.lastPosition = node.position
         addChild(node)
@@ -1136,14 +1137,6 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             .rotate(byAngle: .pi * 2, duration: 0.45),
             .rotate(byAngle: -.pi * 2, duration: 0.45)
         ])))
-
-        node.run(.sequence([
-            .wait(forDuration: profile.travelDuration),
-            .run { [weak self, weak node] in
-                guard let self, let node, node.parent != nil else { return }
-                self.detonateSpecial(node, at: node.position)
-            }
-        ]))
     }
 
     private func launchSeekerPod(profile: GameRules.SpecialFireProfile) {
@@ -1312,26 +1305,38 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         }
         return CGPoint(
             x: player.position.x,
-            y: min(playArea.maxY - 100, player.position.y + playArea.height * 0.42)
+            y: playArea.maxY - GameRules.plasmaGrenadeTopInset
         )
     }
 
-    private func preferredGrenadeTarget(from point: CGPoint) -> PooledSprite? {
-        if bossVulnerable, let boss = bossNode, boss.parent != nil {
-            return boss
-        }
-        if let mine = liveEnemies.first(where: { $0.obstacleKind == .clearMine && $0.parent != nil }) {
-            return mine
-        }
-        return nearestThreatForGrenade(from: point)
+    private func enemyIsVisibleInPlayArea(_ enemy: PooledSprite, margin: CGFloat = 32) -> Bool {
+        guard enemy.parent != nil else { return false }
+        let point = enemy.position
+        return point.x >= playArea.minX - margin
+            && point.x <= playArea.maxX + margin
+            && point.y >= playArea.minY - margin
+            && point.y <= playArea.maxY + margin
     }
 
-    private func nearestThreatForGrenade(from point: CGPoint? = nil) -> PooledSprite? {
+    private func preferredGrenadeTarget(from point: CGPoint) -> PooledSprite? {
+        if bossVulnerable, let boss = bossNode, boss.parent != nil, enemyIsVisibleInPlayArea(boss) {
+            return boss
+        }
+        if let mine = liveEnemies.first(where: {
+            $0.obstacleKind == .clearMine && $0.parent != nil && enemyIsVisibleInPlayArea($0)
+        }) {
+            return mine
+        }
+        return nearestThreatForGrenade(from: point, onScreenOnly: true)
+    }
+
+    private func nearestThreatForGrenade(from point: CGPoint? = nil, onScreenOnly: Bool = false) -> PooledSprite? {
         let origin = point ?? player.position
         var best: PooledSprite?
         var bestScore = CGFloat.greatestFiniteMagnitude
         for enemy in liveEnemies where enemy.parent != nil {
             guard enemy.obstacleKind != nil else { continue }
+            if onScreenOnly, !enemyIsVisibleInPlayArea(enemy) { continue }
             let dx = enemy.position.x - origin.x
             let dy = enemy.position.y - origin.y
             var score = dx * dx + dy * dy * 0.6
@@ -1368,8 +1373,21 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
                 }
             case .plasmaGrenade:
                 steerPlasmaGrenade(node, delta: delta)
-                if node.isArmed, specialProximityDetonate(node, triggerFactor: 0.72) {
-                    continue
+                if node.isArmed {
+                    if preferredGrenadeTarget(from: node.position) != nil {
+                        if specialProximityDetonate(
+                            node,
+                            triggerFactor: GameRules.plasmaGrenadeProximityFactor
+                        ) {
+                            continue
+                        }
+                    } else if node.position.y >= playArea.maxY - GameRules.plasmaGrenadeTopInset {
+                        detonateSpecial(node, at: node.position)
+                        continue
+                    } else if runElapsed - node.spawnedAt >= GameRules.plasmaGrenadeMaxLifetime {
+                        detonateSpecial(node, at: node.position)
+                        continue
+                    }
                 }
             case .cooldownMine:
                 if node.isArmed, specialProximityDetonate(node, triggerFactor: 0.72) {
@@ -1383,8 +1401,11 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
     }
 
     private func steerPlasmaGrenade(_ node: PooledSprite, delta: TimeInterval) {
+        let topY = playArea.maxY - GameRules.plasmaGrenadeTopInset
         guard let target = preferredGrenadeTarget(from: node.position) else {
-            node.position.y += node.flightSpeed * CGFloat(delta)
+            let step = node.flightSpeed * CGFloat(delta)
+            node.position.y = min(topY, node.position.y + step)
+            node.zRotation = 0
             return
         }
         let dx = target.position.x - node.position.x
