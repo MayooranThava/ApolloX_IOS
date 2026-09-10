@@ -1788,7 +1788,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         node.obstacleKind = kind
         node.obstacleHP = profile.maxHP
         node.hitRadius = radius
-        if let tex = node.texture {
+        if FramePacing.currentQuality.usesPreciseBossPhysics, let tex = node.texture {
             node.attachTexturePhysics(
                 texture: tex,
                 size: node.size,
@@ -1796,6 +1796,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
                 contact: GameConstants.PhysicsCategory.player
             )
         } else {
+            // Circle body matches swept hitRadius and avoids alpha-mask physics cost on mid-tier.
             node.attachCirclePhysics(
                 radius: radius,
                 category: GameConstants.PhysicsCategory.enemy,
@@ -2319,7 +2320,9 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         addChild(projectile)
         liveFireballs.append(projectile)
 
-        if let frames = BossAttackTextures.animationFrames(for: textureName), frames.count > 1 {
+        if FramePacing.currentQuality.animatesBossProjectiles,
+           let frames = BossAttackTextures.animationFrames(for: textureName),
+           frames.count > 1 {
             projectile.run(.repeatForever(
                 .animate(with: frames, timePerFrame: 0.09, resize: false, restore: false)
             ))

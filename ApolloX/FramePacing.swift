@@ -4,10 +4,13 @@
 //
 //  ProMotion / Low Power / thermal policy following Apple's
 //  "Optimizing iPhone and iPad apps to support ProMotion displays".
+//  VFX baseline is SoC-gated (A17 Pro+ only for `.high`) so older Pros
+//  like iPhone 13 Pro stay smooth at 120 Hz without overdrawing the GPU.
 //  Also clamps hitch deltas and demotes VFX when frames overrun budget
 //  so play stays smooth after pause/resume and during busy combat.
 //
 
+import Darwin
 import SpriteKit
 import UIKit
 
@@ -21,7 +24,7 @@ enum EffectsQuality: Equatable {
     case conservative
 
     /// Particles/sec. Birth rate is time-based; per-frame sim cost still scales with FPS.
-    /// Sprite flames carry the look; particles are optional polish on ProMotion hardware.
+    /// Sprite flames carry the look; particles are optional polish on A17 Pro+ hardware.
     var engineBirthRate: CGFloat {
         switch self {
         case .high: return 28
@@ -55,7 +58,7 @@ enum EffectsQuality: Equatable {
         }
     }
 
-    /// Soft cap on simultaneous boss dodgeables — rings need headroom but 22 is heavy on 60 Hz phones.
+    /// Soft cap on simultaneous boss dodgeables — rings need headroom but 22 is heavy on mid-tier SoCs.
     var maxBossProjectiles: Int {
         switch self {
         case .high: return GameRules.maxBossProjectiles
@@ -73,6 +76,16 @@ enum EffectsQuality: Equatable {
         }
     }
 
+    /// Procedural boss projectile frame animation is GPU-heavy with many live shots.
+    var animatesBossProjectiles: Bool {
+        self == .high
+    }
+
+    /// Alpha-masked texture physics is accurate but expensive vs a circle body.
+    var usesPreciseBossPhysics: Bool {
+        self == .high
+    }
+
     func demoted(by steps: Int) -> EffectsQuality {
         var quality = self
         for _ in 0..<max(0, steps) {
@@ -86,11 +99,15 @@ enum EffectsQuality: Equatable {
     }
 }
 
-/// Chooses a refresh rate the system can actually honor on iPhone 16/17.
+/// Chooses a refresh rate the system can actually honor on ProMotion iPhones.
 ///
 /// iPhone ProMotion (Pro / Pro Max) reports `maximumFramesPerSecond == 120`.
 /// Non-Pro iPhones stay at 60. Apple still caps iPhone at 60 Hz unless
 /// `CADisableMinimumFrameDurationOnPhone` is set in Info.plist.
+///
+/// VFX baseline is gated by SoC generation, not ProMotion alone: iPhone 13/14 Pro
+/// report 120 Hz but cannot sustain `.high` particle / flame / boss budgets that
+/// A17 Pro+ (15 Pro / 16 Pro / 17 Pro …) can.
 enum FramePacing {
     /// Ignore debugger / multitasking stalls larger than this when scoring hitches.
     static let hitchIgnoreThreshold: TimeInterval = 0.25
@@ -100,12 +117,20 @@ enum FramePacing {
     static let overlayFramesPerSecond = 30
     /// Recover one demotion step after this many consecutive on-budget frames.
     static let hitchRecoveryFrameStreak = 180
+    /// Older Pros recover VFX more slowly so combat does not bounce between tiers.
+    static let midTierHitchRecoveryFrameStreak = 240
+    /// Frame overrun multiplier before demoting — tighter on mid-tier SoCs.
+    static let highTierHitchOverrunFactor: Double = 1.35
+    static let midTierHitchOverrunFactor: Double = 1.22
+    /// Bytes — soft floor for unknown future devices when machine id is unavailable.
+    static let highEffectsMemoryFloor: UInt64 = 7 * 1024 * 1024 * 1024
 
     private static weak var skView: SKView?
     private static var observerTokens: [NSObjectProtocol] = []
 
     private(set) static var currentFramesPerSecond: Int = 60
-    private(set) static var currentQuality: EffectsQuality = .high
+    /// Safer cold-start default until `apply()` runs with live device capability.
+    private(set) static var currentQuality: EffectsQuality = .balanced
     /// Extra VFX demotion steps from measured frame overruns (0…2).
     private(set) static var hitchDemotionSteps: Int = 0
     private static var overlayFrameCapActive = false
@@ -115,6 +140,48 @@ enum FramePacing {
     static var hardwareMaximumFramesPerSecond: Int {
         let native = UIScreen.main.maximumFramesPerSecond
         return max(60, native)
+    }
+
+    /// Live device: A17 Pro+ ProMotion phones qualify for `.high` VFX.
+    static var deviceSupportsHighEffects: Bool {
+        supportsHighEffects(machine: currentMachineIdentifier())
+    }
+
+    /// `utsname.machine` identifier, e.g. `iPhone14,2` (13 Pro), `iPhone16,1` (15 Pro).
+    static func currentMachineIdentifier() -> String {
+        var info = utsname()
+        uname(&info)
+        return withUnsafePointer(to: &info.machine) {
+            $0.withMemoryRebound(to: CChar.self, capacity: MemoryLayout.size(ofValue: info.machine)) {
+                String(cString: $0)
+            }
+        }
+    }
+
+    /// Testable SoC gate. ProMotion alone is not enough — A15/A16 Pros lag on `.high`.
+    ///
+    /// - iPhone14,* → 13 / 13 Pro family (A15) → balanced
+    /// - iPhone15,* → 14 / 14 Pro family (A16) → balanced
+    /// - iPhone16,* → 15 Pro family (A17 Pro) → high
+    /// - iPhone17,*+ → 16 Pro / newer → high
+    static func supportsHighEffects(
+        machine: String,
+        physicalMemory: UInt64 = ProcessInfo.processInfo.physicalMemory
+    ) -> Bool {
+        if machine.hasPrefix("iPhone") {
+            let rest = machine.dropFirst("iPhone".count)
+            let majorDigits = rest.prefix(while: { $0.isNumber })
+            if let major = Int(majorDigits) {
+                return major >= 16
+            }
+            return false
+        }
+        // Simulator identifiers (arm64 / x86_64) — keep `.high` exercisable in CI/sim.
+        if machine == "arm64" || machine == "x86_64" || machine == "i386" {
+            return true
+        }
+        // Unknown future form factors: 8 GB-class RAM as a soft floor.
+        return physicalMemory >= highEffectsMemoryFloor
     }
 
     static func preferredFramesPerSecond(
@@ -142,11 +209,13 @@ enum FramePacing {
         thermalState: ProcessInfo.ThermalState,
         lowPowerMode: Bool,
         hardwareMaxFPS: Int = hardwareMaximumFramesPerSecond,
+        supportsHighEffects canHigh: Bool = deviceSupportsHighEffects,
         hitchDemotionSteps demotion: Int = 0
     ) -> EffectsQuality {
-        // 60 Hz iPhones (15, 15 Plus, SE, etc.) stay on balanced at nominal thermal —
-        // ProMotion headroom is what makes `.high` sustainable during long sessions.
-        let baseline: EffectsQuality = hardwareMaxFPS >= 120 ? .high : .balanced
+        // ProMotion + strong SoC (A17 Pro+) → `.high`. Older Pros (13/14) and all
+        // 60 Hz phones stay on `.balanced` so combat does not start over-budget.
+        let baseline: EffectsQuality =
+            (hardwareMaxFPS >= 120 && canHigh) ? .high : .balanced
 
         let policy: EffectsQuality
         if lowPowerMode || thermalState == .serious || thermalState == .critical {
@@ -170,8 +239,11 @@ enum FramePacing {
 
         smoothedFrameDuration = smoothedFrameDuration * 0.85 + rawDelta * 0.15
         let budget = 1.0 / TimeInterval(max(currentFramesPerSecond, 30))
+        let canHigh = deviceSupportsHighEffects
+        let overrunFactor = canHigh ? highTierHitchOverrunFactor : midTierHitchOverrunFactor
+        let recoveryStreak = canHigh ? hitchRecoveryFrameStreak : midTierHitchRecoveryFrameStreak
 
-        if smoothedFrameDuration > budget * 1.35 {
+        if smoothedFrameDuration > budget * overrunFactor {
             goodFrameStreak = 0
             guard hitchDemotionSteps < 2 else { return }
             hitchDemotionSteps += 1
@@ -181,7 +253,7 @@ enum FramePacing {
 
         if smoothedFrameDuration < budget * 1.08 {
             goodFrameStreak += 1
-            if goodFrameStreak >= hitchRecoveryFrameStreak, hitchDemotionSteps > 0 {
+            if goodFrameStreak >= recoveryStreak, hitchDemotionSteps > 0 {
                 hitchDemotionSteps -= 1
                 goodFrameStreak = 0
                 apply()
@@ -248,6 +320,7 @@ enum FramePacing {
             thermalState: thermal,
             lowPowerMode: lowPower,
             hardwareMaxFPS: hardware,
+            supportsHighEffects: deviceSupportsHighEffects,
             hitchDemotionSteps: hitchDemotionSteps
         )
 
