@@ -4,6 +4,8 @@
 //
 //  ProMotion / Low Power / thermal policy following Apple's
 //  "Optimizing iPhone and iPad apps to support ProMotion displays".
+//  VFX baseline is SoC-gated (A17 Pro+ only for `.high`) so older Pros
+//  like iPhone 13 Pro stay smooth at 120 Hz without overdrawing the GPU.
 //  Also clamps hitch deltas and demotes VFX when frames overrun budget
 //  so play stays smooth after pause/resume and during busy combat.
 //
