@@ -371,23 +371,85 @@ final class GameRulesTests: XCTestCase {
 
     func testEffectsQualityScalesWithThermalBudget() {
         XCTAssertEqual(
-            FramePacing.effectsQuality(thermalState: .nominal, lowPowerMode: false, hardwareMaxFPS: 120),
+            FramePacing.effectsQuality(
+                thermalState: .nominal,
+                lowPowerMode: false,
+                hardwareMaxFPS: 120,
+                supportsHighEffects: true
+            ),
             .high
         )
-        XCTAssertEqual(
-            FramePacing.effectsQuality(thermalState: .nominal, lowPowerMode: false, hardwareMaxFPS: 60),
-            .balanced,
-            "60 Hz iPhones should not default to Pro-tier VFX"
-        )
-        XCTAssertEqual(FramePacing.effectsQuality(thermalState: .fair, lowPowerMode: false, hardwareMaxFPS: 120), .balanced)
-        XCTAssertEqual(FramePacing.effectsQuality(thermalState: .fair, lowPowerMode: false, hardwareMaxFPS: 60), .conservative)
-        XCTAssertEqual(FramePacing.effectsQuality(thermalState: .serious, lowPowerMode: false, hardwareMaxFPS: 60), .conservative)
-        XCTAssertEqual(FramePacing.effectsQuality(thermalState: .nominal, lowPowerMode: true, hardwareMaxFPS: 120), .conservative)
         XCTAssertEqual(
             FramePacing.effectsQuality(
                 thermalState: .nominal,
                 lowPowerMode: false,
                 hardwareMaxFPS: 120,
+                supportsHighEffects: false
+            ),
+            .balanced,
+            "iPhone 13/14 Pro are ProMotion but must not start on A17-tier VFX"
+        )
+        XCTAssertEqual(
+            FramePacing.effectsQuality(
+                thermalState: .nominal,
+                lowPowerMode: false,
+                hardwareMaxFPS: 60,
+                supportsHighEffects: false
+            ),
+            .balanced,
+            "60 Hz iPhones should not default to Pro-tier VFX"
+        )
+        XCTAssertEqual(
+            FramePacing.effectsQuality(
+                thermalState: .fair,
+                lowPowerMode: false,
+                hardwareMaxFPS: 120,
+                supportsHighEffects: true
+            ),
+            .balanced
+        )
+        XCTAssertEqual(
+            FramePacing.effectsQuality(
+                thermalState: .fair,
+                lowPowerMode: false,
+                hardwareMaxFPS: 120,
+                supportsHighEffects: false
+            ),
+            .conservative
+        )
+        XCTAssertEqual(
+            FramePacing.effectsQuality(
+                thermalState: .fair,
+                lowPowerMode: false,
+                hardwareMaxFPS: 60,
+                supportsHighEffects: false
+            ),
+            .conservative
+        )
+        XCTAssertEqual(
+            FramePacing.effectsQuality(
+                thermalState: .serious,
+                lowPowerMode: false,
+                hardwareMaxFPS: 60,
+                supportsHighEffects: false
+            ),
+            .conservative
+        )
+        XCTAssertEqual(
+            FramePacing.effectsQuality(
+                thermalState: .nominal,
+                lowPowerMode: true,
+                hardwareMaxFPS: 120,
+                supportsHighEffects: true
+            ),
+            .conservative
+        )
+        XCTAssertEqual(
+            FramePacing.effectsQuality(
+                thermalState: .nominal,
+                lowPowerMode: false,
+                hardwareMaxFPS: 120,
+                supportsHighEffects: true,
                 hitchDemotionSteps: 1
             ),
             .balanced
@@ -397,6 +459,7 @@ final class GameRulesTests: XCTestCase {
                 thermalState: .nominal,
                 lowPowerMode: false,
                 hardwareMaxFPS: 120,
+                supportsHighEffects: true,
                 hitchDemotionSteps: 2
             ),
             .conservative
@@ -404,12 +467,42 @@ final class GameRulesTests: XCTestCase {
         XCTAssertEqual(EffectsQuality.high.demoted(by: 1), .balanced)
         XCTAssertGreaterThan(EffectsQuality.high.engineBirthRate, EffectsQuality.conservative.engineBirthRate)
         XCTAssertEqual(EffectsQuality.conservative.starDustBirthRate, 0)
-        XCTAssertEqual(EffectsQuality.balanced.engineBirthRate, 0, "sprite flames carry exhaust on 60 Hz phones")
+        XCTAssertEqual(EffectsQuality.balanced.engineBirthRate, 0, "sprite flames carry exhaust on mid-tier phones")
         XCTAssertGreaterThanOrEqual(EffectsQuality.conservative.engineFlameLayers, 3)
         XCTAssertGreaterThan(EffectsQuality.high.engineFlameLayers, EffectsQuality.balanced.engineFlameLayers)
         XCTAssertGreaterThan(EffectsQuality.high.parallaxStarCount, EffectsQuality.conservative.parallaxStarCount)
         XCTAssertGreaterThan(EffectsQuality.high.maxBossProjectiles, EffectsQuality.balanced.maxBossProjectiles)
         XCTAssertEqual(EffectsQuality.balanced.rocketTailSmokeBirthRate, 0)
+        XCTAssertTrue(EffectsQuality.high.animatesBossProjectiles)
+        XCTAssertFalse(EffectsQuality.balanced.animatesBossProjectiles)
+        XCTAssertTrue(EffectsQuality.high.usesPreciseBossPhysics)
+        XCTAssertFalse(EffectsQuality.balanced.usesPreciseBossPhysics)
+    }
+
+    func testHighEffectsGateUsesSoCGenerationNotJustProMotion() {
+        // 13 Pro / 13 Pro Max
+        XCTAssertFalse(FramePacing.supportsHighEffects(machine: "iPhone14,2"))
+        XCTAssertFalse(FramePacing.supportsHighEffects(machine: "iPhone14,3"))
+        // 14 Pro / 14 Pro Max
+        XCTAssertFalse(FramePacing.supportsHighEffects(machine: "iPhone15,2"))
+        XCTAssertFalse(FramePacing.supportsHighEffects(machine: "iPhone15,3"))
+        // 15 Pro / 15 Pro Max (A17 Pro)
+        XCTAssertTrue(FramePacing.supportsHighEffects(machine: "iPhone16,1"))
+        XCTAssertTrue(FramePacing.supportsHighEffects(machine: "iPhone16,2"))
+        // 16 Pro family
+        XCTAssertTrue(FramePacing.supportsHighEffects(machine: "iPhone17,1"))
+        XCTAssertTrue(FramePacing.supportsHighEffects(machine: "iPhone17,2"))
+        // Non-Pro 60 Hz phones never need the high path via machine alone.
+        XCTAssertFalse(FramePacing.supportsHighEffects(machine: "iPhone14,5")) // 13
+        // Simulator identifiers keep the high path exercisable.
+        XCTAssertTrue(FramePacing.supportsHighEffects(machine: "arm64"))
+        // Unknown devices: memory floor.
+        XCTAssertTrue(
+            FramePacing.supportsHighEffects(machine: "futurePhone", physicalMemory: 8 * 1024 * 1024 * 1024)
+        )
+        XCTAssertFalse(
+            FramePacing.supportsHighEffects(machine: "futurePhone", physicalMemory: 4 * 1024 * 1024 * 1024)
+        )
     }
 
     func testClampedDeltaCapsPostPauseHitches() {

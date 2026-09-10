@@ -361,7 +361,7 @@ def main() -> int:
     check(scrolling_bg.exists(), "ScrollingBackgroundNode.swift missing")
     check("updateBackgroundTier" in SCENE, "GameScene should shift background palette when spawn tier changes")
 
-    # 6) iPhone 16/17 performance contracts
+    # 6) iPhone performance contracts (ProMotion FPS + SoC-gated VFX)
     plist = (ROOT / "ApolloX" / "Info.plist").read_text()
     view = (ROOT / "ApolloX" / "GameViewController.swift").read_text()
     audio = (ROOT / "ApolloX" / "AudioManager.swift").read_text()
@@ -370,12 +370,20 @@ def main() -> int:
     check(pacing.exists(), "FramePacing.swift missing")
     pacing_src = pacing.read_text()
     check("lowPowerMode" in pacing_src and "thermalState" in pacing_src, "frame pacing must honor Low Power Mode and thermal state")
+    check("supportsHighEffects" in pacing_src and "currentMachineIdentifier" in pacing_src,
+          "effects quality must gate .high by SoC generation, not ProMotion alone")
+    check("animatesBossProjectiles" in pacing_src and "usesPreciseBossPhysics" in pacing_src,
+          "mid-tier quality should skip animated boss shots and texture physics")
+    check("animatesBossProjectiles" in SCENE and "usesPreciseBossPhysics" in SCENE,
+          "GameScene should honor mid-tier boss VFX / physics gates")
     check("setOverlayFrameCapActive" in SCENE and "setOverlayFrameCapActive" in pacing_src,
           "pause should drop to overlay FPS and restore on resume")
     check("clampedDelta" in SCENE and "maxSimulationDelta" in pacing_src,
           "update loop must clamp post-pause hitch deltas")
     check("reportFrameDuration" in SCENE and "hitchDemotionSteps" in pacing_src,
           "frame pacing should demote VFX when frames overrun budget")
+    check("midTierHitchOverrunFactor" in pacing_src,
+          "older Pros should demote VFX on a tighter hitch budget")
     check("liveBullets" in SCENE, "combat should keep live bullet lists instead of enumerating the scene graph")
     check("usesPreciseCollisionDetection = true" not in SCENE, "physics CCD should stay off; swept tests already cover tunneling")
     check("SKShapeNode()" not in HUD and "SKShapeNode()" not in (ROOT / "ApolloX" / "GameOverScene.swift").read_text(), "HUD/game-over chrome should use sprite-batched rounded rects")

@@ -13,7 +13,7 @@ Launch argument for on-device FPS / node counts:
 -ApolloXShowStats
 ```
 
-Product → Scheme → Edit Scheme → Run → Arguments. On an iPhone 16/17 Pro this should read ~120 fps when cool; Low Power Mode should drop to 60.
+Product → Scheme → Edit Scheme → Run → Arguments. On an iPhone 15 Pro / 16 Pro / 17 Pro this should read ~120 fps when cool with `.high` VFX; **iPhone 13 Pro / 14 Pro** still request 120 Hz ProMotion but start on **`.balanced`** VFX (A15/A16 cannot sustain the full particle / flame / boss budget). Low Power Mode drops to 60 on all devices.
 
 ## Tests
 
@@ -127,7 +127,7 @@ After upload, open [App Store Connect](https://appstoreconnect.apple.com) → yo
 | P0 | Leaderboard EN localization **High Score** + attach to version (fixes *MISSING TITLE* / Pre-release) | App Store Connect | Do on phone |
 | P0 | Privacy nutrition label + 2026 age rating | App Store Connect | Before submit |
 | P0 | 6.7" + 6.1" screenshots / preview video | Device / ASC | Before submit |
-| P0 | 15–30 min soak on Pro + 60 Hz iPhone; empty crash reports | Device | Before submit |
+| P0 | 15–30 min soak on 13 Pro + latest Pro + 60 Hz iPhone; empty crash reports | Device | Before submit |
 | P0 | Game Center end-to-end on production build | Device | Verify on TestFlight |
 | P1 | Texture atlas + @3x background | Repo | Partial — texture batch preload done; true @3x BG art still needs artist |
 | P1 | Music loop + music/SFX volume sliders | Repo | **Done** |
