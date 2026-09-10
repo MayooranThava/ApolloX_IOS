@@ -151,10 +151,14 @@ enum FramePacing {
     static func currentMachineIdentifier() -> String {
         var info = utsname()
         uname(&info)
-        return withUnsafePointer(to: &info.machine) {
-            $0.withMemoryRebound(to: CChar.self, capacity: MemoryLayout.size(ofValue: info.machine)) {
-                String(cString: $0)
+        // Copy the tuple first so pointer + MemoryLayout do not overlap on `info.machine`
+        // under -enforce-exclusivity=checked (breaks Release XCTest builds otherwise).
+        let machine = info.machine
+        return withUnsafeBytes(of: machine) { raw in
+            guard let base = raw.baseAddress?.assumingMemoryBound(to: CChar.self) else {
+                return "unknown"
             }
+            return String(cString: base)
         }
     }
 
