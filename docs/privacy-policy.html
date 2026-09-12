@@ -11,20 +11,44 @@
     h2 { font-size: 1.15rem; margin-top: 1.6rem; }
     .muted { color: #9db0c9; font-size: 0.95rem; }
     a { color: #7dd3fc; }
+    table { border-collapse: collapse; width: 100%; margin: 0.8rem 0 1.2rem; font-size: 0.95rem; }
+    th, td { border: 1px solid #24344a; padding: 8px 10px; text-align: left; vertical-align: top; }
+    th { background: #152238; color: #cfe0f4; }
   </style>
 </head>
 <body>
   <main>
     <h1>Void Runner Privacy Policy</h1>
-    <p class="muted">Last updated: August 30, 2026 · Bundle ID <code>com.mayooran.ApolloX</code></p>
+    <p class="muted">Last updated: September 12, 2026 · Bundle ID <code>com.mayooran.ApolloX</code></p>
 
-    <p>Void Runner (also branded ApolloX in development) is a single-player iOS game. This policy explains what data is used and why.</p>
+    <p>Void Runner (also branded ApolloX in development) is a single-player iOS arcade shooter. This policy explains what data is used and why. It matches the App Store privacy nutrition label for version 1.0.</p>
 
-    <h2>Data we store on your device</h2>
-    <p>High scores, credit wallet, hangar unlocks, and settings (sound / haptics / onboarding) are saved locally with Apple’s UserDefaults / app storage. This data stays on your device unless you clear the app.</p>
+    <h2>Data stored only on your device</h2>
+    <p>High scores, credit wallet, hangar unlocks, and settings (sound, music, haptics, onboarding) are saved locally with Apple’s UserDefaults. This data never leaves your device unless you sign in to Game Center (scores only). Deleting the app removes it.</p>
 
-    <h2>Game Center</h2>
-    <p>If you sign in to Game Center, Apple may process your Game Center nickname / player ID and submitted high scores so global leaderboards can work. That data is handled by Apple under their Game Center terms. You can stay signed out; the game still works with a local high score only.</p>
+    <h2>Data collected (Game Center, optional)</h2>
+    <p>The game does not run its own servers and does not include advertising or analytics SDKs. If you choose to use Game Center, Apple processes a player identifier and gameplay scores so global leaderboards and achievements can work. You can stay signed out; the game still works with a local high score only.</p>
+
+    <table>
+      <thead>
+        <tr><th>Data type</th><th>Used for</th><th>Linked to you</th><th>Tracking</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>User ID (Game Center player ID / nickname)</td>
+          <td>App functionality (leaderboards and achievements)</td>
+          <td>Yes</td>
+          <td>No</td>
+        </tr>
+        <tr>
+          <td>Product Interaction (submitted high scores / achievement progress)</td>
+          <td>App functionality (Ranks and Game Center)</td>
+          <td>Yes</td>
+          <td>No</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>Apple handles Game Center data under <a href="https://www.apple.com/legal/privacy/data/en/game-center/">Game Center &amp; Privacy</a>. The developer does not sell this data and does not receive a copy on a private backend.</p>
 
     <h2>What we do not do</h2>
     <ul>
@@ -32,15 +56,23 @@
       <li>No third-party analytics SDKs in the current version</li>
       <li>No sale of personal data</li>
       <li>No tracking across apps or websites for advertising</li>
+      <li>No App Tracking Transparency / advertising identifier use</li>
     </ul>
 
     <h2>Children</h2>
-    <p>The game does not knowingly collect personal information from children beyond what Apple Game Center may process if a player chooses to sign in.</p>
+    <p>The game is a cartoon space shooter. It does not knowingly collect personal information from children beyond what Apple Game Center may process if a player chooses to sign in. There is no chat, social feed, or in-app purchase.</p>
+
+    <h2>Your choices</h2>
+    <ul>
+      <li>Stay signed out of Game Center to keep scores on-device only.</li>
+      <li>Sign out of Game Center in iOS Settings at any time.</li>
+      <li>Delete the app to clear local high scores, credits, and settings.</li>
+    </ul>
 
     <h2>Contact</h2>
-    <p>Questions: use the in-app <strong>Settings → Support</strong> page or email the developer listed on the App Store product page.</p>
+    <p>Questions: use in-app <strong>Settings → Support</strong>, or email the developer address listed on the App Store product page for Void Runner.</p>
 
-    <p class="muted"><a href="support.html">Support</a></p>
+    <p class="muted"><a href="index.html">Home</a> · <a href="support.html">Support</a></p>
   </main>
 </body>
 </html>

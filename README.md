@@ -96,6 +96,8 @@ Host `docs/privacy-policy.html` and `docs/support.html` (GitHub Pages from `/doc
 | Privacy Policy | `https://mayooranthava.github.io/ApolloX_IOS/privacy-policy.html` |
 | Support | `https://mayooranthava.github.io/ApolloX_IOS/support.html` |
 
+**Unable to Add for Review** (privacy URL, nutrition label, age rating, category, content rights): copy the answers in `docs/app-store-connect.md`. Enable GitHub Pages (Settings → Pages → Source: GitHub Actions) before pasting the privacy URL — the link 404s until Pages is on.
+
 See `docs/README.md`. App Review copy: `docs/app-review-notes.md`. If the Pages URL differs, update `AppSettings.swift` to match.
 
 ### Archive and upload (each build)
@@ -123,9 +125,9 @@ After upload, open [App Store Connect](https://appstoreconnect.apple.com) → yo
 | Priority | Item | Owner | Status |
 |---|---|---|---|
 | P0 | Settings (sound/haptics) + first-run onboarding | Repo | **Done** |
-| P0 | Privacy + support HTTPS pages (`docs/`) + App Store Connect URLs | You | Enable GitHub Pages (workflow in `.github/workflows/pages.yml`) |
+| P0 | Privacy + support HTTPS pages (`docs/`) + App Store Connect URLs | You | Enable GitHub Pages (Settings → Pages → GitHub Actions), then paste URLs from `docs/app-store-connect.md` |
 | P0 | Leaderboard EN localization **High Score** + attach to version (fixes *MISSING TITLE* / Pre-release) | App Store Connect | Do on phone |
-| P0 | Privacy nutrition label + 2026 age rating | App Store Connect | Before submit |
+| P0 | Privacy nutrition label + 2026 age rating + category + content rights | App Store Connect | Copy `docs/app-store-connect.md` (Admin/Account Holder must Publish App Privacy) |
 | P0 | 6.7" + 6.1" screenshots / preview video | Device / ASC | Before submit |
 | P0 | 15–30 min soak on 13 Pro + latest Pro + 60 Hz iPhone; empty crash reports | Device | Before submit |
 | P0 | Game Center end-to-end on production build | Device | Verify on TestFlight |

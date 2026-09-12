@@ -298,6 +298,12 @@ def main() -> int:
     check((ROOT / "ApolloXTests" / "AppSettingsTests.swift").exists(), "AppSettingsTests.swift missing")
     check((ROOT / "docs" / "privacy-policy.html").exists(), "privacy policy page missing for App Store URL")
     check((ROOT / "docs" / "support.html").exists(), "support page missing for App Store URL")
+    check((ROOT / "docs" / "app-store-connect.md").exists(), "App Store Connect fill-in sheet missing")
+    privacy_html = (ROOT / "docs" / "privacy-policy.html").read_text()
+    check("https://" in (ROOT / "ApolloX" / "AppSettings.swift").read_text(), "legal URLs must be https")
+    check("User ID" in privacy_html and "Product Interaction" in privacy_html,
+          "privacy policy should describe the App Store nutrition-label data types")
+    check("Game Center" in privacy_html, "privacy policy should explain optional Game Center")
     gc = (ROOT / "ApolloX" / "GameCenterService.swift").read_text()
     entitlements = (ROOT / "ApolloX" / "ApolloX.entitlements").read_text()
     leaderboard = (ROOT / "ApolloX" / "LeaderboardScene.swift").read_text()
