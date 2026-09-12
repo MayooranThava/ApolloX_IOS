@@ -298,44 +298,62 @@ def patch_ignore_unknown(path: str, payload: dict[str, Any], attrs: dict[str, An
     raise RuntimeError(f"Could not PATCH {path} after dropping unknown fields")
 
 
+def _try_step(label: str, fn) -> None:
+    print(label)
+    try:
+        fn()
+    except AscError as exc:
+        print(f"  FAILED: {exc}")
+
+
 def apply(state: dict[str, Any]) -> None:
     app_id = state["app_id"]
     app_info_id = state["app_info_id"]
     version_id = state["version_id"]
 
-    print("Setting content rights…")
-    api_request(
-        "PATCH",
-        f"apps/{app_id}",
-        {
-            "data": {
-                "type": "apps",
-                "id": app_id,
-                "attributes": {"contentRightsDeclaration": "USES_THIRD_PARTY_CONTENT"},
-            }
-        },
-    )
+    def set_rights() -> None:
+        api_request(
+            "PATCH",
+            f"apps/{app_id}",
+            {
+                "data": {
+                    "type": "apps",
+                    "id": app_id,
+                    "attributes": {"contentRightsDeclaration": "USES_THIRD_PARTY_CONTENT"},
+                }
+            },
+        )
 
-    print("Setting Games → Action (+ Arcade)…")
-    api_request(
-        "PATCH",
-        f"appInfos/{app_info_id}",
-        {
+    def set_categories() -> None:
+        relationships = {
+            "primaryCategory": {"data": {"type": "appCategories", "id": "GAMES"}},
+            "primarySubcategoryOne": {
+                "data": {"type": "appCategories", "id": "GAMES_ACTION"}
+            },
+        }
+        payload = {
             "data": {
                 "type": "appInfos",
                 "id": app_info_id,
                 "relationships": {
-                    "primaryCategory": {"data": {"type": "appCategories", "id": "GAMES"}},
-                    "primarySubcategoryOne": {
-                        "data": {"type": "appCategories", "id": "GAMES_ACTION"}
-                    },
+                    **relationships,
                     "primarySubcategoryTwo": {
                         "data": {"type": "appCategories", "id": "GAMES_ARCADE"}
                     },
                 },
             }
-        },
-    )
+        }
+        try:
+            api_request("PATCH", f"appInfos/{app_info_id}", payload)
+        except AscError as exc:
+            if "primarySubcategoryTwo" not in exc.body:
+                raise
+            print("  Arcade subcategory rejected; using Games → Action only")
+            payload["data"]["relationships"] = relationships
+            api_request("PATCH", f"appInfos/{app_info_id}", payload)
+
+    _try_step("Setting content rights…", set_rights)
+    _try_step("Setting Games → Action…", set_categories)
 
     print("Setting privacy policy URL on app-info localizations…")
     for loc in state["info_locs"]:
@@ -359,14 +377,15 @@ def apply(state: dict[str, Any]) -> None:
             attrs["description"] = DESCRIPTION
         if not (_attr(loc, "keywords") or "").strip():
             attrs["keywords"] = KEYWORDS
-        if not (_attr(loc, "whatsNew") or "").strip():
-            attrs["whatsNew"] = WHATS_NEW
-        api_request(
-            "PATCH",
-            f"appStoreVersionLocalizations/{loc['id']}",
-            {"data": {"type": "appStoreVersionLocalizations", "id": loc["id"], "attributes": attrs}},
-        )
-        print(f"  {_attr(loc, 'locale')}")
+        try:
+            api_request(
+                "PATCH",
+                f"appStoreVersionLocalizations/{loc['id']}",
+                {"data": {"type": "appStoreVersionLocalizations", "id": loc["id"], "attributes": attrs}},
+            )
+            print(f"  {_attr(loc, 'locale')}")
+        except AscError as exc:
+            print(f"  {_attr(loc, 'locale')} FAILED: {exc}")
 
     if not (_attr(state["version"], "copyright") or "").strip():
         print("Setting copyright…")
@@ -384,13 +403,17 @@ def apply(state: dict[str, Any]) -> None:
 
     age_id = state["age_id"]
     if not age_id:
-        raise SystemExit("No ageRatingDeclaration id — open App Information once in the web UI, then rerun.")
-    print(f"Setting age rating questionnaire ({age_id})…")
-    patch_ignore_unknown(
-        f"ageRatingDeclarations/{age_id}",
-        {"data": {"type": "ageRatingDeclarations", "id": age_id, "attributes": {}}},
-        AGE_RATING_ATTRIBUTES,
-    )
+        print("No ageRatingDeclaration id — open App Information once in the web UI, then rerun.")
+    else:
+        print(f"Setting age rating questionnaire ({age_id})…")
+        try:
+            patch_ignore_unknown(
+                f"ageRatingDeclarations/{age_id}",
+                {"data": {"type": "ageRatingDeclarations", "id": age_id, "attributes": {}}},
+                AGE_RATING_ATTRIBUTES,
+            )
+        except (AscError, RuntimeError) as exc:
+            print(f"  FAILED: {exc}")
 
     print("Done. Re-fetching status…")
     print_status(summarize())

@@ -155,7 +155,6 @@ Still on **General → App Information → Category**.
 |---|---|
 | Primary Category | **Games** |
 | Primary Games subcategory | **Action** |
-| Second Games subcategory | **Arcade** |
 
 Save App Information.
 
