@@ -304,6 +304,23 @@ def main() -> int:
     check("BEGIN PRIVATE KEY" not in asc_script, "ASC script must not embed a .p8 private key")
     check("ASC_PRIVATE_KEY" in asc_script and "ASC_ISSUER_ID" in asc_script,
           "ASC script should read credentials from the environment")
+    pem_armor = "-----BEGIN " + "PRIVATE KEY-----"
+    leaked = []
+    skip_parts = {".git", "DerivedData", "build", "__pycache__", "node_modules"}
+    for path in ROOT.rglob("*"):
+        if not path.is_file():
+            continue
+        if any(part in skip_parts for part in path.parts):
+            continue
+        if path.suffix.lower() in {".png", ".jpg", ".jpeg", ".wav", ".mp3", ".ttf", ".otf", ".pyc"}:
+            continue
+        try:
+            text = path.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        if pem_armor in text or path.suffix.lower() == ".p8":
+            leaked.append(str(path.relative_to(ROOT)))
+    check(not leaked, f"private key material must not be in the repo: {leaked}")
     privacy_html = (ROOT / "docs" / "privacy-policy.html").read_text()
     check("https://" in (ROOT / "ApolloX" / "AppSettings.swift").read_text(), "legal URLs must be https")
     check("User ID" in privacy_html and "Product Interaction" in privacy_html,

@@ -18,6 +18,8 @@ build/
 *~
 .idea/
 .vscode/
+__pycache__/
+*.pyc
 
 # SwiftPM (if introduced later)
 .swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
