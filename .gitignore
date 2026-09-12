@@ -29,3 +29,9 @@ fastlane/Preview.html
 fastlane/screenshots/**/*.png
 fastlane/test_output
 *.mobileprovision
+
+# App Store Connect API keys (never commit)
+AuthKey_*.p8
+*.p8
+.asc.env
+.private_keys/

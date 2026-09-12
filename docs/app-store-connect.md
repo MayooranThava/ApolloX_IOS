@@ -11,6 +11,8 @@ Canonical legal URLs (must match `AppSettings.swift` in the shipped app):
 
 **Before pasting the privacy URL:** enable GitHub Pages so the link returns 200 (it currently 404s). See [step 0](#0-one-time-publish-the-privacy-policy).
 
+To apply the dashboard fields from the command line (once you have an Admin/App Manager API key), see [Automate with the App Store Connect API](#automate-with-the-app-store-connect-api). The nutrition label still has to be **Published** in the App Privacy web UI — Apple does not expose that over the API.
+
 ---
 
 ## 0. One-time: publish the privacy policy
@@ -153,7 +155,7 @@ Still on **General → App Information → Category**.
 |---|---|
 | Primary Category | **Games** |
 | Primary Games subcategory | **Action** |
-| Secondary Category (optional) | **Games** → **Casual** |
+| Second Games subcategory | **Arcade** |
 
 Save App Information.
 
@@ -208,3 +210,23 @@ Distribution → Game Center: enable, attach leaderboard `com.mayooran.ApolloX.c
 4. Pink banner gone → **Add for Review** → Submit.
 
 If the banner remains, click **Show Details**. The leftover row is almost always an unpublished privacy label (needs Admin) or a 404 privacy URL (Pages not enabled).
+
+---
+
+## Automate with the App Store Connect API
+
+`scripts/asc_fill_review_blockers.py` sets the fields Apple exposes over the API: privacy policy URL, content rights, age rating questionnaire, Games → Action / Arcade, support URL, and listing copy.
+
+1. In App Store Connect → **Users and Access → Integrations → App Store Connect API**, create a key with **Admin** (or App Manager) access. Download the `.p8` once.
+2. Export credentials in your shell — do not commit them:
+
+```bash
+export ASC_ISSUER_ID="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+export ASC_KEY_ID="XXXXXXXXXX"
+export ASC_PRIVATE_KEY="$(cat AuthKey_XXXXXXXXXX.p8)"
+```
+
+3. Status only: `python3 scripts/asc_fill_review_blockers.py`
+4. Write: `python3 scripts/asc_fill_review_blockers.py --apply`
+
+Apple still does **not** let the API publish the App Privacy nutrition label. After `--apply`, an Admin must open **App Privacy**, declare User ID + Product Interaction (App Functionality, linked, not tracking), and **Publish**.

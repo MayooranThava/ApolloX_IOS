@@ -96,7 +96,7 @@ Host `docs/privacy-policy.html` and `docs/support.html` (GitHub Pages from `/doc
 | Privacy Policy | `https://mayooranthava.github.io/ApolloX_IOS/privacy-policy.html` |
 | Support | `https://mayooranthava.github.io/ApolloX_IOS/support.html` |
 
-**Unable to Add for Review** (privacy URL, nutrition label, age rating, category, content rights): copy the answers in `docs/app-store-connect.md`. Enable GitHub Pages (Settings → Pages → Source: GitHub Actions) before pasting the privacy URL — the link 404s until Pages is on.
+**Unable to Add for Review** (privacy URL, nutrition label, age rating, category, content rights): copy the answers in `docs/app-store-connect.md`, or run `python3 scripts/asc_fill_review_blockers.py --apply` with an Admin API key in `ASC_ISSUER_ID` / `ASC_KEY_ID` / `ASC_PRIVATE_KEY` (never commit the `.p8`). Enable GitHub Pages (Settings → Pages → Source: GitHub Actions) before pasting the privacy URL — the link 404s until Pages is on. The nutrition label still has to be Published in the App Privacy web UI.
 
 See `docs/README.md`. App Review copy: `docs/app-review-notes.md`. If the Pages URL differs, update `AppSettings.swift` to match.
 

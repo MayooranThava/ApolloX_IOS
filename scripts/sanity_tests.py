@@ -299,6 +299,11 @@ def main() -> int:
     check((ROOT / "docs" / "privacy-policy.html").exists(), "privacy policy page missing for App Store URL")
     check((ROOT / "docs" / "support.html").exists(), "support page missing for App Store URL")
     check((ROOT / "docs" / "app-store-connect.md").exists(), "App Store Connect fill-in sheet missing")
+    check((ROOT / "scripts" / "asc_fill_review_blockers.py").exists(), "ASC fill script missing")
+    asc_script = (ROOT / "scripts" / "asc_fill_review_blockers.py").read_text()
+    check("BEGIN PRIVATE KEY" not in asc_script, "ASC script must not embed a .p8 private key")
+    check("ASC_PRIVATE_KEY" in asc_script and "ASC_ISSUER_ID" in asc_script,
+          "ASC script should read credentials from the environment")
     privacy_html = (ROOT / "docs" / "privacy-policy.html").read_text()
     check("https://" in (ROOT / "ApolloX" / "AppSettings.swift").read_text(), "legal URLs must be https")
     check("User ID" in privacy_html and "Product Interaction" in privacy_html,
