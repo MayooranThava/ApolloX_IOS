@@ -1,3 +1,6 @@
+# Deploys docs/ to https://mayooranthava.github.io/ApolloX_IOS/
+# One-time: repo Settings → Pages → Source: GitHub Actions.
+# Creating the Pages site needs repo admin; GITHUB_TOKEN cannot do it.
 name: GitHub Pages
 
 on:

@@ -39,6 +39,7 @@ Attach achievements to the app version alongside the leaderboard before submit.
 - **Settings** (title menu): Sound, Music, SFX/Music volume, Haptics, How to Play, Privacy Policy, Support.
 - Privacy Policy: `https://mayooranthava.github.io/ApolloX_IOS/privacy-policy.html`
 - Support: `https://mayooranthava.github.io/ApolloX_IOS/support.html`
+- App Store Connect fill-in (privacy label, age rating, category, content rights): `docs/app-store-connect.md`
 
 ## Demo account
 

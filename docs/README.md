@@ -2,10 +2,14 @@
 
 Host these files over HTTPS and paste the URLs into App Store Connect.
 
+**Fill-in sheet for the “Unable to Add for Review” banner:** [`app-store-connect.md`](app-store-connect.md)
+
 ## Recommended: GitHub Pages
 
-1. Repo **Settings → Pages**
-2. Source: Deploy from branch `development` (or `main`), folder `/docs`
+The Pages workflow deploys this `docs/` folder. It cannot create the Pages site by itself (GitHub returns 403 until Pages is enabled).
+
+1. Repo **Settings → Pages** → **Build and deployment → Source: GitHub Actions**
+2. Run **Actions → GitHub Pages → Run workflow** on `development`
 3. After it publishes, use:
 
 | App Store Connect field | URL |
