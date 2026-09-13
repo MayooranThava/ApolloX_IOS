@@ -923,7 +923,6 @@ final class SpecialWeaponButton: SKNode {
         zPosition = GameConstants.Z.hud
         name = GameConstants.NodeName.specialButton
         isAccessibilityElement = true
-        accessibilityIdentifier = GameConstants.Accessibility.specialButton
         accessibilityLabel = "Special weapon"
 
         plate.zPosition = 0

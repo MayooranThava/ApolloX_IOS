@@ -788,6 +788,7 @@ final class GameRulesTests: XCTestCase {
         button.layout(in: safe)
         XCTAssertEqual(button.position.x, center.x, accuracy: 0.01)
         XCTAssertEqual(button.position.y, center.y, accuracy: 0.01)
-        XCTAssertEqual(button.accessibilityIdentifier, GameConstants.Accessibility.specialButton)
+        XCTAssertEqual(button.name, GameConstants.NodeName.specialButton)
+        XCTAssertEqual(button.accessibilityLabel, "Special weapon")
     }
 }

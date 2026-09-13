@@ -27,7 +27,7 @@ final class LaunchSmokeTests: XCTestCase {
         let titleScene = app.descendants(matching: .any)["titleScene"]
         XCTAssertTrue(titleScene.waitForExistence(timeout: 8), "title should be the first scene")
         XCTAssertFalse(
-            app.descendants(matching: .any)["specialButton"].waitForExistence(timeout: 1),
+            app.descendants(matching: .any)["Special weapon"].waitForExistence(timeout: 1),
             "special hardpoint belongs in a run, not on the title"
         )
         XCTAssertEqual(app.state, .runningForeground)
