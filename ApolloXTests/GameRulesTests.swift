@@ -4,6 +4,7 @@
 //
 
 import XCTest
+import SpriteKit
 @testable import ApolloX
 
 final class GameRulesTests: XCTestCase {
