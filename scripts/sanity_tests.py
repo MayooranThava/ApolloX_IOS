@@ -323,8 +323,8 @@ def main() -> int:
     check(not leaked, f"private key material must not be in the repo: {leaked}")
     privacy_html = (ROOT / "docs" / "privacy-policy.html").read_text()
     check("https://" in (ROOT / "ApolloX" / "AppSettings.swift").read_text(), "legal URLs must be https")
-    check("User ID" in privacy_html and "Product Interaction" in privacy_html,
-          "privacy policy should describe the App Store nutrition-label data types")
+    check("Data Not Collected" in privacy_html or "does not collect" in privacy_html.lower(),
+          "privacy policy should match the App Store Data Not Collected label")
     check("Game Center" in privacy_html, "privacy policy should explain optional Game Center")
     gc = (ROOT / "ApolloX" / "GameCenterService.swift").read_text()
     entitlements = (ROOT / "ApolloX" / "ApolloX.entitlements").read_text()
