@@ -79,10 +79,37 @@ enum ShapeTexture {
             }
         }
         let texture = SKTexture(image: image)
-        texture.filteringMode = .linear
-        texture.usesMipmaps = true
+        configureHUDTexture(texture)
         cache[key] = texture
         return texture
+    }
+
+    /// Stretchable white quad so HUD fills can tint with `colorBlendFactor = 1`.
+    /// Per-hit rounded-rect textures + mipmaps rendered black at some widths on device.
+    static func whitePixel() -> SKTexture {
+        if let cached = cache["whitePixel"] {
+            return cached
+        }
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 2, height: 2), format: format)
+        let image = renderer.image { ctx in
+            UIColor.white.setFill()
+            ctx.fill(CGRect(x: 0, y: 0, width: 2, height: 2))
+        }
+        let texture = SKTexture(image: image)
+        texture.filteringMode = .nearest
+        texture.usesMipmaps = false
+        cache["whitePixel"] = texture
+        return texture
+    }
+
+    /// HUD chrome is screen-sized and often not power-of-two. Mipmaps on those
+    /// UIImage textures sample black on device at some sizes (boss HP fill).
+    private static func configureHUDTexture(_ texture: SKTexture) {
+        texture.filteringMode = .linear
+        texture.usesMipmaps = false
     }
 
     /// Cockpit slab: soft chamfered rect, solid fill, gold rim — no top bar (that caused grey bands).
@@ -142,8 +169,7 @@ enum ShapeTexture {
             }
         }
         let texture = SKTexture(image: image)
-        texture.filteringMode = .linear
-        texture.usesMipmaps = true
+        configureHUDTexture(texture)
         cache[key] = texture
         return texture
     }
@@ -187,8 +213,7 @@ enum ShapeTexture {
             }
         }
         let texture = SKTexture(image: image)
-        texture.filteringMode = .linear
-        texture.usesMipmaps = true
+        configureHUDTexture(texture)
         cache[key] = texture
         return texture
     }
@@ -497,8 +522,11 @@ final class BossHealthBarNode: SKNode {
         track.color = SKColor(white: 1, alpha: 0.12)
         addChild(track)
 
+        fill.texture = ShapeTexture.whitePixel()
         fill.color = fillColor
+        fill.colorBlendFactor = 1
         fill.anchorPoint = CGPoint(x: 0, y: 0.5)
+        fill.zPosition = 1
         addChild(fill)
 
         title.fontName = GameFont.resolved(size: 22)
@@ -603,12 +631,13 @@ final class BossHealthBarNode: SKNode {
         fill.run(.sequence([
             .run { [weak self] in
                 self?.fill.color = .white
-                self?.fill.colorBlendFactor = 0.85
+                self?.fill.colorBlendFactor = 1
             },
             .wait(forDuration: 0.07),
             .run { [weak self] in
                 guard let self else { return }
-                self.applyFill(ratio: self.lastRatio)
+                self.fill.color = self.fillColor
+                self.fill.colorBlendFactor = 1
             }
         ]), withKey: "hpFlash")
     }
@@ -626,27 +655,18 @@ final class BossHealthBarNode: SKNode {
         glow.colorBlendFactor = 0
     }
 
-    /// Resize the fill sprite directly — Texture + xScale was rendering as an empty track on device.
+    /// Tint a white pixel and set `size.width` — per-hit rounded textures went black on device.
     private func applyFill(ratio: CGFloat) {
         let width = max(barWidth * ratio, 0)
-        let height = GameRules.bossHealthFillHeight
+        let height = max(GameRules.bossHealthFillHeight - 6, 12)
+        fill.removeAction(forKey: "hpFlash")
+        fill.texture = ShapeTexture.whitePixel()
         fill.xScale = 1
         fill.yScale = 1
+        fill.color = fillColor
+        fill.colorBlendFactor = 1
         fill.alpha = ratio > 0.001 ? 1 : 0
-        fill.color = .white
-        fill.colorBlendFactor = 0
-        guard width > 0.5 else {
-            fill.size = CGSize(width: 0.01, height: height)
-            return
-        }
-        fill.size = CGSize(width: width, height: height)
-        fill.texture = ShapeTexture.roundedRect(
-            size: CGSize(width: width, height: height),
-            cornerRadius: height * 0.5,
-            fill: fillColor,
-            stroke: SKColor(white: 1, alpha: 0.35),
-            lineWidth: 1.5
-        )
+        fill.size = CGSize(width: max(width, 0.01), height: height)
     }
 }
 

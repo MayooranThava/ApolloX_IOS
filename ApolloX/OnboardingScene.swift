@@ -24,7 +24,7 @@ final class OnboardingScene: SKScene {
         ),
         Step(
             title: "Shoot",
-            body: "You fire automatically. Blast asteroids for points.",
+            body: "You fire automatically. Blast targets for points — surviving scores too.",
             tip: "Stars power a rapid boost — make them count."
         ),
         Step(
