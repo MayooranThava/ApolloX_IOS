@@ -205,12 +205,12 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             if distance > 4, distance < GameRules.softGravityRadius {
                 let falloff = 1 - (distance / GameRules.softGravityRadius)
                 let pull = GameRules.softGravityStrength * falloff * CGFloat(min(lastFrameDelta, 0.05))
-                let halfWidth = player.size.width * player.xScale * 0.45
+                let halfWidth = playerVisibleHalfWidth
                 let nudged = player.position.x + (dx > 0 ? pull : -pull)
                 player.position.x = GameRules.clampPlayerX(
                     x: nudged,
                     playMinX: playArea.minX,
-                    playMaxX: playerSteeringMaxX,
+                    playMaxX: playArea.maxX,
                     halfWidth: halfWidth
                 )
             }
@@ -333,12 +333,11 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
 
     private func applyPlayerSteering() {
         guard let targetX = steeringTouchX else { return }
-        let halfWidth = player.size.width * player.xScale * 0.45
         player.position.x = GameRules.clampPlayerX(
             x: targetX,
             playMinX: playArea.minX,
-            playMaxX: playerSteeringMaxX,
-            halfWidth: halfWidth
+            playMaxX: playArea.maxX,
+            halfWidth: playerVisibleHalfWidth
         )
     }
 
@@ -383,8 +382,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             player.position.x = GameRules.clampPlayerX(
                 x: player.position.x,
                 playMinX: playArea.minX,
-                playMaxX: playerSteeringMaxX,
-                halfWidth: player.size.width * player.xScale * 0.45
+                playMaxX: playArea.maxX,
+                halfWidth: playerVisibleHalfWidth
             )
             player.position.y = GameRules.playerBaselineY(
                 playMinY: playArea.minY,
@@ -502,8 +501,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         scrollingBackground?.applyEffectsQuality(quality)
     }
 
-    private var playerSteeringMaxX: CGFloat {
-        GameRules.playerSteeringMaxX(playMaxX: playArea.maxX)
+    private var playerVisibleHalfWidth: CGFloat {
+        GameRules.playerVisibleHalfWidth(spriteWidth: player.size.width, scale: player.xScale)
     }
 
     private var bossProjectileCap: Int {
