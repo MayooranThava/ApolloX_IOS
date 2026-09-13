@@ -25,6 +25,12 @@ enum GameRules {
     /// Hull center above playfield bottom: keep thruster flames fully visible.
     static let playerBottomHeightFactor: CGFloat = 0.38
     static let playerBottomPadding: CGFloat = 8
+    /// Special hardpoint (plasma grenade, etc.) sits above the hull + caption.
+    /// Prior layout used `minY + 110`, which covered the rocket on every iPhone 13–17 size.
+    static let specialButtonLift: CGFloat = 248
+    static let specialButtonInsetX: CGFloat = 78
+    /// Plate half-width (54) + inset (78). Player clamp treats this as the right play edge.
+    static let specialButtonPlayerClearanceX: CGFloat = 132
     static let starScale: CGFloat = 0.58
     static let starPulseScale: CGFloat = 0.66
 
@@ -459,6 +465,15 @@ enum GameRules {
 
     static func clampPlayerX(x: CGFloat, playMinX: CGFloat, playMaxX: CGFloat, halfWidth: CGFloat) -> CGFloat {
         min(max(x, playMinX + halfWidth), playMaxX - halfWidth)
+    }
+
+    /// Right-edge clamp so the player rocket cannot park under the special button.
+    static func playerSteeringMaxX(playMaxX: CGFloat) -> CGFloat {
+        playMaxX - specialButtonPlayerClearanceX
+    }
+
+    static func specialButtonCenter(in safeRect: CGRect) -> CGPoint {
+        CGPoint(x: safeRect.maxX - specialButtonInsetX, y: safeRect.minY + specialButtonLift)
     }
 
     /// Player hull center Y — slightly above the playfield floor so flames stay on-screen.

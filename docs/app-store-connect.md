@@ -198,13 +198,36 @@ If the banner remains, click **Show Details**. The leftover row is almost always
 
 ---
 
+## Version 2.0 — archive, attach, then review
+
+Apple groups uploaded IPAs by **marketing version** (`CFBundleShortVersionString` / `MARKETING_VERSION`). That is why Connect can look empty:
+
+| Train | Builds | Notes |
+|---|---|---|
+| **1.0.1** | 32–39 | Build **39** was attached to the 1.0 listing that went Waiting for Review |
+| **1.0** | 40–41 | Cannot attach to a 2.0 version |
+| **2.0** | **42+** | This is the train to put in review |
+
+Do **not** submit 2.0 until build **42** is **VALID**. There is no 2.0 IPA until you archive this repo on a Mac.
+
+1. Merge this change, Archive **ApolloX** → **2.0 (42)**, upload to App Store Connect.
+2. Wait until the build is **VALID** (processing often 10–30 minutes).
+3. Device soak: 60 Hz iPhone 13, iPhone 13 Pro (90 Hz), and a 15/16/17 Pro (120 Hz). Confirm the plasma grenade button sits above the rocket and the ship cannot park under it.
+4. Capture 6.7" and 6.1" screenshots from **this** Void Runner binary.
+5. App Store Connect → create iOS version **2.0** (copy listing from 1.0). Attach build **42**. Paste `docs/app-review-notes.md`. Enable Game Center on **2.0** and attach leaderboard `com.mayooran.ApolloX.classicHighScore` (EN name **High Score**) plus the ten achievements.
+6. Remove version **1.0** from review first — only one iOS version can be in review.
+7. Confirm App Privacy is still **Published → Data Not Collected** and both GitHub Pages URLs return 200.
+8. Then **Add for Review**.
+
+---
+
 ## Replace the in-review binary (Void Runner on device)
 
 Guideline **2.3.8**: the App Store name, home-screen name, launch screen, and title scene must agree. This repo now ships **Void Runner** in all four. Bundle ID stays `com.mayooran.ApolloX`.
 
-Archive **version `1.0` build `41`** (`MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` in the ApolloX target). Do not upload as 1.0.1 — that creates a new version instead of replacing the one already in review.
+Archive **version `2.0` build `42`** (`MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` in the ApolloX target). Do not upload as 1.0 or 1.0.1 — those trains cannot attach to a 2.0 version.
 
-If version 1.0 is **Waiting for Review**, you cannot hot-swap the IPA. Remove it from review, attach build 41 once processing finishes, paste `docs/app-review-notes.md` again, and resubmit.
+If version 1.0 is **Waiting for Review**, you cannot hot-swap that listing to 2.0. Remove 1.0 from review, attach build 42 to version 2.0 once processing finishes, paste `docs/app-review-notes.md` again, and submit **2.0**.
 
 Also re-run **Actions → GitHub Pages** so the live privacy policy still says Data Not Collected.
 

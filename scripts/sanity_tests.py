@@ -280,6 +280,29 @@ def main() -> int:
           "combat hardpoint textures should use HD authored keys")
     check("scatterBolts" in (ROOT / "ApolloX" / "WeaponCatalog.swift").read_text(), "scatter bolts primary expected")
     check("fireSpecial" in SCENE and "SpecialWeaponButton" in SCENE, "GameScene needs special hardpoint trigger")
+    check("GameRules.specialButtonCenter" in HUD, "special button layout must use GameRules.specialButtonCenter")
+    check("specialButtonLift" in RULES and "specialButtonPlayerClearanceX" in RULES,
+          "special button lift / player clearance constants missing")
+    lift = swift_number(RULES, "specialButtonLift")
+    check(lift >= 220, f"special button lift {lift} is still on the rocket (need >= 220)")
+    check(lift <= 320, f"special button lift {lift} should stay in the thumb zone (need <= 320)")
+    check(swift_number(RULES, "specialButtonPlayerClearanceX") >= 120,
+          "player steering must keep the hull left of the special plate")
+    steer_start = SCENE.find("private func applyPlayerSteering()")
+    steer_end = SCENE.find("private func updateBossVulnerability()", steer_start)
+    steer_block = SCENE[steer_start:steer_end]
+    check("playerSteeringMaxX" in steer_block, "steering must keep the rocket out of the special-button column")
+    check("playArea.maxX" not in steer_block, "player steering should not use the full playfield max X")
+    gravity_start = SCENE.find("private func applySoftBossEffects()")
+    gravity_end = SCENE.find("private func activateSoftGravity", gravity_start)
+    gravity_block = SCENE[gravity_start:gravity_end]
+    check("playerSteeringMaxX" in gravity_block, "gravity well must not pull the rocket under the special button")
+    layout_start = SCENE.find("private func relayoutForSafeArea()")
+    layout_end = SCENE.find("private func configureLoadout()", layout_start)
+    layout_block = SCENE[layout_start:layout_end]
+    check("playerSteeringMaxX" in layout_block, "safe-area relayout must clamp the rocket clear of the special button")
+    check("specialButton" in (ROOT / "ApolloX" / "GameConstants.swift").read_text(),
+          "special button needs an accessibility identifier")
     check("liveSpecials" in SCENE and "specialPool" in SCENE, "specials should use pooled live lists")
     check("maxLiveSpecialProjectiles" in RULES, "special projectile soft-cap missing")
     check("Hulls" in store and "Weapons" in store, "hangar should tab Hulls and Weapons")
@@ -433,6 +456,21 @@ def main() -> int:
           "frame pacing should demote VFX when frames overrun budget")
     check("midTierHitchOverrunFactor" in pacing_src,
           "older Pros should demote VFX on a tighter hitch budget")
+    check("1.16" in pacing_src, "mid-tier hitch overrun should be tighter than 1.22")
+    check("proMotionRefreshCap" in pacing_src and "a15ProMotionFrameCap" in pacing_src,
+          "iPhone 13 Pro ProMotion should cap at 90 Hz")
+    check("iPhone18" in (ROOT / "ApolloXTests" / "GameRulesTests.swift").read_text(),
+          "XCTest should cover iPhone 17 Pro (iPhone18,*) high-effects + 120 Hz")
+    check("specialButtonSitsAbovePlayerRocket" in (ROOT / "ApolloXTests" / "GameRulesTests.swift").read_text()
+          or "testSpecialButtonSitsAbovePlayerRocket" in (ROOT / "ApolloXTests" / "GameRulesTests.swift").read_text(),
+          "XCTest should lock special-button lift above the rocket")
+    pbx = (ROOT / "ApolloX.xcodeproj" / "project.pbxproj").read_text()
+    check(pbx.count('INFOPLIST_KEY_CFBundleDisplayName = "Void Runner";') == 2,
+          "Debug and Release app configs must ship as Void Runner")
+    check(pbx.count("MARKETING_VERSION = 2.0;") >= 2, "app archives must use marketing version 2.0")
+    check(pbx.count("CURRENT_PROJECT_VERSION = 42;") >= 2, "next App Store binary should be build 42")
+    check("testLaunchStaysOnTitleWithoutCrashing" in (ROOT / "ApolloXUITests" / "LaunchSmokeTests.swift").read_text(),
+          "UI smoke should cover a stable title launch, not only first-frame existence")
     check("liveBullets" in SCENE, "combat should keep live bullet lists instead of enumerating the scene graph")
     check("usesPreciseCollisionDetection = true" not in SCENE, "physics CCD should stay off; swept tests already cover tunneling")
     check("SKShapeNode()" not in HUD and "SKShapeNode()" not in (ROOT / "ApolloX" / "GameOverScene.swift").read_text(), "HUD/game-over chrome should use sprite-batched rounded rects")
@@ -442,6 +480,7 @@ def main() -> int:
     check("hardwareMaxFPS" in pacing_src, "effects quality should scale baseline VFX for 60 Hz phones")
     check("physicsBody = nil" in SCENE, "bullets should skip physics; swept tests handle hits")
     check("maxBossProjectiles" in pacing_src, "boss projectile cap should scale with effects quality")
+    check("bossProjectileCap" in SCENE, "GameScene must honor the quality-scaled boss projectile cap")
 
     import time
 

@@ -922,6 +922,8 @@ final class SpecialWeaponButton: SKNode {
         super.init()
         zPosition = GameConstants.Z.hud
         name = GameConstants.NodeName.specialButton
+        isAccessibilityElement = true
+        accessibilityLabel = "Special weapon"
 
         plate.zPosition = 0
         addChild(plate)
@@ -965,7 +967,7 @@ final class SpecialWeaponButton: SKNode {
     }
 
     func layout(in safeRect: CGRect) {
-        position = CGPoint(x: safeRect.maxX - 78, y: safeRect.minY + 110)
+        position = GameRules.specialButtonCenter(in: safeRect)
         label.position = CGPoint(x: 0, y: -buttonSize.height * 0.5 - 18)
         cooldownOverlay.size = CGSize(width: buttonSize.width - 8, height: buttonSize.height - 8)
         cooldownOverlay.position = CGPoint(x: 0, y: -(buttonSize.height - 8) * 0.5)
