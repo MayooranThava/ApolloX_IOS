@@ -314,6 +314,35 @@ enum GameRules {
         }
     }
 
+    /// Rest scale for the hit flash. Never sample the live sprite — rapid hits
+    /// would compound `xScale` and bosses would grow with every shot.
+    static func obstacleHitPulseBaseScale(
+        kind: GameConstants.ObstacleKind,
+        profileScale: CGFloat
+    ) -> CGFloat {
+        kind == .boss ? profileScale : obstacleScale(for: kind)
+    }
+
+    static let obstacleHitPulseMultiplier: CGFloat = 1.08
+
+    /// Taller fill so the boss HP track reads against the starfield / HUD navy.
+    static let bossHealthFillHeight: CGFloat = 26
+    static let bossHealthBarHeight: CGFloat = 92
+
+    /// Lift a designed boss banner toward a HUD-readable neon while keeping hue.
+    /// Dark purple-on-navy fills vanish on OLED (first boss / Void Leviathan).
+    static func readableBossHealthFillRGB(
+        red: CGFloat,
+        green: CGFloat,
+        blue: CGFloat
+    ) -> (red: CGFloat, green: CGFloat, blue: CGFloat) {
+        (
+            red: min(1, red * 0.55 + 0.45),
+            green: min(1, green * 0.55 + 0.45),
+            blue: min(1, blue * 0.55 + 0.45)
+        )
+    }
+
     // MARK: - Lives / contact
 
     /// Result of a player–obstacle collision while lives remain.

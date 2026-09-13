@@ -216,6 +216,40 @@ final class GameRulesTests: XCTestCase {
         XCTAssertLessThanOrEqual(GameRules.enemyHitboxFactor(for: .boss), 0.25)
     }
 
+    func testHitPulseUsesDesignedScaleNotLiveSpriteScale() {
+        let inflatedLiveScale: CGFloat = 2.45
+        let nexus = GameRules.bossProfile(at: 2)
+        let pulseBase = GameRules.obstacleHitPulseBaseScale(
+            kind: .boss,
+            profileScale: nexus.scale
+        )
+        XCTAssertEqual(pulseBase, nexus.scale, accuracy: 0.001)
+        XCTAssertEqual(nexus.scale, 1.92, accuracy: 0.001)
+        XCTAssertNotEqual(pulseBase, inflatedLiveScale)
+        XCTAssertEqual(
+            GameRules.obstacleHitPulseBaseScale(kind: .asteroid, profileScale: inflatedLiveScale),
+            GameRules.obstacleScale(for: .asteroid),
+            accuracy: 0.001
+        )
+        XCTAssertEqual(GameRules.obstacleHitPulseMultiplier, 1.08, accuracy: 0.001)
+    }
+
+    func testBossHealthFillIsBrighterThanDesignedBanner() {
+        let leviathan = GameRules.bossProfile(at: 0)
+        XCTAssertEqual(leviathan.name, "Void Leviathan")
+        let lifted = GameRules.readableBossHealthFillRGB(
+            red: leviathan.bannerRed,
+            green: leviathan.bannerGreen,
+            blue: leviathan.bannerBlue
+        )
+        XCTAssertGreaterThan(lifted.red, leviathan.bannerRed - 0.001)
+        XCTAssertGreaterThan(lifted.green, leviathan.bannerGreen)
+        let luminance = 0.2126 * lifted.red + 0.7152 * lifted.green + 0.0722 * lifted.blue
+        XCTAssertGreaterThan(luminance, 0.55)
+        XCTAssertEqual(GameRules.bossHealthFillHeight, 26, accuracy: 0.001)
+        XCTAssertGreaterThan(GameRules.bossHealthBarHeight, 80)
+    }
+
     func testSweptProjectileCatchesGrazingPath() {
         let clipped = GameRules.projectileHitsTarget(
             start: CGPoint(x: 0, y: 0),
