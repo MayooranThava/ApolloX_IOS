@@ -493,6 +493,10 @@ def main() -> int:
           "boss HP fill must lift banner RGB so Void Leviathan reads on OLED")
     check("bossHealthFillHeight" in RULES and "bossHealthFillHeight" in HUD,
           "boss HP track must use the taller GameRules fill height")
+    check("whitePixel" in HUD, "boss HP fill must tint a white pixel instead of rebuilding rounded textures")
+    check("fill.texture = ShapeTexture.roundedRect" not in HUD,
+          "boss HP fill must not regenerate rounded-rect textures as HP changes")
+    check("usesMipmaps = true" not in HUD, "HUD chrome mipmaps sample black on device at some sizes")
     check("testHitPulseUsesDesignedScaleNotLiveSpriteScale" in (ROOT / "ApolloXTests" / "GameRulesTests.swift").read_text(),
           "XCTest should lock hit-pulse rest scale against live sprite growth")
     check("testBossHealthFillIsBrighterThanDesignedBanner" in (ROOT / "ApolloXTests" / "GameRulesTests.swift").read_text(),
