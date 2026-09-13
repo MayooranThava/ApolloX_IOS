@@ -8,6 +8,72 @@
 import SpriteKit
 import UIKit
 
+/// Vertical placement for Settings. All controls share one column so How to Play /
+/// Privacy / Support cannot land on Haptics (they used to be pinned to `midY`).
+enum SettingsLayout {
+    static let rowSpacing: CGFloat = 124
+    /// Extra space after Haptics before the legal / how-to buttons.
+    static let sectionSpacing: CGFloat = 40
+    static let linkSpacing: CGFloat = 112
+    /// Minimum center-to-center gap between consecutive tappable rows.
+    static let minimumControlGap: CGFloat = 100
+
+    struct Positions: Equatable {
+        let title: CGFloat
+        let sound: CGFloat
+        let sfxVolume: CGFloat
+        let music: CGFloat
+        let musicVolume: CGFloat
+        let haptics: CGFloat
+        let howToPlay: CGFloat
+        let privacy: CGFloat
+        let support: CGFloat
+        let back: CGFloat
+        let version: CGFloat
+
+        var controlCenters: [CGFloat] {
+            [sound, sfxVolume, music, musicVolume, haptics, howToPlay, privacy, support, back]
+        }
+    }
+
+    static func positions(in safe: CGRect) -> Positions {
+        let title = safe.maxY - 88
+        let version = safe.minY + 26
+        let back = safe.minY + 98
+
+        let stackSpan = 4 * rowSpacing + sectionSpacing + 3 * linkSpacing
+        let topLimit = title - 120
+        let bottomLimit = back + 100
+        let slack = (topLimit - bottomLimit) - stackSpan
+        var sound = topLimit - max(0, slack) * 0.18
+        if sound - stackSpan < bottomLimit {
+            sound = bottomLimit + stackSpan
+        }
+
+        let sfxVolume = sound - rowSpacing
+        let music = sfxVolume - rowSpacing
+        let musicVolume = music - rowSpacing
+        let haptics = musicVolume - rowSpacing
+        let howToPlay = haptics - sectionSpacing - linkSpacing
+        let privacy = howToPlay - linkSpacing
+        let support = privacy - linkSpacing
+
+        return Positions(
+            title: title,
+            sound: sound,
+            sfxVolume: sfxVolume,
+            music: music,
+            musicVolume: musicVolume,
+            haptics: haptics,
+            howToPlay: howToPlay,
+            privacy: privacy,
+            support: support,
+            back: back,
+            version: version
+        )
+    }
+}
+
 final class SettingsScene: SKScene {
 
     private let titleLabel = SKLabelNode()
@@ -62,7 +128,7 @@ final class SettingsScene: SKScene {
         hapticsToggle = haptics
         addChild(haptics)
 
-        let howTo = MenuButtonNode(title: "How to Play", width: 480, height: 96, fontSize: 40, emphasized: false)
+        let howTo = MenuButtonNode(title: "How to Play", width: 480, height: 88, fontSize: 36, emphasized: false)
         howToPlayButton = howTo
         addChild(howTo)
 
@@ -110,27 +176,23 @@ final class SettingsScene: SKScene {
         let safe = playfield.safeRect
         let rowWidth = min(safe.width - 80, 920)
 
-        titleLabel.position = CGPoint(x: safe.midX, y: safe.maxY - 100)
-        var y = safe.midY + 280
-        soundToggle?.position = CGPoint(x: safe.midX, y: y)
+        let place = SettingsLayout.positions(in: safe)
+        titleLabel.position = CGPoint(x: safe.midX, y: place.title)
+        soundToggle?.position = CGPoint(x: safe.midX, y: place.sound)
         soundToggle?.layout(width: rowWidth)
-        y -= 118
-        sfxVolumeRow?.position = CGPoint(x: safe.midX, y: y)
+        sfxVolumeRow?.position = CGPoint(x: safe.midX, y: place.sfxVolume)
         sfxVolumeRow?.layout(width: rowWidth)
-        y -= 118
-        musicToggle?.position = CGPoint(x: safe.midX, y: y)
+        musicToggle?.position = CGPoint(x: safe.midX, y: place.music)
         musicToggle?.layout(width: rowWidth)
-        y -= 118
-        musicVolumeRow?.position = CGPoint(x: safe.midX, y: y)
+        musicVolumeRow?.position = CGPoint(x: safe.midX, y: place.musicVolume)
         musicVolumeRow?.layout(width: rowWidth)
-        y -= 118
-        hapticsToggle?.position = CGPoint(x: safe.midX, y: y)
+        hapticsToggle?.position = CGPoint(x: safe.midX, y: place.haptics)
         hapticsToggle?.layout(width: rowWidth)
-        howToPlayButton?.position = CGPoint(x: safe.midX, y: safe.midY - 120)
-        privacyButton?.position = CGPoint(x: safe.midX, y: safe.midY - 230)
-        supportButton?.position = CGPoint(x: safe.midX, y: safe.midY - 330)
-        backButton?.position = CGPoint(x: safe.midX, y: safe.minY + 88)
-        versionLabel.position = CGPoint(x: safe.midX, y: safe.minY + 28)
+        howToPlayButton?.position = CGPoint(x: safe.midX, y: place.howToPlay)
+        privacyButton?.position = CGPoint(x: safe.midX, y: place.privacy)
+        supportButton?.position = CGPoint(x: safe.midX, y: place.support)
+        backButton?.position = CGPoint(x: safe.midX, y: place.back)
+        versionLabel.position = CGPoint(x: safe.midX, y: place.version)
     }
 
     private func openURL(_ url: URL) {

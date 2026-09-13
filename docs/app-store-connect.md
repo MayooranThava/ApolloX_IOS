@@ -225,9 +225,9 @@ Do **not** submit 2.0 until build **42** is **VALID**. There is no 2.0 IPA until
 
 Guideline **2.3.8**: the App Store name, home-screen name, launch screen, and title scene must agree. This repo now ships **Void Runner** in all four. Bundle ID stays `com.mayooran.ApolloX`.
 
-Archive **version `2.0` build `42`** (`MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` in the ApolloX target). Do not upload as 1.0 or 1.0.1 — those trains cannot attach to a 2.0 version.
+Archive **version `2.0` build `43`** (`MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` in the ApolloX target) to replace the in-review 2.0 binary. Do not upload as 1.0 or 1.0.1 — those trains cannot attach to a 2.0 version.
 
-If version 1.0 is **Waiting for Review**, you cannot hot-swap that listing to 2.0. Remove 1.0 from review, attach build 42 to version 2.0 once processing finishes, paste `docs/app-review-notes.md` again, and submit **2.0**.
+If version **2.0** is **Waiting for Review**, remove it from review, attach build 43 once processing finishes, paste `docs/app-review-notes.md` again, and resubmit.
 
 Also re-run **Actions → GitHub Pages** so the live privacy policy still says Data Not Collected.
 

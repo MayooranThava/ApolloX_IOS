@@ -420,6 +420,10 @@ def main() -> int:
     check("public.app-category.action-games" in pbx, "Info.plist category should match Games → Action")
     settings_ui = (ROOT / "ApolloX" / "SettingsScene.swift").read_text()
     check("GameConstants.displayName" in settings_ui, "Settings footer should use GameConstants.displayName")
+    check("SettingsLayout.positions" in settings_ui, "Settings must stack rows from a shared layout")
+    check("safe.midY - 120" not in settings_ui, "How to Play must not be pinned to midY (overlaps Haptics)")
+    check("testSettingsLayoutKeepsLinksOffHapticsOnIPhone13" in (ROOT / "ApolloXTests" / "AppSettingsTests.swift").read_text(),
+          "XCTest should lock Settings so How to Play cannot cover Haptics")
 
     scene_helpers = (ROOT / "ApolloX" / "SceneHelpers.swift").read_text()
     scrolling_bg = ROOT / "ApolloX" / "ScrollingBackgroundNode.swift"
@@ -468,7 +472,7 @@ def main() -> int:
     check(pbx.count('INFOPLIST_KEY_CFBundleDisplayName = "Void Runner";') == 2,
           "Debug and Release app configs must ship as Void Runner")
     check(pbx.count("MARKETING_VERSION = 2.0;") >= 2, "app archives must use marketing version 2.0")
-    check(pbx.count("CURRENT_PROJECT_VERSION = 42;") >= 2, "next App Store binary should be build 42")
+    check(pbx.count("CURRENT_PROJECT_VERSION = 43;") >= 2, "next App Store binary should be build 43")
     check("testLaunchStaysOnTitleWithoutCrashing" in (ROOT / "ApolloXUITests" / "LaunchSmokeTests.swift").read_text(),
           "UI smoke should cover a stable title launch, not only first-frame existence")
     check("liveBullets" in SCENE, "combat should keep live bullet lists instead of enumerating the scene graph")
