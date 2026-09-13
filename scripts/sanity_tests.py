@@ -110,6 +110,12 @@ def main() -> int:
     check("hudSlab" in HUD, "menu buttons should use HUD-slab chrome")
     check("slab2-" in HUD or "chamfer" in HUD.lower() or "cut =" in HUD, "button slabs must not use the grey top-band bevel")
     check("comboAfterKill" in RULES and "registerKillCombo" in SCENE, "kill combo should advance on destroys")
+    check("survivalScoreInterval" in RULES and "survivalScoreTicks" in SCENE,
+          "playing time should award score every half second")
+    check("testSurvivalScoreAwardsOnePointEveryHalfSecond" in (ROOT / "ApolloXTests" / "GameRulesTests.swift").read_text(),
+          "XCTest should lock +1 survival score every 0.5s")
+    check("addScore(points)" in SCENE and "addScore(currentBossPoints)" in SCENE,
+          "destroying targets and bosses must still add score")
     check("blockSize = CGSize(width: 52" in HUD, "HP/shield blocks should be large enough to read")
     check("didEnterBackgroundNotification" in SCENE, "background pause should use didEnterBackground")
     check("requiresManualResume" in SCENE, "track manual resume after true backgrounding")

@@ -165,9 +165,17 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             let rawDelta = currentTime - lastUpdateTime
             FramePacing.reportFrameDuration(rawDelta)
             let delta = FramePacing.clampedDelta(rawDelta)
+            let previousElapsed = runElapsed
             runElapsed += delta
             scrollingBackground?.tick(deltaTime: delta)
             lastFrameDelta = delta
+            let survivalTicks = GameRules.survivalScoreTicks(
+                previousElapsed: previousElapsed,
+                newElapsed: runElapsed
+            )
+            if survivalTicks > 0 {
+                addScore(survivalTicks)
+            }
 
             let tier = GameRules.spawnTier(elapsed: runElapsed)
             if tier != backgroundTier {

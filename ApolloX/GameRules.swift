@@ -15,6 +15,10 @@ enum GameRules {
     static let starsNeededForUpgrade = 1
     static let poweredShotCount = 28
 
+    /// Survive reward while the run is actually playing (paused / frozen time does not count).
+    static let survivalScoreInterval: TimeInterval = 0.5
+    static let survivalScorePoints = 1
+
     /// Core hull capacity shown as cyan HP blocks. Lives beyond this become shields.
     static let baseHullCapacity = startingLives
     static let maxLives = 5
@@ -490,6 +494,15 @@ enum GameRules {
 
     static func shouldAdvanceLevel(previousScore: Int, newScore: Int) -> Bool {
         levelScoreThresholds.contains { previousScore < $0 && newScore >= $0 }
+    }
+
+    /// How many survival ticks fired between two timestamps. Catches up after hitches
+    /// so a long frame still awards the missed half-seconds once.
+    static func survivalScoreTicks(previousElapsed: TimeInterval, newElapsed: TimeInterval) -> Int {
+        guard survivalScoreInterval > 0, newElapsed > previousElapsed else { return 0 }
+        let previousTick = Int((max(0, previousElapsed) / survivalScoreInterval).rounded(.down))
+        let newTick = Int((max(0, newElapsed) / survivalScoreInterval).rounded(.down))
+        return max(0, newTick - previousTick) * survivalScorePoints
     }
 
     static func clampPlayerX(x: CGFloat, playMinX: CGFloat, playMaxX: CGFloat, halfWidth: CGFloat) -> CGFloat {

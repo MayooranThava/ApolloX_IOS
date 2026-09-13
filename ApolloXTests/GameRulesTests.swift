@@ -154,6 +154,18 @@ final class GameRulesTests: XCTestCase {
         XCTAssertTrue(GameRules.shouldAdvanceLevel(previousScore: 24, newScore: 26))
     }
 
+    func testSurvivalScoreAwardsOnePointEveryHalfSecond() {
+        XCTAssertEqual(GameRules.survivalScoreInterval, 0.5, accuracy: 0.001)
+        XCTAssertEqual(GameRules.survivalScorePoints, 1)
+        XCTAssertEqual(GameRules.survivalScoreTicks(previousElapsed: 0, newElapsed: 0.49), 0)
+        XCTAssertEqual(GameRules.survivalScoreTicks(previousElapsed: 0, newElapsed: 0.5), 1)
+        XCTAssertEqual(GameRules.survivalScoreTicks(previousElapsed: 0, newElapsed: 1.0), 2)
+        XCTAssertEqual(GameRules.survivalScoreTicks(previousElapsed: 1.0, newElapsed: 1.0), 0)
+        XCTAssertEqual(GameRules.survivalScoreTicks(previousElapsed: 1.49, newElapsed: 2.01), 2)
+        XCTAssertEqual(GameRules.survivalScoreTicks(previousElapsed: 0, newElapsed: 2.4), 4)
+        XCTAssertEqual(GameRules.survivalScoreTicks(previousElapsed: 2.4, newElapsed: 1.0), 0)
+    }
+
     func testPlayerClampStaysInsidePlayArea() {
         let x = GameRules.clampPlayerX(x: -50, playMinX: 0, playMaxX: 100, halfWidth: 10)
         XCTAssertEqual(x, 10)
