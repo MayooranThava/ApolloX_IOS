@@ -12,12 +12,7 @@ final class GameViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         configureAudioSession()
-        TextureCache.preload()
-        AudioManager.preload()
-        AudioManager.startBackgroundMusicIfNeeded()
         HapticManager.prepare()
-        PlayerShipCatalog.registerTextures()
-        WeaponCatalog.registerTextures()
         // Apple: set the Game Center authenticate handler at launch. Do not gate play on it.
         GameCenterService.authenticateAtLaunch()
 
@@ -42,6 +37,21 @@ final class GameViewController: UIViewController {
         let scene = GameTitleScene(size: GameConstants.sceneSize)
         scene.scaleMode = .aspectFill
         skView.presentScene(scene)
+
+        // Decode combat textures/audio after the first frame so launch is not watchdog-close
+        // on older review devices.
+        DispatchQueue.main.async {
+            TextureCache.preload()
+            AudioManager.preload()
+            AudioManager.startBackgroundMusicIfNeeded()
+            PlayerShipCatalog.registerTextures()
+            WeaponCatalog.registerTextures()
+        }
+    }
+
+    override func didReceiveMemoryWarning() {
+        super.didReceiveMemoryWarning()
+        FramePacing.handleMemoryWarning()
     }
 
     deinit {

@@ -31,8 +31,10 @@ enum AudioManager {
     private static var pools: [AudioCue: [AVAudioPlayer]] = [:]
     private static var nextIndex: [AudioCue: Int] = [:]
     private static var musicPlayer: AVAudioPlayer?
+    private static var interruptionObserver: NSObjectProtocol?
 
     static func preload() {
+        startInterruptionObserverIfNeeded()
         guard pools.isEmpty else { return }
         for cue in AudioCue.allCases {
             guard let url = Bundle.main.url(forResource: cue.rawValue, withExtension: "wav") else {
@@ -54,6 +56,50 @@ enum AudioManager {
         preloadMusicIfNeeded()
     }
 
+    private static func startInterruptionObserverIfNeeded() {
+        guard interruptionObserver == nil else { return }
+        interruptionObserver = NotificationCenter.default.addObserver(
+            forName: AVAudioSession.interruptionNotification,
+            object: AVAudioSession.sharedInstance(),
+            queue: .main
+        ) { notification in
+            handleInterruption(notification)
+        }
+    }
+
+    private static func handleInterruption(_ notification: Notification) {
+        guard
+            let typeValue = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+            let type = AVAudioSession.InterruptionType(rawValue: typeValue)
+        else { return }
+
+        switch type {
+        case .began:
+            musicPlayer?.pause()
+        case .ended:
+            let optionsValue = notification.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
+            let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
+            guard options.contains(.shouldResume) else { return }
+            resumeBackgroundMusicIfNeeded()
+        @unknown default:
+            break
+        }
+    }
+
+    /// Foreground resume. Does not rewind the loop (unlike `startBackgroundMusicIfNeeded`).
+    static func resumeBackgroundMusicIfNeeded() {
+        startInterruptionObserverIfNeeded()
+        guard AppSettings.musicEnabled else { return }
+        preloadMusicIfNeeded()
+        guard let player = musicPlayer, !player.isPlaying else { return }
+        do {
+            try AVAudioSession.sharedInstance().setActive(true)
+        } catch {
+            return
+        }
+        player.play()
+    }
+
     private static func preloadMusicIfNeeded() {
         guard musicPlayer == nil else { return }
         guard let url = Bundle.main.url(forResource: "backgroundMusicLoop", withExtension: "wav") else {
@@ -67,6 +113,7 @@ enum AudioManager {
     }
 
     static func startBackgroundMusicIfNeeded() {
+        startInterruptionObserverIfNeeded()
         preloadMusicIfNeeded()
         guard AppSettings.musicEnabled else {
             musicPlayer?.stop()

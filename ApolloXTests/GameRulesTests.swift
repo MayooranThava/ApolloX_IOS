@@ -4,6 +4,7 @@
 //
 
 import XCTest
+import SpriteKit
 @testable import ApolloX
 
 final class GameRulesTests: XCTestCase {
@@ -612,6 +613,26 @@ final class GameRulesTests: XCTestCase {
 
         sprite.attachCirclePhysics(radius: 40, category: 1, contact: 2)
         XCTAssertFalse(sprite.physicsBody === firstBody)
+    }
+
+    func testPhysicsBodyRejectsZeroAndNaNRadius() {
+        let sprite = PooledSprite(color: .red, size: .zero)
+        sprite.attachCirclePhysics(radius: 0, category: 1, contact: 2)
+        XCTAssertNotNil(sprite.physicsBody)
+        sprite.attachCirclePhysics(radius: .nan, category: 1, contact: 2)
+        XCTAssertNotNil(sprite.physicsBody)
+
+        let empty = SKTexture()
+        sprite.attachTexturePhysics(texture: empty, size: .zero, category: 1, contact: 2)
+        XCTAssertNotNil(sprite.physicsBody)
+    }
+
+    func testMemoryWarningDemotesEffects() {
+        FramePacing.resetAdaptiveStateForTests()
+        FramePacing.handleMemoryWarning()
+        XCTAssertEqual(FramePacing.hitchDemotionSteps, 2)
+        FramePacing.resetAdaptiveStateForTests()
+        XCTAssertEqual(FramePacing.hitchDemotionSteps, 0)
     }
 
     func testLateGameSweptCombatStaysUnderFrameBudget() {

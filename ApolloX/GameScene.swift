@@ -415,7 +415,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         }
         player.setScale(GameRules.playerScale)
         player.zPosition = GameConstants.Z.player
-        let radius = min(player.size.width, player.size.height) * player.xScale * GameRules.playerHitboxFactor
+        let rawRadius = min(player.size.width, player.size.height) * player.xScale * GameRules.playerHitboxFactor
+        let radius = max(12, rawRadius.isFinite ? rawRadius : 12)
         player.physicsBody = SKPhysicsBody(circleOfRadius: radius)
         player.physicsBody?.isDynamic = true
         player.physicsBody?.affectedByGravity = false
@@ -868,6 +869,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         if gameplayFrozen {
             gameplayFrozen = false
             speed = 1
+            physicsWorld.speed = 1
             FramePacing.setOverlayFrameCapActive(false)
         }
         dismissPauseOverlay()
@@ -928,6 +930,9 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         // Scene speed freezes every SKAction (spawns, fire, delayed boss volleys)
         // in place so resume does not restart timers or dump a spawn wave.
         speed = 0
+        // `SKScene.speed` freezes actions only. Physics keeps stepping unless we
+        // zero the world speed — otherwise Control Center / calls can kill the player.
+        physicsWorld.speed = 0
         player.isPaused = true
         engineEmitter?.isPaused = true
         setAmbientEmittersPaused(true)
@@ -943,6 +948,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         guard gameplayFrozen else { return }
         gameplayFrozen = false
         speed = 1
+        physicsWorld.speed = 1
         player.isPaused = false
         gravityWellFX?.isPaused = false
         for node in liveBullets + liveEnemies + livePickups + liveFireballs + liveRockets + liveSpecials {
@@ -1014,6 +1020,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         if gameplayFrozen {
             gameplayFrozen = false
             speed = 1
+            physicsWorld.speed = 1
         }
         FramePacing.setOverlayFrameCapActive(false)
         dismissPauseOverlay()

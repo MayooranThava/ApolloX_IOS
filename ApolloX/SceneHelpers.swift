@@ -402,8 +402,7 @@ extension SKScene {
     }
 
     func presentScene(_ scene: SKScene, duration: TimeInterval = 0.4) {
-        scene.scaleMode = scaleMode
-        view?.presentScene(scene, transition: .fade(withDuration: duration))
+        SceneTransition.present(scene, from: self, duration: duration)
     }
 
     /// Safe-area insets are often still zero on the first `didMove`; refresh after layout.
@@ -417,5 +416,20 @@ extension SKScene {
                 body()
             }
         }
+    }
+}
+
+/// Serializes scene fades so a double-tap cannot stack two SpriteKit transitions (a 2.1 crash).
+private enum SceneTransition {
+    private static var lastPresentUptime: TimeInterval = 0
+    private static let minimumInterval: TimeInterval = 0.35
+
+    static func present(_ scene: SKScene, from current: SKScene, duration: TimeInterval) {
+        guard let view = current.view else { return }
+        let now = ProcessInfo.processInfo.systemUptime
+        if now - lastPresentUptime < minimumInterval { return }
+        lastPresentUptime = now
+        scene.scaleMode = current.scaleMode
+        view.presentScene(scene, transition: .fade(withDuration: duration))
     }
 }

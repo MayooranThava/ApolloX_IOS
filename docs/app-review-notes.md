@@ -54,3 +54,19 @@ Standard HTTPS only (`ITSAppUsesNonExemptEncryption = NO`).
 ## Crash reporting
 
 Apple Organizer / TestFlight crash reports only — no third-party SDK.
+
+## What App Review will tap (2.1)
+
+Reviewers typically:
+
+1. Cold-launch to the **Void Runner** title (not ApolloX).
+2. First launch: **Play** → 3-card How to Play → into a run. Later: **How to Play** from title / Settings without starting a run.
+3. Drag to steer, die, **Restart** / **Ranks** / **Menu**.
+4. Pause with the in-game button, then Home / app switcher during a run — game must stay paused with **Resume** / **Menu** (physics frozen).
+5. Control Center / incoming notification during a run — player must not die while the system overlay is up.
+6. **Settings**: Sound / Music / volumes / Haptics; **Privacy Policy** and **Support** open HTTPS pages.
+7. **Ranks** signed out: clear message, no crash. Signed in: top 5 + **Game Center** dashboard named **High Score**.
+8. **Store**: browse Hulls / Weapons; purchase is optional (credits from runs). No IAP.
+9. Rotate / iPad: portrait-only iPhone app. Low Power Mode: still playable.
+
+Demo account: **not required**. Game Center is optional.

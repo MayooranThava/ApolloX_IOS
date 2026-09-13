@@ -421,6 +421,12 @@ def main() -> int:
           "GameScene should honor mid-tier boss VFX / physics gates")
     check("setOverlayFrameCapActive" in SCENE and "setOverlayFrameCapActive" in pacing_src,
           "pause should drop to overlay FPS and restore on resume")
+    check("physicsWorld.speed = 0" in SCENE, "pause/Control Center must freeze physics, not only SKActions")
+    check("handleMemoryWarning" in pacing_src, "memory warnings should demote VFX")
+    check("didReceiveMemoryWarning" in view, "GameViewController must forward memory warnings")
+    check("resumeBackgroundMusicIfNeeded" in audio, "returning from background should resume music without rewind")
+    check("interruptionNotification" in audio, "phone-call interruptions must pause/resume the music loop")
+    check("SceneTransition" in scene_helpers, "scene fades must be serialized against double-taps")
     check("clampedDelta" in SCENE and "maxSimulationDelta" in pacing_src,
           "update loop must clamp post-pause hitch deltas")
     check("reportFrameDuration" in SCENE and "hitchDemotionSteps" in pacing_src,
