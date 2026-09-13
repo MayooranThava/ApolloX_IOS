@@ -47,6 +47,8 @@ final class PooledSprite: SKSpriteNode {
 
     /// Reuses the existing circle body when the radius has not changed (typical for bullets).
     func attachCirclePhysics(radius: CGFloat, category: UInt32, contact: UInt32) {
+        // `SKPhysicsBody(circleOfRadius: 0)` aborts. Missing textures can yield a 0 size.
+        let radius = max(1, radius.isFinite ? radius : 1)
         if physicsBody != nil, abs(physicsRadius - radius) < 0.5 {
             physicsBody?.categoryBitMask = category
             physicsBody?.contactTestBitMask = contact
@@ -73,8 +75,16 @@ final class PooledSprite: SKSpriteNode {
 
     /// Alpha-masked body so transparent padding on boss / attack art does not hurt the player.
     func attachTexturePhysics(texture: SKTexture, size: CGSize, category: UInt32, contact: UInt32) {
-        let body = SKPhysicsBody(texture: texture, alphaThreshold: 0.12, size: size)
-            ?? SKPhysicsBody(circleOfRadius: min(size.width, size.height) * 0.22)
+        let texSize = texture.size()
+        let width = size.width.isFinite ? size.width : 0
+        let height = size.height.isFinite ? size.height : 0
+        // Texture physics crashes on zero/NaN size or an empty placeholder texture.
+        guard width > 1, height > 1, texSize.width > 1, texSize.height > 1 else {
+            attachCirclePhysics(radius: max(12, min(width, height) * 0.22), category: category, contact: contact)
+            return
+        }
+        let body = SKPhysicsBody(texture: texture, alphaThreshold: 0.12, size: CGSize(width: width, height: height))
+            ?? SKPhysicsBody(circleOfRadius: min(width, height) * 0.22)
         body.isDynamic = true
         body.affectedByGravity = false
         body.allowsRotation = false

@@ -171,13 +171,9 @@ enum GameCenterService {
 
     private static func present(_ viewController: UIViewController) {
         guard let presenter = topViewController() else { return }
-        if presenter.presentedViewController != nil {
-            presenter.dismiss(animated: false) {
-                presenter.present(viewController, animated: true)
-            }
-        } else {
-            presenter.present(viewController, animated: true)
-        }
+        // Never dismiss an already-visible Game Center sheet; stacking presents crashes.
+        if presenter.presentedViewController != nil { return }
+        presenter.present(viewController, animated: true)
     }
 
     private static func topViewController() -> UIViewController? {

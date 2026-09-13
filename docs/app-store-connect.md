@@ -202,9 +202,9 @@ If the banner remains, click **Show Details**. The leftover row is almost always
 
 Guideline **2.3.8**: the App Store name, home-screen name, launch screen, and title scene must agree. This repo now ships **Void Runner** in all four. Bundle ID stays `com.mayooran.ApolloX`.
 
-Archive **version `1.0` build `40`** (`MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` in the ApolloX target). Do not upload as 1.0.1 — that creates a new version instead of replacing the one already in review.
+Archive **version `1.0` build `41`** (`MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` in the ApolloX target). Do not upload as 1.0.1 — that creates a new version instead of replacing the one already in review.
 
-If version 1.0 is **Waiting for Review**, you cannot hot-swap the IPA. Remove it from review, attach build 40 once processing finishes, paste `docs/app-review-notes.md` again, and resubmit.
+If version 1.0 is **Waiting for Review**, you cannot hot-swap the IPA. Remove it from review, attach build 41 once processing finishes, paste `docs/app-review-notes.md` again, and resubmit.
 
 Also re-run **Actions → GitHub Pages** so the live privacy policy still says Data Not Collected.
 

@@ -281,6 +281,12 @@ enum FramePacing {
         apply()
     }
 
+    /// Jetsam / memory warnings: drop VFX immediately so review devices under pressure stay alive.
+    static func handleMemoryWarning() {
+        hitchDemotionSteps = 2
+        apply()
+    }
+
     static func start(on view: SKView?) {
         skView = view
         stopMonitoring()
@@ -296,7 +302,12 @@ enum FramePacing {
                 forName: .NSProcessInfoPowerStateDidChange,
                 object: nil,
                 queue: .main
-            ) { _ in apply() }
+            ) { _ in apply() },
+            center.addObserver(
+                forName: UIApplication.didReceiveMemoryWarningNotification,
+                object: nil,
+                queue: .main
+            ) { _ in handleMemoryWarning() }
         ]
     }
 

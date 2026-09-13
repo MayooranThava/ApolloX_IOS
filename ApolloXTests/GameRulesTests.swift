@@ -614,6 +614,26 @@ final class GameRulesTests: XCTestCase {
         XCTAssertFalse(sprite.physicsBody === firstBody)
     }
 
+    func testPhysicsBodyRejectsZeroAndNaNRadius() {
+        let sprite = PooledSprite(color: .red, size: .zero)
+        sprite.attachCirclePhysics(radius: 0, category: 1, contact: 2)
+        XCTAssertNotNil(sprite.physicsBody)
+        sprite.attachCirclePhysics(radius: .nan, category: 1, contact: 2)
+        XCTAssertNotNil(sprite.physicsBody)
+
+        let empty = SKTexture()
+        sprite.attachTexturePhysics(texture: empty, size: .zero, category: 1, contact: 2)
+        XCTAssertNotNil(sprite.physicsBody)
+    }
+
+    func testMemoryWarningDemotesEffects() {
+        FramePacing.resetAdaptiveStateForTests()
+        FramePacing.handleMemoryWarning()
+        XCTAssertEqual(FramePacing.hitchDemotionSteps, 2)
+        FramePacing.resetAdaptiveStateForTests()
+        XCTAssertEqual(FramePacing.hitchDemotionSteps, 0)
+    }
+
     func testLateGameSweptCombatStaysUnderFrameBudget() {
         let bullets = (0..<12).map { CGPoint(x: CGFloat($0) * 40, y: 200) }
         let ends = bullets.map { CGPoint(x: $0.x, y: $0.y + 28) }
