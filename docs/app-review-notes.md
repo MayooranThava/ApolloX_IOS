@@ -8,7 +8,7 @@ Void Runner is a portrait space shooter. The player drags to steer, auto-fires a
 
 The Xcode target and bundle ID remain `com.mayooran.ApolloX`. The App Store name and on-device display name are **Void Runner**.
 
-No login beyond optional **Game Center** for global high scores and achievements. No IAP, ads, or third-party analytics in v1.0.
+No login beyond optional **Game Center** for global high scores and achievements. No IAP, ads, or third-party analytics in v2.0.
 
 ## Game Center testing
 

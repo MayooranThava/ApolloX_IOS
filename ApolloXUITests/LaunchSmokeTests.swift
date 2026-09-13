@@ -19,4 +19,17 @@ final class LaunchSmokeTests: XCTestCase {
             "GameTitleScene should be on screen after launch"
         )
     }
+
+    func testLaunchStaysOnTitleWithoutCrashing() {
+        let app = XCUIApplication()
+        app.launch()
+
+        let titleScene = app.descendants(matching: .any)["titleScene"]
+        XCTAssertTrue(titleScene.waitForExistence(timeout: 8), "title should be the first scene")
+        XCTAssertFalse(
+            app.descendants(matching: .any)["specialButton"].waitForExistence(timeout: 1),
+            "special hardpoint belongs in a run, not on the title"
+        )
+        XCTAssertEqual(app.state, .runningForeground)
+    }
 }

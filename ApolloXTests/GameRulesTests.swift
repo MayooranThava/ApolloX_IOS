@@ -343,9 +343,38 @@ final class GameRulesTests: XCTestCase {
 
     func testProMotionFramePacingHonorsApplePolicy() {
         XCTAssertEqual(
-            FramePacing.preferredFramesPerSecond(hardwareMax: 120, thermalState: .nominal, lowPowerMode: false),
+            FramePacing.preferredFramesPerSecond(
+                hardwareMax: 120, thermalState: .nominal, lowPowerMode: false, machine: "iPhone17,1"
+            ),
             120,
-            "iPhone 16/17 Pro should request 120 Hz when cool"
+            "iPhone 16 Pro should request 120 Hz when cool"
+        )
+        XCTAssertEqual(
+            FramePacing.preferredFramesPerSecond(
+                hardwareMax: 120, thermalState: .nominal, lowPowerMode: false, machine: "iPhone18,1"
+            ),
+            120,
+            "iPhone 17 Pro should request 120 Hz when cool"
+        )
+        XCTAssertEqual(
+            FramePacing.preferredFramesPerSecond(
+                hardwareMax: 120, thermalState: .nominal, lowPowerMode: false, machine: "iPhone14,2"
+            ),
+            90,
+            "iPhone 13 Pro should cap ProMotion at 90 Hz"
+        )
+        XCTAssertEqual(
+            FramePacing.preferredFramesPerSecond(
+                hardwareMax: 120, thermalState: .nominal, lowPowerMode: false, machine: "iPhone14,3"
+            ),
+            90
+        )
+        XCTAssertEqual(
+            FramePacing.preferredFramesPerSecond(
+                hardwareMax: 120, thermalState: .nominal, lowPowerMode: false, machine: "iPhone15,2"
+            ),
+            120,
+            "iPhone 14 Pro (A16) keeps 120 Hz with balanced VFX"
         )
         XCTAssertEqual(
             FramePacing.preferredFramesPerSecond(hardwareMax: 60, thermalState: .nominal, lowPowerMode: false),
@@ -367,6 +396,13 @@ final class GameRulesTests: XCTestCase {
         XCTAssertEqual(
             FramePacing.preferredFramesPerSecond(hardwareMax: 120, thermalState: .critical, lowPowerMode: false),
             30
+        )
+        XCTAssertEqual(
+            FramePacing.preferredFramesPerSecond(
+                hardwareMax: 120, thermalState: .serious, lowPowerMode: false, machine: "iPhone14,2"
+            ),
+            30,
+            "thermal policy still wins over the A15 90 Hz cap"
         )
     }
 
@@ -473,6 +509,8 @@ final class GameRulesTests: XCTestCase {
         XCTAssertGreaterThan(EffectsQuality.high.engineFlameLayers, EffectsQuality.balanced.engineFlameLayers)
         XCTAssertGreaterThan(EffectsQuality.high.parallaxStarCount, EffectsQuality.conservative.parallaxStarCount)
         XCTAssertGreaterThan(EffectsQuality.high.maxBossProjectiles, EffectsQuality.balanced.maxBossProjectiles)
+        XCTAssertEqual(EffectsQuality.balanced.parallaxStarCount, 4)
+        XCTAssertEqual(EffectsQuality.balanced.maxBossProjectiles, 12)
         XCTAssertEqual(EffectsQuality.balanced.rocketTailSmokeBirthRate, 0)
         XCTAssertTrue(EffectsQuality.high.animatesBossProjectiles)
         XCTAssertFalse(EffectsQuality.balanced.animatesBossProjectiles)
@@ -493,6 +531,9 @@ final class GameRulesTests: XCTestCase {
         // 16 Pro family
         XCTAssertTrue(FramePacing.supportsHighEffects(machine: "iPhone17,1"))
         XCTAssertTrue(FramePacing.supportsHighEffects(machine: "iPhone17,2"))
+        // 17 Pro family
+        XCTAssertTrue(FramePacing.supportsHighEffects(machine: "iPhone18,1"))
+        XCTAssertTrue(FramePacing.supportsHighEffects(machine: "iPhone18,2"))
         // Non-Pro 60 Hz phones never need the high path via machine alone.
         XCTAssertFalse(FramePacing.supportsHighEffects(machine: "iPhone14,5")) // 13
         // Simulator identifiers keep the high path exercisable.
@@ -710,5 +751,43 @@ final class GameRulesTests: XCTestCase {
         XCTAssertEqual(y, 100 + 200 * GameRules.playerBottomHeightFactor + GameRules.playerBottomPadding, accuracy: 0.01)
         XCTAssertLessThan(GameRules.playerBottomHeightFactor, 0.42)
         XCTAssertLessThan(GameRules.playerScale, 0.72)
+    }
+
+    func testSpecialButtonSitsAbovePlayerRocket() {
+        XCTAssertGreaterThanOrEqual(GameRules.specialButtonLift, 220)
+        XCTAssertLessThanOrEqual(GameRules.specialButtonLift, 320)
+        XCTAssertEqual(GameRules.specialButtonInsetX, 78)
+        XCTAssertEqual(GameRules.specialButtonPlayerClearanceX, 132)
+
+        let safe = CGRect(x: 0, y: 47, width: 390, height: 750)
+        let center = GameRules.specialButtonCenter(in: safe)
+        XCTAssertEqual(center.x, safe.maxX - GameRules.specialButtonInsetX, accuracy: 0.01)
+        XCTAssertEqual(center.y, safe.minY + GameRules.specialButtonLift, accuracy: 0.01)
+
+        let playerY = GameRules.playerBaselineY(playMinY: safe.minY, scaledHeight: 140)
+        let plateHalf: CGFloat = 54
+        let captionDrop: CGFloat = 28
+        XCTAssertGreaterThan(
+            center.y - plateHalf - captionDrop,
+            playerY + 70,
+            "grenade plate + caption must clear the hull"
+        )
+
+        let steeringMax = GameRules.playerSteeringMaxX(playMaxX: safe.maxX)
+        XCTAssertEqual(steeringMax, safe.maxX - GameRules.specialButtonPlayerClearanceX)
+        let hullHalf: CGFloat = 40
+        let clamped = GameRules.clampPlayerX(
+            x: 400,
+            playMinX: safe.minX,
+            playMaxX: steeringMax,
+            halfWidth: hullHalf
+        )
+        XCTAssertLessThanOrEqual(clamped + hullHalf, center.x - plateHalf + 0.5)
+
+        let button = SpecialWeaponButton()
+        button.layout(in: safe)
+        XCTAssertEqual(button.position.x, center.x, accuracy: 0.01)
+        XCTAssertEqual(button.position.y, center.y, accuracy: 0.01)
+        XCTAssertEqual(button.accessibilityIdentifier, GameConstants.Accessibility.specialButton)
     }
 }

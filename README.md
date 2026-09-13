@@ -49,8 +49,8 @@ Repo-side prep for the first archive is done. Finish the Apple-side steps on you
 | Bundle ID | `com.mayooran.ApolloX` |
 | Display name | `Void Runner` (`INFOPLIST_KEY_CFBundleDisplayName`) |
 | Team ID | `2YJ478267N` |
-| Marketing version | `1.0` |
-| Build number | `41` (increment `CURRENT_PROJECT_VERSION` before each new upload) |
+| Marketing version | `2.0` |
+| Build number | `42` (increment `CURRENT_PROJECT_VERSION` before each new upload) |
 | Export compliance | `ITSAppUsesNonExemptEncryption = NO` (standard HTTPS only) |
 | Game Center entitlement | `ApolloX/ApolloX.entitlements` (`com.apple.developer.game-center`) |
 | Classic leaderboard ID | `com.mayooran.ApolloX.classicHighScore` (top 5 in **Ranks**) |

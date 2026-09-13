@@ -210,7 +210,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
                 player.position.x = GameRules.clampPlayerX(
                     x: nudged,
                     playMinX: playArea.minX,
-                    playMaxX: playArea.maxX,
+                    playMaxX: playerSteeringMaxX,
                     halfWidth: halfWidth
                 )
             }
@@ -337,7 +337,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         player.position.x = GameRules.clampPlayerX(
             x: targetX,
             playMinX: playArea.minX,
-            playMaxX: playArea.maxX,
+            playMaxX: playerSteeringMaxX,
             halfWidth: halfWidth
         )
     }
@@ -383,7 +383,7 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
             player.position.x = GameRules.clampPlayerX(
                 x: player.position.x,
                 playMinX: playArea.minX,
-                playMaxX: playArea.maxX,
+                playMaxX: playerSteeringMaxX,
                 halfWidth: player.size.width * player.xScale * 0.45
             )
             player.position.y = GameRules.playerBaselineY(
@@ -502,8 +502,8 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         scrollingBackground?.applyEffectsQuality(quality)
     }
 
-    private var bossProjectileCap: Int {
-        FramePacing.currentQuality.maxBossProjectiles
+    private var playerSteeringMaxX: CGFloat {
+        GameRules.playerSteeringMaxX(playMaxX: playArea.maxX)
     }
 
     @objc private func appWillResignActive() {

@@ -44,7 +44,7 @@ enum EffectsQuality: Equatable {
     var parallaxStarCount: Int {
         switch self {
         case .high: return 18
-        case .balanced: return 6
+        case .balanced: return 4
         case .conservative: return 0
         }
     }
@@ -62,7 +62,7 @@ enum EffectsQuality: Equatable {
     var maxBossProjectiles: Int {
         switch self {
         case .high: return GameRules.maxBossProjectiles
-        case .balanced: return 14
+        case .balanced: return 12
         case .conservative: return 10
         }
     }
@@ -107,7 +107,8 @@ enum EffectsQuality: Equatable {
 ///
 /// VFX baseline is gated by SoC generation, not ProMotion alone: iPhone 13/14 Pro
 /// report 120 Hz but cannot sustain `.high` particle / flame / boss budgets that
-/// A17 Pro+ (15 Pro / 16 Pro / 17 Pro …) can.
+/// A17 Pro+ (15 Pro / 16 Pro / 17 Pro …) can. A15 ProMotion is also refresh-capped
+/// at 90 Hz so 13 Pro stays smooth from iPhone 13 through 17 Pro.
 enum FramePacing {
     /// Ignore debugger / multitasking stalls larger than this when scoring hitches.
     static let hitchIgnoreThreshold: TimeInterval = 0.25
@@ -121,7 +122,9 @@ enum FramePacing {
     static let midTierHitchRecoveryFrameStreak = 240
     /// Frame overrun multiplier before demoting — tighter on mid-tier SoCs.
     static let highTierHitchOverrunFactor: Double = 1.35
-    static let midTierHitchOverrunFactor: Double = 1.22
+    static let midTierHitchOverrunFactor: Double = 1.16
+    /// A15 ProMotion (iPhone 13 Pro / Pro Max) holds 90 Hz more reliably than 120.
+    static let a15ProMotionFrameCap = 90
     /// Bytes — soft floor for unknown future devices when machine id is unavailable.
     static let highEffectsMemoryFloor: UInt64 = 7 * 1024 * 1024 * 1024
 
@@ -164,10 +167,11 @@ enum FramePacing {
 
     /// Testable SoC gate. ProMotion alone is not enough — A15/A16 Pros lag on `.high`.
     ///
-    /// - iPhone14,* → 13 / 13 Pro family (A15) → balanced
-    /// - iPhone15,* → 14 / 14 Pro family (A16) → balanced
-    /// - iPhone16,* → 15 Pro family (A17 Pro) → high
-    /// - iPhone17,*+ → 16 Pro / newer → high
+    /// - iPhone14,* → 13 / 13 Pro family (A15) → balanced, 90 Hz on ProMotion
+    /// - iPhone15,* → 14 / 14 Pro family (A16) → balanced, 120 Hz on ProMotion
+    /// - iPhone16,* → 15 Pro family (A17 Pro) → high, 120 Hz
+    /// - iPhone17,* → 16 Pro family → high, 120 Hz
+    /// - iPhone18,*+ → 17 Pro / newer → high, 120 Hz
     static func supportsHighEffects(
         machine: String,
         physicalMemory: UInt64 = ProcessInfo.processInfo.physicalMemory
@@ -188,10 +192,19 @@ enum FramePacing {
         return physicalMemory >= highEffectsMemoryFloor
     }
 
+    /// A15 ProMotion (`iPhone14,2` / `iPhone14,3`) cannot hold 120 Hz in late combat.
+    /// iPhone 14 Pro (A16, `iPhone15,*`) and A17 Pro+ keep a 120 Hz request.
+    /// Simulator identifiers (`arm64`) are not capped so CI still exercises 120 Hz.
+    static func proMotionRefreshCap(machine: String, hardwareMax: Int) -> Int {
+        guard hardwareMax >= 120, machine.hasPrefix("iPhone14,") else { return hardwareMax }
+        return min(hardwareMax, a15ProMotionFrameCap)
+    }
+
     static func preferredFramesPerSecond(
         hardwareMax: Int,
         thermalState: ProcessInfo.ThermalState,
-        lowPowerMode: Bool
+        lowPowerMode: Bool,
+        machine: String = currentMachineIdentifier()
     ) -> Int {
         let cap: Int
         if lowPowerMode {
@@ -206,7 +219,8 @@ enum FramePacing {
                 cap = hardwareMax
             }
         }
-        return max(30, min(max(hardwareMax, 30), cap))
+        let policy = max(30, min(max(hardwareMax, 30), cap))
+        return min(policy, proMotionRefreshCap(machine: machine, hardwareMax: hardwareMax))
     }
 
     static func effectsQuality(
