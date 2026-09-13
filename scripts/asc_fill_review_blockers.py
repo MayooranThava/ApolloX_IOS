@@ -265,7 +265,7 @@ def print_status(state: dict[str, Any]) -> None:
         )
     print(
         "\nNote: App Privacy nutrition labels cannot be published via the API. "
-        "An Admin still has to complete App Privacy → data types → Publish in the web UI."
+        "Keep the web UI on Data Not Collected so it matches PrivacyInfo.xcprivacy."
     )
 
 

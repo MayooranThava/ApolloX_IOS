@@ -1,6 +1,6 @@
-# ApolloX
+# ApolloX (Void Runner)
 
-Portrait SpriteKit shooter for iPhone. Deployment target **iOS 16**. Bundle ID `com.mayooran.ApolloX`.
+Portrait SpriteKit shooter for iPhone. App Store / home-screen name **Void Runner**. Deployment target **iOS 16**. Bundle ID `com.mayooran.ApolloX`.
 
 ## Open and run
 
@@ -47,9 +47,10 @@ Repo-side prep for the first archive is done. Finish the Apple-side steps on you
 | Item | Value |
 |---|---|
 | Bundle ID | `com.mayooran.ApolloX` |
+| Display name | `Void Runner` (`INFOPLIST_KEY_CFBundleDisplayName`) |
 | Team ID | `2YJ478267N` |
-| Marketing version | `1.0.1` |
-| Build number | `1` (increment `CURRENT_PROJECT_VERSION` before each new upload) |
+| Marketing version | `1.0` |
+| Build number | `40` (increment `CURRENT_PROJECT_VERSION` before each new upload) |
 | Export compliance | `ITSAppUsesNonExemptEncryption = NO` (standard HTTPS only) |
 | Game Center entitlement | `ApolloX/ApolloX.entitlements` (`com.apple.developer.game-center`) |
 | Classic leaderboard ID | `com.mayooran.ApolloX.classicHighScore` (top 5 in **Ranks**) |
@@ -161,7 +162,8 @@ Do these on a real phone. The simulator cannot prove ProMotion, haptics, thermal
 - [ ] A 60 Hz iPhone (non-Pro) still plays smoothly
 - [ ] Silent switch mutes SFX (`AVAudioSession` is `.ambient`); Settings Sound Off mutes too
 - [ ] Organizer / TestFlight crash reports are empty after a 15-minute session
-- [ ] App Store Connect: privacy nutrition label matches `PrivacyInfo.xcprivacy` (UserDefaults + Game Center User ID / Product Interaction, no tracking)
+- [ ] App Store Connect: privacy nutrition label is **Data Not Collected** and matches `PrivacyInfo.xcprivacy` (UserDefaults `CA92.1` only, no tracking)
+- [ ] Home screen, launch screen, and title scene all say **Void Runner** (not ApolloX)
 - [ ] Age rating questionnaire is current (Apple updated this in 2026)
 - [ ] Screenshots for 6.7" and 6.1" iPhone match *this* binary
 - [ ] Support URL and privacy policy URL load

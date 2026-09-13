@@ -12,6 +12,8 @@ enum GameConstants {
 
     static let fontName = "The Bold Font"
     static let fallbackFontName = "AvenirNext-Bold"
+    /// Home-screen and in-game brand. Bundle ID stays `com.mayooran.ApolloX`.
+    static let displayName = "Void Runner"
 
     static let startingLives = GameRules.startingLives
     /// Stars required to trigger a fire boost. One star = instant boost for snappier play.
