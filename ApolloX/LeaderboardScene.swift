@@ -21,6 +21,7 @@ final class LeaderboardScene: SKScene {
     private var rowNodes: [SKNode] = []
     private var lastBackgroundTick: TimeInterval = 0
     private var isLoading = false
+    private var reloadGeneration = 0
 
     override func didMove(to view: SKView) {
         view.accessibilityIdentifier = GameConstants.Accessibility.leaderboardScene
@@ -54,6 +55,8 @@ final class LeaderboardScene: SKScene {
         statusLabel.zPosition = GameConstants.Z.hud
         statusLabel.numberOfLines = 3
         statusLabel.preferredMaxLayoutWidth = 900
+        statusLabel.isHidden = true
+        statusLabel.alpha = 0
         addChild(statusLabel)
 
         listRoot.zPosition = GameConstants.Z.hud
@@ -74,12 +77,10 @@ final class LeaderboardScene: SKScene {
 
         titleLabel.alpha = 0
         subtitleLabel.alpha = 0
-        statusLabel.alpha = 0
         back.alpha = 0
         gc.alpha = 0
         titleLabel.run(.fadeIn(withDuration: 0.35))
         subtitleLabel.run(.sequence([.wait(forDuration: 0.06), .fadeIn(withDuration: 0.35)]))
-        statusLabel.run(.sequence([.wait(forDuration: 0.1), .fadeIn(withDuration: 0.35)]))
         back.run(.sequence([.wait(forDuration: 0.14), .fadeIn(withDuration: 0.35)]))
         gc.run(.sequence([.wait(forDuration: 0.18), .fadeIn(withDuration: 0.35)]))
 
@@ -151,38 +152,56 @@ final class LeaderboardScene: SKScene {
         }
     }
 
+    private func showStatus(_ text: String, color: SKColor = SKColor(white: 0.78, alpha: 1)) {
+        statusLabel.removeAllActions()
+        statusLabel.text = text
+        statusLabel.fontColor = color
+        statusLabel.isHidden = false
+        statusLabel.alpha = 1
+    }
+
+    private func hideStatus() {
+        statusLabel.removeAllActions()
+        statusLabel.text = ""
+        statusLabel.alpha = 0
+        statusLabel.isHidden = true
+    }
+
     private func reloadEntries() {
         guard !isLoading else { return }
         isLoading = true
+        reloadGeneration += 1
+        let generation = reloadGeneration
         clearRows()
         retryButton?.isHidden = true
-        statusLabel.alpha = 1
-        statusLabel.text = "Loading top \(GameCenterService.topEntryCount)…"
-        statusLabel.fontColor = SKColor(white: 0.78, alpha: 1)
+        showStatus("Loading top \(GameCenterService.topEntryCount)…")
         GameCenterService.authenticateAtLaunch()
 
         GameCenterService.loadTopEntries { [weak self] result in
-            guard let self else { return }
+            guard let self, generation == self.reloadGeneration else { return }
             self.isLoading = false
             switch result {
             case .success(let entries):
                 if entries.isEmpty {
-                    self.statusLabel.text = "No scores yet — be the first on the board.\nIf Game Center shows Pre-release, submit the leaderboard with this app version."
-                    self.statusLabel.fontColor = GameTheme.accent
+                    self.showStatus(
+                        "No scores yet — be the first on the board.\nIf Game Center shows Pre-release, submit the leaderboard with this app version.",
+                        color: GameTheme.accent
+                    )
                 } else {
-                    self.statusLabel.alpha = 0
+                    self.hideStatus()
                     self.show(entries: entries)
                     if let local = entries.first(where: \.isLocalPlayer) {
                         AppSettings.lastKnownGameCenterRank = local.rank
                     }
                 }
             case .failure(let error):
-                self.statusLabel.alpha = 1
-                self.statusLabel.fontColor = GameTheme.accent
                 if let gcError = error as? GameCenterError, gcError == .notAuthenticated {
-                    self.statusLabel.text = "Sign in to Game Center to see global ranks.\nYour local best still saves on this device."
+                    self.showStatus(
+                        "Sign in to Game Center to see global ranks.\nYour local best still saves on this device.",
+                        color: GameTheme.accent
+                    )
                 } else {
-                    self.statusLabel.text = error.localizedDescription
+                    self.showStatus(error.localizedDescription, color: GameTheme.accent)
                 }
                 self.retryButton?.isHidden = false
                 self.retryButton?.alpha = 1
@@ -267,9 +286,7 @@ final class LeaderboardScene: SKScene {
             if GameCenterService.isAuthenticated {
                 GameCenterService.presentSystemLeaderboard()
             } else {
-                statusLabel.alpha = 1
-                statusLabel.fontColor = GameTheme.accent
-                statusLabel.text = "Sign in to Game Center to open the full board."
+                showStatus("Sign in to Game Center to open the full board.", color: GameTheme.accent)
                 retryButton?.isHidden = false
             }
             return

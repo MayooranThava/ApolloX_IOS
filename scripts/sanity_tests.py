@@ -374,6 +374,11 @@ def main() -> int:
     check("Ranks" in over and "LeaderboardScene" in over, "game over should link to ranks")
     check("Game Center" in leaderboard, "leaderboard scene should offer Apple's Game Center UI")
     check("SKShapeNode()" not in leaderboard, "leaderboard chrome should use sprite-batched rounded rects")
+    check("func hideStatus" in leaderboard and "isHidden = true" in leaderboard,
+          "Ranks must hide the loading label after Game Center returns rows")
+    check("statusLabel.run(" not in leaderboard,
+          "Ranks must not auto-fade the loading label (it ghosts over the top 5)")
+    check("reloadGeneration" in leaderboard, "stale Game Center callbacks must not restore Loading top 5")
     check("soundEnabled" in settings_src and "hapticsEnabled" in settings_src, "settings toggles missing")
     check("musicEnabled" in settings_src and "musicVolume" in settings_src and "sfxVolume" in settings_src,
           "music and volume settings missing")
@@ -478,7 +483,20 @@ def main() -> int:
     check(pbx.count('INFOPLIST_KEY_CFBundleDisplayName = "Void Runner";') == 2,
           "Debug and Release app configs must ship as Void Runner")
     check(pbx.count("MARKETING_VERSION = 2.0;") >= 2, "app archives must use marketing version 2.0")
-    check(pbx.count("CURRENT_PROJECT_VERSION = 43;") >= 2, "next App Store binary should be build 43")
+    check(pbx.count("CURRENT_PROJECT_VERSION = 45;") >= 2, "next App Store binary should be build 45")
+    check('withKey: "hitPulse"' in SCENE, "hit pulse must replace itself so bosses cannot grow")
+    check("obstacleHitPulseBaseScale" in SCENE and "obstacleHitPulseBaseScale" in RULES,
+          "hit pulse must use designed scale, not live sprite xScale")
+    check("sprite?.xScale ?? GameRules.bossScale" not in SCENE,
+          "hit pulse must not sample live xScale (compounds every shot)")
+    check("readableBossHealthFillRGB" in RULES and "readableBossHealthFillRGB" in HUD,
+          "boss HP fill must lift banner RGB so Void Leviathan reads on OLED")
+    check("bossHealthFillHeight" in RULES and "bossHealthFillHeight" in HUD,
+          "boss HP track must use the taller GameRules fill height")
+    check("testHitPulseUsesDesignedScaleNotLiveSpriteScale" in (ROOT / "ApolloXTests" / "GameRulesTests.swift").read_text(),
+          "XCTest should lock hit-pulse rest scale against live sprite growth")
+    check("testBossHealthFillIsBrighterThanDesignedBanner" in (ROOT / "ApolloXTests" / "GameRulesTests.swift").read_text(),
+          "XCTest should lock first-boss HP fill brightness")
     check("testLaunchStaysOnTitleWithoutCrashing" in (ROOT / "ApolloXUITests" / "LaunchSmokeTests.swift").read_text(),
           "UI smoke should cover a stable title launch, not only first-frame existence")
     check("liveBullets" in SCENE, "combat should keep live bullet lists instead of enumerating the scene graph")

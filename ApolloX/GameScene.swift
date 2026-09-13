@@ -2562,13 +2562,14 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         }
 
         if hp > 0 {
-            let baseScale = (kind == .boss)
-                ? (sprite?.xScale ?? GameRules.bossScale)
-                : kind.scale
+            let baseScale = GameRules.obstacleHitPulseBaseScale(
+                kind: kind,
+                profileScale: activeBossProfile?.scale ?? GameRules.bossScale
+            )
             node.run(.sequence([
-                .scale(to: baseScale * 1.08, duration: 0.06),
+                .scale(to: baseScale * GameRules.obstacleHitPulseMultiplier, duration: 0.06),
                 .scale(to: baseScale, duration: 0.08)
-            ]))
+            ]), withKey: "hitPulse")
             spawnExplosion(at: blastPoint, image: "mini_explosion", scale: kind == .boss ? 0.75 : 0.55)
             HapticManager.enemyDestroyed()
             return

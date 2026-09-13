@@ -501,18 +501,18 @@ final class BossHealthBarNode: SKNode {
         fill.anchorPoint = CGPoint(x: 0, y: 0.5)
         addChild(fill)
 
-        title.fontName = GameFont.resolved(size: 18)
-        title.fontSize = 18
+        title.fontName = GameFont.resolved(size: 22)
+        title.fontSize = 22
         title.fontColor = GameTheme.accent
         title.text = "SPACE MONSTER"
         title.verticalAlignmentMode = .center
-        title.horizontalAlignmentMode = .center
+        title.horizontalAlignmentMode = .left
         title.zPosition = 2
         addChild(title)
 
-        hpLabel.fontName = GameFont.resolved(size: 13)
-        hpLabel.fontSize = 13
-        hpLabel.fontColor = SKColor(white: 1, alpha: 0.72)
+        hpLabel.fontName = GameFont.resolved(size: 22)
+        hpLabel.fontSize = 22
+        hpLabel.fontColor = .white
         hpLabel.text = ""
         hpLabel.verticalAlignmentMode = .center
         hpLabel.horizontalAlignmentMode = .right
@@ -525,47 +525,43 @@ final class BossHealthBarNode: SKNode {
     }
 
     func layout(in safeRect: CGRect, below hudHeight: CGFloat) {
-        let width = min(safeRect.width - 64, 540)
-        let height: CGFloat = 78
-        barWidth = width - 40
+        let width = min(safeRect.width - 64, 560)
+        let height = GameRules.bossHealthBarHeight
+        barWidth = width - 36
+        let fillHeight = GameRules.bossHealthFillHeight
 
         panel.size = CGSize(width: width, height: height)
         panel.texture = ShapeTexture.roundedRect(
             size: panel.size,
-            cornerRadius: 16,
-            fill: SKColor(red: 0.06, green: 0.10, blue: 0.20, alpha: 0.92),
-            stroke: SKColor(red: 0.92, green: 0.78, blue: 0.32, alpha: 0.55),
-            lineWidth: 2.5
+            cornerRadius: 18,
+            fill: SKColor(red: 0.03, green: 0.05, blue: 0.12, alpha: 0.96),
+            stroke: SKColor(red: 1.0, green: 0.84, blue: 0.38, alpha: 0.85),
+            lineWidth: 3
         )
 
-        glow.size = CGSize(width: width + 18, height: height + 14)
-        glow.texture = ShapeTexture.roundedRect(
-            size: glow.size,
-            cornerRadius: 20,
-            fill: SKColor(red: 0.35, green: 0.70, blue: 1.0, alpha: 0.14),
-            stroke: .clear,
-            lineWidth: 0
-        )
+        glow.size = CGSize(width: width + 22, height: height + 18)
+        refreshGlow()
 
         // Sit clearly under the HUD status row so FIRE BOOST never overlaps the name.
-        position = CGPoint(x: safeRect.midX, y: safeRect.maxY - hudHeight - height * 0.5 - 36)
+        position = CGPoint(x: safeRect.midX, y: safeRect.maxY - hudHeight - height * 0.5 - 28)
 
-        title.position = CGPoint(x: 0, y: 20)
+        title.horizontalAlignmentMode = .left
+        title.position = CGPoint(x: -barWidth * 0.5 + 4, y: 24)
         hpLabel.horizontalAlignmentMode = .right
-        hpLabel.position = CGPoint(x: barWidth * 0.5 - 2, y: -30)
+        hpLabel.position = CGPoint(x: barWidth * 0.5 - 4, y: 24)
 
-        track.size = CGSize(width: barWidth, height: 18)
+        track.size = CGSize(width: barWidth, height: fillHeight)
         track.texture = ShapeTexture.roundedRect(
             size: track.size,
-            cornerRadius: 9,
-            fill: SKColor(white: 1, alpha: 0.10),
-            stroke: SKColor(white: 1, alpha: 0.10),
-            lineWidth: 1
+            cornerRadius: fillHeight * 0.5,
+            fill: SKColor(red: 0.01, green: 0.02, blue: 0.05, alpha: 0.98),
+            stroke: SKColor(red: 1.0, green: 0.84, blue: 0.38, alpha: 0.45),
+            lineWidth: 2
         )
-        track.position = CGPoint(x: 0, y: -8)
+        track.position = CGPoint(x: 0, y: -14)
 
         fill.anchorPoint = CGPoint(x: 0, y: 0.5)
-        fill.position = CGPoint(x: -barWidth * 0.5, y: -8)
+        fill.position = CGPoint(x: -barWidth * 0.5, y: -14)
         applyFill(ratio: lastRatio)
     }
 
@@ -573,9 +569,12 @@ final class BossHealthBarNode: SKNode {
         isHidden = false
         self.title.text = title.uppercased()
         if let accent {
-            fillColor = accent
-            fill.color = accent
+            var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
+            accent.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+            let lifted = GameRules.readableBossHealthFillRGB(red: red, green: green, blue: blue)
+            fillColor = SKColor(red: lifted.red, green: lifted.green, blue: lifted.blue, alpha: 1)
         }
+        refreshGlow()
         setHP(current: maxHP, maximum: maxHP)
         glow.removeAllActions()
         glow.alpha = 1
@@ -595,26 +594,47 @@ final class BossHealthBarNode: SKNode {
         lastRatio = max(0, min(1, ratio))
         applyFill(ratio: lastRatio)
         hpLabel.text = "\(max(0, current))/\(max(0, maximum))"
+        isAccessibilityElement = true
+        accessibilityLabel = "\(title.text ?? "Boss") health \(hpLabel.text ?? "")"
     }
 
     func pulseDamage() {
+        fill.removeAction(forKey: "hpFlash")
         fill.run(.sequence([
-            .colorize(with: .white, colorBlendFactor: 0.45, duration: 0.05),
+            .run { [weak self] in
+                self?.fill.color = .white
+                self?.fill.colorBlendFactor = 0.85
+            },
+            .wait(forDuration: 0.07),
             .run { [weak self] in
                 guard let self else { return }
-                self.fill.colorBlendFactor = 0
-                self.fill.color = .white
+                self.applyFill(ratio: self.lastRatio)
             }
-        ]))
+        ]), withKey: "hpFlash")
+    }
+
+    private func refreshGlow() {
+        guard glow.size.width > 1, glow.size.height > 1 else { return }
+        glow.texture = ShapeTexture.roundedRect(
+            size: glow.size,
+            cornerRadius: 22,
+            fill: fillColor.withAlphaComponent(0.22),
+            stroke: .clear,
+            lineWidth: 0
+        )
+        glow.color = .white
+        glow.colorBlendFactor = 0
     }
 
     /// Resize the fill sprite directly — Texture + xScale was rendering as an empty track on device.
     private func applyFill(ratio: CGFloat) {
         let width = max(barWidth * ratio, 0)
-        let height: CGFloat = 18
+        let height = GameRules.bossHealthFillHeight
         fill.xScale = 1
         fill.yScale = 1
         fill.alpha = ratio > 0.001 ? 1 : 0
+        fill.color = .white
+        fill.colorBlendFactor = 0
         guard width > 0.5 else {
             fill.size = CGSize(width: 0.01, height: height)
             return
@@ -622,13 +642,11 @@ final class BossHealthBarNode: SKNode {
         fill.size = CGSize(width: width, height: height)
         fill.texture = ShapeTexture.roundedRect(
             size: CGSize(width: width, height: height),
-            cornerRadius: 9,
+            cornerRadius: height * 0.5,
             fill: fillColor,
-            stroke: SKColor(white: 1, alpha: 0.18),
-            lineWidth: 1
+            stroke: SKColor(white: 1, alpha: 0.35),
+            lineWidth: 1.5
         )
-        fill.color = .white
-        fill.colorBlendFactor = 0
     }
 }
 
