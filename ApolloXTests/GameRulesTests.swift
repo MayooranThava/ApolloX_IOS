@@ -757,7 +757,6 @@ final class GameRulesTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(GameRules.specialButtonLift, 220)
         XCTAssertLessThanOrEqual(GameRules.specialButtonLift, 320)
         XCTAssertEqual(GameRules.specialButtonInsetX, 78)
-        XCTAssertEqual(GameRules.specialButtonPlayerClearanceX, 132)
 
         let safe = CGRect(x: 0, y: 47, width: 390, height: 750)
         let center = GameRules.specialButtonCenter(in: safe)
@@ -773,22 +772,36 @@ final class GameRulesTests: XCTestCase {
             "grenade plate + caption must clear the hull"
         )
 
-        let steeringMax = GameRules.playerSteeringMaxX(playMaxX: safe.maxX)
-        XCTAssertEqual(steeringMax, safe.maxX - GameRules.specialButtonPlayerClearanceX)
-        let hullHalf: CGFloat = 40
-        let clamped = GameRules.clampPlayerX(
-            x: 400,
-            playMinX: safe.minX,
-            playMaxX: steeringMax,
-            halfWidth: hullHalf
-        )
-        XCTAssertLessThanOrEqual(clamped + hullHalf, center.x - plateHalf + 0.5)
-
         let button = SpecialWeaponButton()
         button.layout(in: safe)
         XCTAssertEqual(button.position.x, center.x, accuracy: 0.01)
         XCTAssertEqual(button.position.y, center.y, accuracy: 0.01)
         XCTAssertEqual(button.name, GameConstants.NodeName.specialButton)
         XCTAssertEqual(button.accessibilityLabel, "Special weapon")
+    }
+
+    func testPlayerSteeringReachesPlayfieldEdgeWithoutClippingHull() {
+        XCTAssertEqual(GameRules.playerVisibleHalfWidthFactor, 0.5, accuracy: 0.001)
+        let half = GameRules.playerVisibleHalfWidth(spriteWidth: 120, scale: 1)
+        XCTAssertEqual(half, 60, accuracy: 0.01)
+
+        let playMaxX: CGFloat = 390
+        let clamped = GameRules.clampPlayerX(
+            x: 9_999,
+            playMinX: 0,
+            playMaxX: playMaxX,
+            halfWidth: half
+        )
+        XCTAssertEqual(clamped, playMaxX - half, accuracy: 0.01)
+        XCTAssertEqual(clamped + half, playMaxX, accuracy: 0.01)
+        XCTAssertGreaterThan(
+            clamped,
+            playMaxX - 132,
+            "must not reserve a dead lane for the special button"
+        )
+
+        let left = GameRules.clampPlayerX(x: -50, playMinX: 0, playMaxX: playMaxX, halfWidth: half)
+        XCTAssertEqual(left, half, accuracy: 0.01)
+        XCTAssertEqual(left - half, 0, accuracy: 0.01)
     }
 }

@@ -29,8 +29,8 @@ enum GameRules {
     /// Prior layout used `minY + 110`, which covered the rocket on every iPhone 13–17 size.
     static let specialButtonLift: CGFloat = 248
     static let specialButtonInsetX: CGFloat = 78
-    /// Plate half-width (54) + inset (78). Player clamp treats this as the right play edge.
-    static let specialButtonPlayerClearanceX: CGFloat = 132
+    /// Half of the scaled sprite used when clamping X so the hull stays fully on-screen.
+    static let playerVisibleHalfWidthFactor: CGFloat = 0.5
     static let starScale: CGFloat = 0.58
     static let starPulseScale: CGFloat = 0.66
 
@@ -467,9 +467,9 @@ enum GameRules {
         min(max(x, playMinX + halfWidth), playMaxX - halfWidth)
     }
 
-    /// Right-edge clamp so the player rocket cannot park under the special button.
-    static func playerSteeringMaxX(playMaxX: CGFloat) -> CGFloat {
-        playMaxX - specialButtonPlayerClearanceX
+    /// Visible hull half-width for steering — keeps the full rocket inside the playfield.
+    static func playerVisibleHalfWidth(spriteWidth: CGFloat, scale: CGFloat) -> CGFloat {
+        max(12, spriteWidth * scale * playerVisibleHalfWidthFactor)
     }
 
     static func specialButtonCenter(in safeRect: CGRect) -> CGPoint {

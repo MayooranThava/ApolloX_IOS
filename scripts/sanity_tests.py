@@ -281,26 +281,32 @@ def main() -> int:
     check("scatterBolts" in (ROOT / "ApolloX" / "WeaponCatalog.swift").read_text(), "scatter bolts primary expected")
     check("fireSpecial" in SCENE and "SpecialWeaponButton" in SCENE, "GameScene needs special hardpoint trigger")
     check("GameRules.specialButtonCenter" in HUD, "special button layout must use GameRules.specialButtonCenter")
-    check("specialButtonLift" in RULES and "specialButtonPlayerClearanceX" in RULES,
-          "special button lift / player clearance constants missing")
+    check("specialButtonLift" in RULES, "special button lift constant missing")
     lift = swift_number(RULES, "specialButtonLift")
     check(lift >= 220, f"special button lift {lift} is still on the rocket (need >= 220)")
     check(lift <= 320, f"special button lift {lift} should stay in the thumb zone (need <= 320)")
-    check(swift_number(RULES, "specialButtonPlayerClearanceX") >= 120,
-          "player steering must keep the hull left of the special plate")
+    check("specialButtonPlayerClearanceX" not in RULES, "do not reserve a dead lane under the lifted special button")
+    check("playerVisibleHalfWidth" in RULES, "steering must clamp using the visible hull half-width")
+    check(swift_number(RULES, "playerVisibleHalfWidthFactor") == 0.5,
+          "player X clamp should keep the full rocket inside the playfield")
     steer_start = SCENE.find("private func applyPlayerSteering()")
     steer_end = SCENE.find("private func updateBossVulnerability()", steer_start)
     steer_block = SCENE[steer_start:steer_end]
-    check("playerSteeringMaxX" in steer_block, "steering must keep the rocket out of the special-button column")
-    check("playArea.maxX" not in steer_block, "player steering should not use the full playfield max X")
+    check("playArea.maxX" in steer_block, "player steering must use the full playfield width")
+    check("playerSteeringMaxX" not in steer_block, "steering must not inset a special-button dead lane")
+    check("playerVisibleHalfWidth" in steer_block, "steering must keep the full hull in frame")
     gravity_start = SCENE.find("private func applySoftBossEffects()")
     gravity_end = SCENE.find("private func activateSoftGravity", gravity_start)
     gravity_block = SCENE[gravity_start:gravity_end]
-    check("playerSteeringMaxX" in gravity_block, "gravity well must not pull the rocket under the special button")
+    check("playArea.maxX" in gravity_block, "gravity well must allow the rocket to the playfield edge")
+    check("playerSteeringMaxX" not in gravity_block, "gravity well must not use a special-button dead lane")
     layout_start = SCENE.find("private func relayoutForSafeArea()")
     layout_end = SCENE.find("private func configureLoadout()", layout_start)
     layout_block = SCENE[layout_start:layout_end]
-    check("playerSteeringMaxX" in layout_block, "safe-area relayout must clamp the rocket clear of the special button")
+    check("playArea.maxX" in layout_block, "safe-area relayout must clamp to the full playfield")
+    check("playerSteeringMaxX" not in layout_block, "relayout must not inset a special-button dead lane")
+    check("testPlayerSteeringReachesPlayfieldEdgeWithoutClippingHull" in (ROOT / "ApolloXTests" / "GameRulesTests.swift").read_text(),
+          "XCTest should lock full-width steering without clipping the hull")
     check("specialButton" in (ROOT / "ApolloX" / "GameConstants.swift").read_text(),
           "special button needs an accessibility identifier")
     check("liveSpecials" in SCENE and "specialPool" in SCENE, "specials should use pooled live lists")
