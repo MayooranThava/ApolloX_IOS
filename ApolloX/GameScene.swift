@@ -506,6 +506,10 @@ final class GameScene: SKScene, SKPhysicsContactDelegate {
         GameRules.playerSteeringMaxX(playMaxX: playArea.maxX)
     }
 
+    private var bossProjectileCap: Int {
+        FramePacing.currentQuality.maxBossProjectiles
+    }
+
     @objc private func appWillResignActive() {
         guard currentState == .playing, !requiresManualResume else { return }
         freezeGameplay()

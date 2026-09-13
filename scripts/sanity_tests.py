@@ -480,6 +480,7 @@ def main() -> int:
     check("hardwareMaxFPS" in pacing_src, "effects quality should scale baseline VFX for 60 Hz phones")
     check("physicsBody = nil" in SCENE, "bullets should skip physics; swept tests handle hits")
     check("maxBossProjectiles" in pacing_src, "boss projectile cap should scale with effects quality")
+    check("bossProjectileCap" in SCENE, "GameScene must honor the quality-scaled boss projectile cap")
 
     import time
 
