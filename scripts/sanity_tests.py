@@ -378,10 +378,25 @@ def main() -> int:
     check((ROOT / ".gitignore").exists(), ".gitignore missing")
 
     privacy = (ROOT / "ApolloX" / "PrivacyInfo.xcprivacy").read_text()
-    check("NSPrivacyCollectedDataTypeUserID" in privacy, "privacy manifest should declare Game Center user ID")
-    check("NSPrivacyCollectedDataTypeProductInteraction" in privacy,
-          "privacy manifest should declare score / product interaction for leaderboards")
+    check("NSPrivacyCollectedDataTypeUserID" not in privacy,
+          "privacy manifest must not declare collected User ID (App Privacy is Data Not Collected)")
+    check("NSPrivacyCollectedDataTypeProductInteraction" not in privacy,
+          "privacy manifest must not declare collected Product Interaction (App Privacy is Data Not Collected)")
+    check("NSPrivacyCollectedDataTypes" in privacy, "privacy manifest must include an (empty) collected-data array")
+    check("CA92.1" in privacy, "UserDefaults access reason CA92.1 required")
     check("NSPrivacyTracking" in privacy and "<false/>" in privacy, "app must not declare tracking")
+
+    check('static let displayName = "Void Runner"' in CONSTANTS, "GameConstants.displayName must be Void Runner")
+    check("GameConstants.displayName" in title, "title scene must use GameConstants.displayName")
+    check('text = "ApolloX"' not in title, "title scene must not hardcode ApolloX")
+    launch = (ROOT / "ApolloX" / "Base.lproj" / "LaunchScreen.storyboard").read_text()
+    check("Void Runner" in launch, "launch screen must say Void Runner")
+    check("ApolloX" not in launch, "launch screen must not say ApolloX")
+    pbx = (ROOT / "ApolloX.xcodeproj" / "project.pbxproj").read_text()
+    check('INFOPLIST_KEY_CFBundleDisplayName = "Void Runner"' in pbx, "home-screen display name must be Void Runner")
+    check("public.app-category.action-games" in pbx, "Info.plist category should match Games → Action")
+    settings_ui = (ROOT / "ApolloX" / "SettingsScene.swift").read_text()
+    check("GameConstants.displayName" in settings_ui, "Settings footer should use GameConstants.displayName")
 
     scene_helpers = (ROOT / "ApolloX" / "SceneHelpers.swift").read_text()
     scrolling_bg = ROOT / "ApolloX" / "ScrollingBackgroundNode.swift"

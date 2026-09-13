@@ -28,27 +28,31 @@ final class GameTitleScene: SKScene {
 
     override func didMove(to view: SKView) {
         view.accessibilityIdentifier = GameConstants.Accessibility.titleScene
-        view.accessibilityLabel = "ApolloX"
+        view.accessibilityLabel = GameConstants.displayName
         HapticManager.prepare()
         GameCenterService.authenticateAtLaunch()
         GameCenterService.loadLocalPlayerRank { _ in }
         AudioManager.startBackgroundMusicIfNeeded()
         addProductionBackground()
 
-        titleLabel.fontName = GameFont.resolved(size: 128)
-        titleLabel.text = "ApolloX"
-        titleLabel.fontSize = 128
+        titleLabel.fontName = GameFont.resolved(size: 108)
+        titleLabel.text = GameConstants.displayName.uppercased().replacingOccurrences(of: " ", with: "\n")
+        titleLabel.fontSize = 108
         titleLabel.fontColor = .white
+        titleLabel.horizontalAlignmentMode = .center
         titleLabel.verticalAlignmentMode = .center
+        titleLabel.numberOfLines = 2
+        titleLabel.preferredMaxLayoutWidth = GameConstants.sceneSize.width - 160
         titleLabel.zPosition = GameConstants.Z.hud
         titleLabel.isAccessibilityElement = true
-        titleLabel.accessibilityLabel = "ApolloX"
+        titleLabel.accessibilityLabel = GameConstants.displayName
         addChild(titleLabel)
 
         subtitleLabel.fontName = GameFont.resolved(size: 34)
         subtitleLabel.text = "Dodge  •  Shoot  •  Survive"
         subtitleLabel.fontSize = 34
         subtitleLabel.fontColor = GameTheme.secondary
+        subtitleLabel.horizontalAlignmentMode = .center
         subtitleLabel.verticalAlignmentMode = .center
         subtitleLabel.zPosition = GameConstants.Z.hud
         addChild(subtitleLabel)
@@ -178,8 +182,9 @@ final class GameTitleScene: SKScene {
         relayoutProductionBackground()
         let safe = playfield.safeRect
 
-        titleLabel.position = CGPoint(x: safe.midX, y: safe.maxY - 110)
-        subtitleLabel.position = CGPoint(x: safe.midX, y: titleLabel.position.y - 78)
+        titleLabel.preferredMaxLayoutWidth = max(480, safe.width - 120)
+        titleLabel.position = CGPoint(x: safe.midX, y: safe.maxY - 168)
+        subtitleLabel.position = CGPoint(x: safe.midX, y: titleLabel.position.y - 168)
 
         // Hero owns the middle of the composition.
         if !isLaunching {

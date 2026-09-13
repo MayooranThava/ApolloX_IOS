@@ -45,31 +45,17 @@ Apple’s banner *“an Admin must provide information about the app’s privacy
 
 ### 1b. Data collection (nutrition label)
 
-These answers match `ApolloX/PrivacyInfo.xcprivacy` (User ID + Product Interaction, no tracking). High scores / hangar / settings stay on-device in UserDefaults and are **not** “collected.” Optional Game Center sends a player ID and scores to **Apple**.
+**Published answer: Data Not Collected.** That matches `ApolloX/PrivacyInfo.xcprivacy` (empty `NSPrivacyCollectedDataTypes`, UserDefaults access reason `CA92.1` only, `NSPrivacyTracking = false`). High scores / hangar / settings stay on-device. Optional Game Center is processed by **Apple**, not by the developer.
+
+If you ever have to re-publish the label:
 
 1. Click **Get Started** (or **Edit**).
 2. **Do you or your third-party partners collect data from this app?**  
-   → **Yes, we collect data from this app** → Next.
-3. Check only:
+   → **No, we do not collect data from this app**.
+3. Confirm **Used for Tracking** is off (no `NSUserTrackingUsageDescription`, no ATT).
+4. Click **Publish** (Save alone is not enough). The product page should show **Data Not Collected**.
 
-   | Group | Data type |
-   |---|---|
-   | Identifiers | **User ID** |
-   | Usage Data | **Product Interaction** |
-
-   Do **not** check Device ID, Location, Diagnostics, Purchases, Contact Info, Tracking, Advertising Data, or Gameplay Content.  
-   Save.
-
-4. For **each** type, click **Set Up** and answer the same way:
-
-   | Question | Answer |
-   |---|---|
-   | Purpose | **App Functionality** only (uncheck everything else) |
-   | Linked to the user’s identity? | **Yes, we link this data to the user’s identity** |
-   | Used for tracking purposes? | **No, we do not use this data for tracking purposes** |
-
-5. Confirm **Used for Tracking** is off for the whole app (no NSUserTrackingUsageDescription, no ATT).
-6. Click **Publish** (Save alone is not enough). The product page should show User ID + Product Interaction used for App Functionality, linked, not used to track.
+Do **not** declare User ID or Product Interaction on the nutrition label. Those types would disagree with both this policy and the privacy manifest, which App Review checks.
 
 If your Apple ID cannot Publish, an Account Holder / Admin of team **2YJ478267N** must complete 1a–1b.
 
@@ -204,11 +190,23 @@ Distribution → Game Center: enable, attach leaderboard `com.mayooran.ApolloX.c
 ## After filling
 
 1. App Information → Save.
-2. App Privacy → Publish.
+2. App Privacy → Publish (**Data Not Collected**).
 3. Version page → Save.
 4. Pink banner gone → **Add for Review** → Submit.
 
 If the banner remains, click **Show Details**. The leftover row is almost always an unpublished privacy label (needs Admin) or a 404 privacy URL (Pages not enabled).
+
+---
+
+## Replace the in-review binary (Void Runner on device)
+
+Guideline **2.3.8**: the App Store name, home-screen name, launch screen, and title scene must agree. This repo now ships **Void Runner** in all four. Bundle ID stays `com.mayooran.ApolloX`.
+
+Archive **version `1.0` build `40`** (`MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` in the ApolloX target). Do not upload as 1.0.1 — that creates a new version instead of replacing the one already in review.
+
+If version 1.0 is **Waiting for Review**, you cannot hot-swap the IPA. Remove it from review, attach build 40 once processing finishes, paste `docs/app-review-notes.md` again, and resubmit.
+
+Also re-run **Actions → GitHub Pages** so the live privacy policy still says Data Not Collected.
 
 ---
 
@@ -228,4 +226,4 @@ export ASC_PRIVATE_KEY="$(cat AuthKey_XXXXXXXXXX.p8)"
 3. Status only: `python3 scripts/asc_fill_review_blockers.py`
 4. Write: `python3 scripts/asc_fill_review_blockers.py --apply`
 
-Apple still does **not** let the API publish the App Privacy nutrition label. After `--apply`, an Admin must open **App Privacy**, declare User ID + Product Interaction (App Functionality, linked, not tracking), and **Publish**.
+Apple still does **not** let the API publish the App Privacy nutrition label. After `--apply`, an Admin must open **App Privacy**, choose **Data Not Collected**, and **Publish** so the label matches `PrivacyInfo.xcprivacy`.

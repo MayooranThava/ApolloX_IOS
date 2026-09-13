@@ -1,17 +1,19 @@
-# App Review notes (ApolloX / Void Runner)
+# App Review notes (Void Runner)
 
 Paste the sections below into **App Store Connect → App Review Information → Notes** when submitting.
 
 ## Game overview
 
-ApolloX is a portrait space shooter. The player drags to steer, auto-fires at asteroids, collects stars for a fire boost, dodges mines (two hits), and fights four rotating bosses. Credits earned each run unlock ships and weapons in the Hangar (Store).
+Void Runner is a portrait space shooter. The player drags to steer, auto-fires at asteroids, collects stars for a fire boost, dodges mines (two hits), and fights four rotating bosses. Credits earned each run unlock ships and weapons in the Hangar (Store).
+
+The Xcode target and bundle ID remain `com.mayooran.ApolloX`. The App Store name and on-device display name are **Void Runner**.
 
 No login beyond optional **Game Center** for global high scores and achievements. No IAP, ads, or third-party analytics in v1.0.
 
 ## Game Center testing
 
 1. Sign in on the test device: **Settings → Game Center** (sandbox Apple ID for TestFlight).
-2. Launch ApolloX → **Play** → finish onboarding (or **Settings → How to Play** to replay).
+2. Launch Void Runner → **Play** → finish onboarding (or **Settings → How to Play** to replay).
 3. Play a short run and die → **Game Over** shows score and credits.
 4. Tap **Ranks** — top 5 global scores load, or a signed-out message if Game Center is unavailable.
 5. Tap **Game Center** on the Ranks screen to open Apple’s dashboard (leaderboard ID `com.mayooran.ApolloX.classicHighScore`, localized name **High Score**).
@@ -25,7 +27,7 @@ No login beyond optional **Game Center** for global high scores and achievements
 | `com.mayooran.ApolloX.score50` | Rising Pilot | Reach score 50 in one run |
 | `com.mayooran.ApolloX.score100` | Ace in Training | Reach score 100 |
 | `com.mayooran.ApolloX.score500` | Void Veteran | Reach score 500 |
-| `com.mayooran.ApolloX.score1000` | Legend of ApolloX | Reach score 1000 |
+| `com.mayooran.ApolloX.score1000` | Legend of Void Runner | Reach score 1000 |
 | `com.mayooran.ApolloX.fiveLives` | Full Hull | Reach 5 lives (health pickups) |
 | `com.mayooran.ApolloX.buyShip` | Hangar Upgrade | Purchase any ship in Store → Hulls |
 | `com.mayooran.ApolloX.allBosses` | Boss Slayer | Defeat all 4 bosses in one run |

@@ -28,7 +28,7 @@ enum GameCenterAchievement: String, CaseIterable {
         case .score50: return "Rising Pilot"
         case .score100: return "Ace in Training"
         case .score500: return "Void Veteran"
-        case .score1000: return "Legend of ApolloX"
+        case .score1000: return "Legend of Void Runner"
         case .fiveLives: return "Full Hull"
         case .buyShip: return "Hangar Upgrade"
         case .allBosses: return "Boss Slayer"

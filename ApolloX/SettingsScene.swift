@@ -85,7 +85,7 @@ final class SettingsScene: SKScene {
         versionLabel.zPosition = GameConstants.Z.hud
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
         let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
-        versionLabel.text = "Void Runner  \(version) (\(build))"
+        versionLabel.text = "\(GameConstants.displayName)  \(version) (\(build))"
         addChild(versionLabel)
 
         whenSafeAreaReady { [weak self] in
